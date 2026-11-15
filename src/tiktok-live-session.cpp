@@ -22,6 +22,8 @@
 #include <cstring>
 #include <future>
 #include <thread>
+#include <vector>
+#include <mutex>
 #include <util/bmem.h>
 
 namespace {
@@ -183,8 +185,11 @@ bool TikTokLiveSession::Start(const TikTokOutputConfig &config, obs_output_t *ou
     for (auto output : outputs) {
         auto encoder = output ? obs_output_get_video_encoder(output) : nullptr;
         const char *codec = encoder ? obs_encoder_get_codec(encoder) : nullptr;
-        if (!codec || (strcmp(codec, "h264") != 0 && strcmp(codec, "hevc") != 0)) {
-            s.Fail("Choose an H.264 or HEVC encoder for each TikTok output.");
+        const bool supported = codec && (strcmp(codec, "h264") == 0 || strcmp(codec, "hevc") == 0);
+        if (encoder)
+            obs_encoder_release(encoder);
+        if (!supported) {
+            s.Fail("Choose an H.264 or HEVC encoder for the TikTok vertical output.");
             return false;
         }
     }
