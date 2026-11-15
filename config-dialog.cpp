@@ -346,6 +346,12 @@ OBSBasicSettings::OBSBasicSettings(CanvasDock *canvas_dock, QMainWindow *parent)
 			servers.pop_back();
 			keys.pop_back();
 			servers_enabled.pop_back();
+			if (!tiktok_config_buttons.empty())
+				tiktok_config_buttons.pop_back();
+			if (!output_settings.empty()) {
+				obs_data_release(output_settings.back());
+				output_settings.pop_back();
+			}
 		});
 		hl->addWidget(removeButton);
 

@@ -11,6 +11,7 @@
 struct obs_output;
 
 struct TikTokOutputConfig {
+    std::string method = "live-studio";
     std::string rapidApiKey;
     std::string cookieFilePath;
     std::string client = "pc";
@@ -20,6 +21,9 @@ struct TikTokOutputConfig {
     bool matureContent = false;
     TikTokLiveSettings liveSettings;
     QJsonObject deviceProfiles;
+    std::string streamlabsAccessToken;
+    std::string streamlabsCategory;
+    bool streamlabsMatureContent = false;
 };
 
 class TikTokLiveSession : public QObject {

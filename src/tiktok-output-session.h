@@ -7,22 +7,6 @@
 #include <memory>
 #include <string>
 
-struct TikTokOutputConfig {
-    std::string method = "live-studio";
-    std::string rapidApiKey;
-    std::string cookieFilePath;
-    std::string client = "pc";
-    std::string title;
-    std::string topicId;
-    std::string gameId;
-    bool matureContent = false;
-    TikTokLiveSettings liveSettings;
-    QJsonObject deviceProfiles;
-    std::string streamlabsAccessToken;
-    std::string streamlabsCategory;
-    bool streamlabsMatureContent = false;
-};
-
 class TikTokOutputSession {
 public:
     TikTokOutputSession() = default;
