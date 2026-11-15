@@ -9091,6 +9091,8 @@ static void PreserveTikTokOutputSettings(obs_data_t *previous, obs_data_t *incom
 		"tiktok_cookie_path",
 		"tiktok_topic_id",
 		"tiktok_game_id",
+		"tiktok_game_name",
+		"streamlabs_category_id",
 		"tiktok_content_disclosure",
 		"tiktok_device_profiles",
 		"streamlabs_access_token",
