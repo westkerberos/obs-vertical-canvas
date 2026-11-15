@@ -111,6 +111,20 @@ target_sources(${PROJECT_NAME} PRIVATE
 	file-updater.h
 	multi-canvas-source.h)
 
+	# TikTok integration lives inside this single Vertical Canvas module.
+	tiktok-live-session.cpp
+	tiktok-live-session.h
+	tiktok-output-session.cpp
+	tiktok-output-session.h
+	tiktok-output-settings-dialog.cpp
+	tiktok-output-settings-dialog.h
+	streamlabs-api.cpp
+	streamlabs-api.h
+	streamlabs-info.cpp
+	streamlabs-info.h
+	streamlabs-desktop.cpp
+	streamlabs-desktop.h)
+
 set(TIKTOK_NATIVE_SOURCES
   src/tiktok-native/domain_routing.cpp
   src/tiktok-native/frame_signing.cpp
