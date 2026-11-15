@@ -333,8 +333,9 @@ OBSBasicSettings::OBSBasicSettings(CanvasDock *canvas_dock, QMainWindow *parent)
 	tiktok_managed_output = new QComboBox(tiktok_managed_group);
 	tiktokManagedLayout->addRow("TikTok destination", tiktok_managed_output);
 	auto tiktokManagedHelp = new QLabel(
-		"Create a dedicated output named TikTok in Aitum Multistream, then select it here. "
-		"Vertical Canvas will obtain the LIVE server and key after TikTok authentication.",
+		"In Aitum Multistream, create a Custom RTMP output named TikTok. Use the temporary server "
+		"rtmp://placeholder.invalid/live and key pending, then select it here. Vertical Canvas "
+		"replaces these placeholders with TikTok's LIVE endpoint after authentication.",
 		tiktok_managed_group);
 	tiktokManagedHelp->setWordWrap(true);
 	tiktokManagedLayout->addRow(tiktokManagedHelp);
@@ -1220,17 +1221,22 @@ void OBSBasicSettings::LoadSettings()
 		tiktok_managed_group->setVisible(canvasDock->disable_stream_settings);
 		tiktok_managed_output->clear();
 		if (canvasDock->disable_stream_settings) {
+			int preferredOutput = -1;
 			for (size_t i = 0; i < canvasDock->streamOutputs.size(); ++i) {
 				const auto &output = canvasDock->streamOutputs[i];
 				const QString displayName = output.name.empty()
 					? QString("Output %1").arg(i + 1)
 					: QString::fromUtf8(output.name.c_str());
 				tiktok_managed_output->addItem(displayName, static_cast<int>(i));
+				if (displayName.contains("TikTok", Qt::CaseInsensitive))
+					preferredOutput = static_cast<int>(i);
 				auto *temporarySettings = obs_data_create();
 				if (output.settings)
 					obs_data_apply(temporarySettings, output.settings);
 				tiktok_managed_settings.emplace(static_cast<int>(i), temporarySettings);
 			}
+			if (preferredOutput >= 0)
+				tiktok_managed_output->setCurrentIndex(preferredOutput);
 		}
 		tiktok_managed_configure->setEnabled(tiktok_managed_output->count() > 0);
 	}
