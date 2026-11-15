@@ -22,6 +22,7 @@
 #include <QMessageBox>
 #include <QPixmap>
 #include <QProgressDialog>
+#include <QScrollArea>
 #include <QPushButton>
 #include <QTimer>
 #include <QVBoxLayout>
