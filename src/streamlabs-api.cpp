@@ -39,7 +39,7 @@ std::string StreamlabsAPI::ExtractStreamId(const std::string &key)
     
     std::string id;
     while (pos < key.size() && key[pos] != '?') {
-        if (!isdigit(static_cast<unsigned char>(key[pos])))
+        if (!std::isdigit(static_cast<unsigned char>(key[pos])))
             break;
         id.push_back(key[pos]);
         pos++;

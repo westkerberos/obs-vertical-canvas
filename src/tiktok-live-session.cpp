@@ -18,10 +18,13 @@
 #include <QVBoxLayout>
 #include <QTimer>
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
+#include <exception>
 #include <cstring>
 #include <future>
 #include <thread>
+#include <utility>
 #include <vector>
 #include <mutex>
 #include <util/bmem.h>

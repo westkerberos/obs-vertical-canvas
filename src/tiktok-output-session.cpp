@@ -6,7 +6,11 @@
 #include <QEventLoop>
 #include <QTimer>
 #include <obs-module.h>
+#include <atomic>
+#include <chrono>
+#include <exception>
 #include <future>
+#include <utility>
 
 TikTokOutputSession::~TikTokOutputSession()
 {

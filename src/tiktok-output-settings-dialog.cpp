@@ -28,7 +28,10 @@
 #include <QJsonObject>
 
 #include <atomic>
+#include <chrono>
+#include <exception>
 #include <future>
+#include <utility>
 
 namespace {
 class TikTokQrLoginDialog final : public QDialog {

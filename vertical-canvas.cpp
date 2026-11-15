@@ -1,6 +1,7 @@
 #include "vertical-canvas.hpp"
 
 #include <list>
+#include <exception>
 
 #include "version.h"
 
