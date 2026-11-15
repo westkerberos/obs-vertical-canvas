@@ -3,6 +3,7 @@
 #include "streamlabs-desktop.h"
 #include "tiktok-native/live_client.hpp"
 #include "tiktok-native/qr_login.hpp"
+#include "tiktok-native/tiktok_studio_topics.hpp"
 #include "tiktok-native/request_cancellation.hpp"
 
 #include <obs-module.h>
@@ -322,10 +323,21 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     cookieLayout->addWidget(qrLogin);
     studioForm->addRow("TikTok cookies", cookieRow);
 
-    auto *topicId = new QLineEdit(QString::fromUtf8(obs_data_get_string(settings, "tiktok_topic_id")), studioGroup);
+    auto *topicId = new QComboBox(studioGroup);
+    topicId->addItem("No topic", "");
+    for (const auto &topic : tiktok_studio_topics())
+        topicId->addItem(topic.name, topic.id);
+    const QString savedTopic = QString::fromUtf8(obs_data_get_string(settings, "tiktok_topic_id"));
+    const int topicIndex = topicId->findData(savedTopic);
+    topicId->setCurrentIndex(topicIndex < 0 ? 0 : topicIndex);
     auto *gameId = new QLineEdit(QString::fromUtf8(obs_data_get_string(settings, "tiktok_game_id")), studioGroup);
-    studioForm->addRow("Topic ID", topicId);
-    studioForm->addRow("Game ID (optional)", gameId);
+    gameId->setPlaceholderText("TikTok game tag ID (optional)");
+    studioForm->addRow("LIVE topic", topicId);
+    studioForm->addRow("Game tag ID", gameId);
+    gameId->setVisible(topicId->currentData().toString() == "5");
+    QObject::connect(topicId, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, [topicId, gameId] {
+        gameId->setVisible(topicId->currentData().toString() == "5");
+    });
     auto *allowGifts = new QCheckBox("Allow gifts", studioGroup);
     auto *allowComments = new QCheckBox("Allow comments", studioGroup);
     allowGifts->setChecked(obs_data_get_bool(settings, "tiktok_allow_gifts") || !obs_data_has_user_value(settings, "tiktok_allow_gifts"));
@@ -429,7 +441,7 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     obs_data_set_string(settings, "tiktok_title", title->text().toUtf8().constData());
     obs_data_set_string(settings, "tiktok_rapidapi_key", rapidApiKey->text().toUtf8().constData());
     obs_data_set_string(settings, "tiktok_cookie_path", cookiePath->text().toUtf8().constData());
-    obs_data_set_string(settings, "tiktok_topic_id", topicId->text().toUtf8().constData());
+    obs_data_set_string(settings, "tiktok_topic_id", topicId->currentData().toString().toUtf8().constData());
     obs_data_set_string(settings, "tiktok_game_id", gameId->text().toUtf8().constData());
     obs_data_set_bool(settings, "tiktok_allow_gifts", allowGifts->isChecked());
     obs_data_set_bool(settings, "tiktok_allow_comments", allowComments->isChecked());
