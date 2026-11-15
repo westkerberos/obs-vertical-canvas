@@ -350,8 +350,10 @@ OBSBasicSettings::OBSBasicSettings(CanvasDock *canvas_dock, QMainWindow *parent)
 			outputIndex < 0 || static_cast<size_t>(outputIndex) >= canvasDock->streamOutputs.size())
 			return;
 		const auto &outputName = canvasDock->streamOutputs[outputIndex].name;
-		ConfigureTikTokOutput(this, settingsIt->second,
-			QString::fromUtf8(outputName.empty() ? "TikTok" : outputName.c_str()));
+		if (outputName.find("TikTok") == std::string::npos &&
+			outputName.find("tiktok") == std::string::npos)
+			return;
+		ConfigureTikTokOutput(this, settingsIt->second, QString::fromUtf8(outputName.c_str()));
 	});
 	streamingLayout->addRow(tiktok_managed_group);
 	tiktok_managed_group->setVisible(false);
@@ -1221,22 +1223,17 @@ void OBSBasicSettings::LoadSettings()
 		tiktok_managed_group->setVisible(canvasDock->disable_stream_settings);
 		tiktok_managed_output->clear();
 		if (canvasDock->disable_stream_settings) {
-			int preferredOutput = -1;
 			for (size_t i = 0; i < canvasDock->streamOutputs.size(); ++i) {
 				const auto &output = canvasDock->streamOutputs[i];
-				const QString displayName = output.name.empty()
-					? QString("Output %1").arg(i + 1)
-					: QString::fromUtf8(output.name.c_str());
+				const QString displayName = QString::fromUtf8(output.name.c_str());
+				if (!displayName.contains("TikTok", Qt::CaseInsensitive))
+					continue;
 				tiktok_managed_output->addItem(displayName, static_cast<int>(i));
-				if (displayName.contains("TikTok", Qt::CaseInsensitive))
-					preferredOutput = static_cast<int>(i);
 				auto *temporarySettings = obs_data_create();
 				if (output.settings)
 					obs_data_apply(temporarySettings, output.settings);
 				tiktok_managed_settings.emplace(static_cast<int>(i), temporarySettings);
 			}
-			if (preferredOutput >= 0)
-				tiktok_managed_output->setCurrentIndex(preferredOutput);
 		}
 		tiktok_managed_configure->setEnabled(tiktok_managed_output->count() > 0);
 	}
