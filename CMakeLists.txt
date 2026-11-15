@@ -121,6 +121,12 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/streamlabs-api.h
 	src/streamlabs-info.cpp
 	src/streamlabs-info.h
+	src/streamlabs-category-widget.cpp
+	src/streamlabs-category-widget.h
+	src/tiktok-game-info.cpp
+	src/tiktok-game-info.h
+	src/tiktok-topic-widget.cpp
+	src/tiktok-topic-widget.h
 	src/streamlabs-desktop.cpp
 	src/streamlabs-desktop.h)
 
