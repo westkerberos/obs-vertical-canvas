@@ -60,6 +60,9 @@ if (( ! (${skips[(Ie)all]} + ${skips[(Ie)deps]}) )) {
       build-essential \
       libgles2-mesa-dev \
       libsimde-dev \
+      libcurl4-openssl-dev \
+      libssl-dev \
+      libqrcodegencpp-dev \
       libobs-dev
   fi
 

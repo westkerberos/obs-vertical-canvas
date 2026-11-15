@@ -53,6 +53,27 @@ if(BUILD_OUT_OF_TREE)
 endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
 
+# TikTok's native LIVE integration (authentication, room lifecycle and signed packet metadata).
+find_package(qrcodegencpp CONFIG QUIET)
+if(NOT TARGET qrcodegencpp::qrcodegencpp)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(QRCODEGENCPP REQUIRED IMPORTED_TARGET qrcodegencpp)
+  add_library(qrcodegencpp::qrcodegencpp ALIAS PkgConfig::QRCODEGENCPP)
+endif()
+target_link_libraries(${PROJECT_NAME} PRIVATE qrcodegencpp::qrcodegencpp)
+target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
+
+if(OS_WINDOWS)
+  set(TIKTOK_CRYPTO_LIBRARY bcrypt)
+elseif(NOT APPLE)
+  find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+  set(TIKTOK_CRYPTO_LIBRARY OpenSSL::Crypto)
+endif()
+if(TIKTOK_CRYPTO_LIBRARY)
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${TIKTOK_CRYPTO_LIBRARY})
+endif()
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/version.h)
 
 if(OS_WINDOWS)
@@ -89,6 +110,23 @@ target_sources(${PROJECT_NAME} PRIVATE
 	obs-websocket-api.h
 	file-updater.h
 	multi-canvas-source.h)
+
+set(TIKTOK_NATIVE_SOURCES
+  src/tiktok-native/domain_routing.cpp
+  src/tiktok-native/frame_signing.cpp
+  src/tiktok-native/live_client.cpp
+  src/tiktok-native/mobile_device.cpp
+  src/tiktok-native/mobile_profile.cpp
+  src/tiktok-native/rapidapi_quota.cpp
+  src/tiktok-native/sei_metadata.cpp
+  src/tiktok-native/tiktok_request_signer.cpp
+  src/tiktok-native/tiktok_studio_device.cpp
+  src/tiktok-native/tiktok_studio_game_tags.cpp
+  src/tiktok-native/tiktok_studio_qr.cpp
+  src/tiktok-native/tiktok_studio_session.cpp
+  src/tiktok-native/tiktok_studio_topics.cpp
+  src/tiktok-native/localization.cpp)
+target_sources(${PROJECT_NAME} PRIVATE src/tiktok-live-settings.h ${TIKTOK_NATIVE_SOURCES})
 
 if(BUILD_OUT_OF_TREE)
 	set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
