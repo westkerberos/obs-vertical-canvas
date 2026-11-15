@@ -349,11 +349,10 @@ OBSBasicSettings::OBSBasicSettings(CanvasDock *canvas_dock, QMainWindow *parent)
 		if (settingsIt == tiktok_managed_settings.end() ||
 			outputIndex < 0 || static_cast<size_t>(outputIndex) >= canvasDock->streamOutputs.size())
 			return;
-		const auto &outputName = canvasDock->streamOutputs[outputIndex].name;
-		if (outputName.find("TikTok") == std::string::npos &&
-			outputName.find("tiktok") == std::string::npos)
+		const QString outputName = QString::fromUtf8(canvasDock->streamOutputs[outputIndex].name.c_str());
+		if (!outputName.contains("TikTok", Qt::CaseInsensitive))
 			return;
-		ConfigureTikTokOutput(this, settingsIt->second, QString::fromUtf8(outputName.c_str()));
+		ConfigureTikTokOutput(this, settingsIt->second, outputName);
 	});
 	streamingLayout->addRow(tiktok_managed_group);
 	tiktok_managed_group->setVisible(false);
