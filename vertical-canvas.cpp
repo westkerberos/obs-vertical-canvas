@@ -9065,6 +9065,40 @@ void CanvasDock::get_transitions(void *data, struct obs_frontend_source_list *so
 	}
 }
 
+static void PreserveTikTokOutputSettings(obs_data_t *previous, obs_data_t *incoming)
+{
+	if (!previous || !incoming)
+		return;
+
+	static const char *stringKeys[] = {
+		"tiktok_method",
+		"tiktok_title",
+		"tiktok_rapidapi_key",
+		"tiktok_cookie_path",
+		"tiktok_topic_id",
+		"tiktok_game_id",
+		"tiktok_content_disclosure",
+		"tiktok_device_profiles",
+		"streamlabs_access_token",
+		"streamlabs_category",
+	};
+	for (const char *key : stringKeys) {
+		if (obs_data_has_user_value(previous, key))
+			obs_data_set_string(incoming, key, obs_data_get_string(previous, key));
+	}
+
+	static const char *boolKeys[] = {
+		"tiktok_allow_gifts",
+		"tiktok_allow_comments",
+		"tiktok_mature_content",
+		"streamlabs_mature_content",
+	};
+	for (const char *key : boolKeys) {
+		if (obs_data_has_user_value(previous, key))
+			obs_data_set_bool(incoming, key, obs_data_get_bool(previous, key));
+	}
+}
+
 bool CanvasDock::LoadStreamOutputs(obs_data_array_t *outputs)
 {
 	auto count = obs_data_array_count(outputs);
@@ -9074,6 +9108,10 @@ bool CanvasDock::LoadStreamOutputs(obs_data_array_t *outputs)
 		for (size_t i = 0; !found && i < count; i++) {
 			auto item = obs_data_array_item(outputs, i);
 			if (it->name == obs_data_get_string(item, "name")) {
+				// Aitum Multistream may replace the settings object when its output
+				// list changes. Keep Vertical Canvas' TikTok credentials/configuration
+				// attached to the matching destination across that handoff.
+				PreserveTikTokOutputSettings(it->settings, item);
 				it->stream_server = obs_data_get_string(item, "stream_server");
 				it->stream_key = obs_data_get_string(item, "stream_key");
 				it->enabled = obs_data_get_bool(item, "enabled");
