@@ -24,7 +24,7 @@
 #include "obs-module.h"
 #include "version.h"
 #include "vertical-canvas.hpp"
-#include "tiktok-output-settings-dialog.h"
+#include "src/tiktok-output-settings-dialog.h"
 #include <util/dstr.h>
 #include <util/config-file.h>
 

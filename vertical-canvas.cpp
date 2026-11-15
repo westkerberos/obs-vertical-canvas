@@ -33,7 +33,7 @@
 #include "scenes-dock.hpp"
 #include "sources-dock.hpp"
 #include "transitions-dock.hpp"
-#include "tiktok-output-session.h"
+#include "src/tiktok-output-session.h"
 #include "util/config-file.h"
 #include "util/dstr.h"
 #include "util/platform.h"
