@@ -6,8 +6,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
-#include "obs.hpp"
-#include "pch.h"
+#include <obs-module.h>
+#include <cctype>
+
+#define TAG "[TikTok Streamlabs] "
 
 size_t StreamlabsAPI::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
 {
