@@ -6616,9 +6616,9 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 		}
 		it->stopping = true;
 		QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
-					  Q_ARG(QString, QString::fromUtf8(it->runtime_error)),
-					  Q_ARG(QString, QString::fromUtf8(it->active_server)),
-					  Q_ARG(QString, QString::fromUtf8(it->active_key)));
+					  Q_ARG(QString, QString::fromUtf8(it->runtime_error.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_server.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
 		return;
 	}
 	if (!obs_output_start(it->output)) {
@@ -6629,8 +6629,8 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 		const char *outputError = obs_output_get_last_error(it->output);
 		QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
 					  Q_ARG(QString, QString::fromUtf8(outputError && *outputError ? outputError : it->runtime_error.c_str())),
-					  Q_ARG(QString, QString::fromUtf8(it->active_server)),
-					  Q_ARG(QString, QString::fromUtf8(it->active_key)));
+					  Q_ARG(QString, QString::fromUtf8(it->active_server.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
 	} else if (it->tiktokSession) {
 		it->tiktokSession->ConfirmStarted();
 	}
@@ -7077,9 +7077,9 @@ void CanvasDock::StartStream()
 		if (!PrepareTikTokOutput(it)) {
 			it->stopping = true;
 			QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
-						  Q_ARG(QString, QString::fromUtf8(it->runtime_error)),
-						  Q_ARG(QString, QString::fromUtf8(it->active_server)),
-						  Q_ARG(QString, QString::fromUtf8(it->active_key)));
+						  Q_ARG(QString, QString::fromUtf8(it->runtime_error.c_str())),
+						  Q_ARG(QString, QString::fromUtf8(it->active_server.c_str())),
+						  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
 			continue;
 		}
 		if (config) {
@@ -7097,8 +7097,8 @@ void CanvasDock::StartStream()
 			const char *outputError = obs_output_get_last_error(it->output);
 			QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
 						  Q_ARG(QString, QString::fromUtf8(outputError && *outputError ? outputError : it->runtime_error.c_str())),
-						  Q_ARG(QString, QString::fromUtf8(it->active_server)),
-						  Q_ARG(QString, QString::fromUtf8(it->active_key)));
+						  Q_ARG(QString, QString::fromUtf8(it->active_server.c_str())),
+						  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
 		}
 	}
 	if (!success && started_video) {
@@ -7147,8 +7147,8 @@ void CanvasDock::stream_output_stop(void *data, calldata_t *calldata)
 	obs_output_t *t = (obs_output_t *)calldata_ptr(calldata, "output");
 	for (auto it = d->streamOutputs.begin(); it != d->streamOutputs.end(); ++it) {
 		if (it->output == t) {
-			stream_server = QString::fromUtf8(it->active_server.empty() ? it->stream_server : it->active_server);
-			stream_key = QString::fromUtf8(it->active_key.empty() ? it->stream_key : it->active_key);
+			stream_server = QString::fromUtf8((it->active_server.empty() ? it->stream_server : it->active_server).c_str());
+			stream_key = QString::fromUtf8((it->active_key.empty() ? it->stream_key : it->active_key).c_str());
 			it->stopping = true;
 		}
 	}
@@ -8104,8 +8104,8 @@ void CanvasDock::OnStreamStop(int code, QString last_error, QString stream_serve
 {
 	bool active = false;
 	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
-		const QString activeServer = QString::fromUtf8(it->active_server.empty() ? it->stream_server : it->active_server);
-		const QString activeKey = QString::fromUtf8(it->active_key.empty() ? it->stream_key : it->active_key);
+		const QString activeServer = QString::fromUtf8((it->active_server.empty() ? it->stream_server : it->active_server).c_str());
+		const QString activeKey = QString::fromUtf8((it->active_key.empty() ? it->stream_key : it->active_key).c_str());
 		if (stream_server == activeServer && stream_key == activeKey) {
 			if (it->tiktokSession) {
 				const QString sessionError = it->tiktokSession->Error();

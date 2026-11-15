@@ -366,7 +366,7 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
         studioGroup->setVisible(selected == "live-studio" || selected == "live-studio-mobile");
         streamlabsGroup->setVisible(selected == "streamlabs");
     };
-    QObject::connect(method, &QComboBox::currentIndexChanged, &dialog, updateVisibility);
+    QObject::connect(method, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, updateVisibility);
     QObject::connect(browseCookie, &QPushButton::clicked, &dialog, [&] {
         const auto path = QFileDialog::getOpenFileName(&dialog, "Select TikTok cookies", cookiePath->text(),
             "Cookie files (*.txt *.cookies);;All files (*.*)");
