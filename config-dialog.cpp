@@ -24,7 +24,6 @@
 #include "obs-module.h"
 #include "version.h"
 #include "vertical-canvas.hpp"
-#include "src/tiktok-output-settings-dialog.h"
 #include <util/dstr.h>
 #include <util/config-file.h>
 
@@ -324,39 +323,6 @@ OBSBasicSettings::OBSBasicSettings(CanvasDock *canvas_dock, QMainWindow *parent)
 
 	streamingLayout->addRow(streaming_title_layout);
 
-	// Aitum Multistream owns the destination list when it is active. Keep the
-	// TikTok login/configuration surface in Vertical Canvas, but bind it to one
-	// of the destinations supplied by Multistream.
-	tiktok_managed_group = new QGroupBox("TikTok LIVE (Aitum Multistream)");
-	auto tiktokManagedLayout = new QFormLayout(tiktok_managed_group);
-	tiktokManagedLayout->setContentsMargins(9, 8, 9, 9);
-	tiktok_managed_output = new QComboBox(tiktok_managed_group);
-	tiktokManagedLayout->addRow("TikTok destination", tiktok_managed_output);
-	auto tiktokManagedHelp = new QLabel(
-		"In Aitum Multistream, create a Custom RTMP output named TikTok. Use the temporary server "
-		"rtmp://placeholder.invalid/live and key pending, then select it here. Vertical Canvas "
-		"replaces these placeholders with TikTok's LIVE endpoint after authentication.",
-		tiktok_managed_group);
-	tiktokManagedHelp->setWordWrap(true);
-	tiktokManagedLayout->addRow(tiktokManagedHelp);
-	tiktok_managed_configure = new QPushButton("Configure TikTok LIVE…", tiktok_managed_group);
-	tiktokManagedLayout->addRow(tiktok_managed_configure);
-	connect(tiktok_managed_configure, &QPushButton::clicked, [this] {
-		if (!tiktok_managed_output || tiktok_managed_output->currentIndex() < 0)
-			return;
-		const int outputIndex = tiktok_managed_output->currentData().toInt();
-		auto settingsIt = tiktok_managed_settings.find(outputIndex);
-		if (settingsIt == tiktok_managed_settings.end() ||
-			outputIndex < 0 || static_cast<size_t>(outputIndex) >= canvasDock->streamOutputs.size())
-			return;
-		const QString outputName = QString::fromUtf8(canvasDock->streamOutputs[outputIndex].name.c_str());
-		if (!outputName.contains("TikTok", Qt::CaseInsensitive))
-			return;
-		ConfigureTikTokOutput(this, settingsIt->second, outputName);
-	});
-	streamingLayout->addRow(tiktok_managed_group);
-	tiktok_managed_group->setVisible(false);
-
 	if (!canvasDock->disable_stream_settings) {
 		auto hl = new QHBoxLayout;
 		auto addButton = new QPushButton(QIcon(QString::fromUtf8(":/res/images/plus.svg")),
@@ -379,12 +345,6 @@ OBSBasicSettings::OBSBasicSettings(CanvasDock *canvas_dock, QMainWindow *parent)
 			servers.pop_back();
 			keys.pop_back();
 			servers_enabled.pop_back();
-			if (!tiktok_config_buttons.empty())
-				tiktok_config_buttons.pop_back();
-			if (!output_settings.empty()) {
-				obs_data_release(output_settings.back());
-				output_settings.pop_back();
-			}
 		});
 		hl->addWidget(removeButton);
 
@@ -1028,12 +988,6 @@ OBSBasicSettings::~OBSBasicSettings()
 	obs_properties_destroy(record_encoder_properties);
 	obs_data_release(stream_encoder_settings);
 	obs_data_release(record_encoder_settings);
-	for (auto *settings : output_settings) {
-		obs_data_release(settings);
-	}
-	for (auto &entry : tiktok_managed_settings) {
-		obs_data_release(entry.second);
-	}
 }
 
 QIcon OBSBasicSettings::GetGeneralIcon() const
@@ -1148,36 +1102,6 @@ void OBSBasicSettings::AddServer()
 	serverLayout->addRow(QString::fromUtf8(obs_module_text("Name")), server_name);
 	server_names.push_back(server_name);
 
-	// Keep an editable copy until the user accepts the whole Vertical Canvas settings dialog.
-	obs_data_t *outputSettings = obs_data_create();
-	if (idx < canvasDock->streamOutputs.size() && canvasDock->streamOutputs[idx].settings) {
-		obs_data_apply(outputSettings, canvasDock->streamOutputs[idx].settings);
-	}
-	output_settings.push_back(outputSettings);
-
-	auto configureTikTok = new QPushButton("Configure platform…");
-	configureTikTok->setToolTip("Choose custom RTMP, TikTok LIVE Studio or Streamlabs for this output");
-	connect(configureTikTok, &QPushButton::clicked, [this, idx, outputSettings, configureTikTok] {
-		const QString outputName = server_names[idx]->text();
-		if (ConfigureTikTokOutput(this, outputSettings, outputName)) {
-			const QString mode = QString::fromUtf8(obs_data_get_string(outputSettings, "tiktok_method"));
-			if (mode != "custom" && (server_names[idx]->text().trimmed().isEmpty() ||
-				server_names[idx]->text().startsWith("Output ", Qt::CaseInsensitive))) {
-				server_names[idx]->setText("TikTok");
-			}
-			if (mode == "live-studio")
-				configureTikTok->setText("TikTok LIVE Studio (Desktop)…");
-			else if (mode == "live-studio-mobile")
-				configureTikTok->setText("TikTok LIVE Studio (Mobile)…");
-			else if (mode == "streamlabs")
-				configureTikTok->setText("Streamlabs Desktop…");
-			else
-				configureTikTok->setText("Configure platform…");
-		}
-	});
-	tiktok_config_buttons.push_back(configureTikTok);
-	serverLayout->addRow(configureTikTok);
-
 	auto server = new QComboBox;
 	server->setEditable(true);
 
@@ -1214,28 +1138,6 @@ void OBSBasicSettings::AddServer()
 
 void OBSBasicSettings::LoadSettings()
 {
-	for (auto &entry : tiktok_managed_settings) {
-		obs_data_release(entry.second);
-	}
-	tiktok_managed_settings.clear();
-	if (tiktok_managed_group) {
-		tiktok_managed_group->setVisible(canvasDock->disable_stream_settings);
-		tiktok_managed_output->clear();
-		if (canvasDock->disable_stream_settings) {
-			for (size_t i = 0; i < canvasDock->streamOutputs.size(); ++i) {
-				const auto &output = canvasDock->streamOutputs[i];
-				const QString displayName = QString::fromUtf8(output.name.c_str());
-				if (!displayName.contains("TikTok", Qt::CaseInsensitive))
-					continue;
-				tiktok_managed_output->addItem(displayName, static_cast<int>(i));
-				auto *temporarySettings = obs_data_create();
-				if (output.settings)
-					obs_data_apply(temporarySettings, output.settings);
-				tiktok_managed_settings.emplace(static_cast<int>(i), temporarySettings);
-			}
-		}
-		tiktok_managed_configure->setEnabled(tiktok_managed_output->count() > 0);
-	}
 	if (!canvasDock->newer_version_available.isEmpty()) {
 		newVersion->setText(QString::fromUtf8(obs_module_text("NewVersion")).arg(canvasDock->newer_version_available));
 		newVersion->setVisible(true);
@@ -1447,10 +1349,6 @@ void OBSBasicSettings::SaveSettings()
 				bool whip = strstr(so.stream_server.c_str(), "whip") != nullptr;
 				so.service = obs_service_create(whip ? "whip_custom" : "rtmp_custom", service_name.c_str(), nullptr,
 								nullptr);
-				if (idx < output_settings.size()) {
-					obs_data_addref(output_settings[idx]);
-					so.settings = output_settings[idx];
-				}
 				canvasDock->streamOutputs.push_back(so);
 			}
 			canvasDock->streamOutputs[idx].name = server_names[idx]->text().toUtf8().constData();
@@ -1464,11 +1362,6 @@ void OBSBasicSettings::SaveSettings()
 				}
 			}
 			canvasDock->streamOutputs[idx].enabled = servers_enabled[idx]->isChecked();
-			if (idx < output_settings.size()) {
-				if (!canvasDock->streamOutputs[idx].settings)
-					canvasDock->streamOutputs[idx].settings = obs_data_create();
-				obs_data_apply(canvasDock->streamOutputs[idx].settings, output_settings[idx]);
-			}
 		}
 
 		if (canvasDock->streamOutputs.size() > servers.size()) {
@@ -1486,20 +1379,8 @@ void OBSBasicSettings::SaveSettings()
 				obs_output_release(canvasDock->streamOutputs[idx].output);
 				obs_service_release(canvasDock->streamOutputs[idx].service);
 				obs_encoder_release(old_enc);
-				obs_data_release(canvasDock->streamOutputs[idx].settings);
 				canvasDock->streamOutputs.pop_back();
 			}
-		}
-	} else {
-		// Multistream owns the output list, so only commit our platform-specific
-		// fields to the selected existing outputs; do not alter their endpoints.
-		for (const auto &entry : tiktok_managed_settings) {
-			if (entry.first < 0 || static_cast<size_t>(entry.first) >= canvasDock->streamOutputs.size())
-				continue;
-			auto &output = canvasDock->streamOutputs[entry.first];
-			if (!output.settings)
-				output.settings = obs_data_create();
-			obs_data_apply(output.settings, entry.second);
 		}
 	}
 	canvasDock->UpdateMulti();
