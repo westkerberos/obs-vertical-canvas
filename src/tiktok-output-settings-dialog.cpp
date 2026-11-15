@@ -403,7 +403,7 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     cookieLayout->addWidget(qrLogin);
     studioForm->addRow("TikTok cookies", cookieRow);
 
-    auto *topics = new TikTokTopicWidget(studioGroup);
+    auto *topics = new TikTokTopicWidget(LookupTikTokGames, studioGroup);
     topics->SetSelection(QString::fromUtf8(obs_data_get_string(settings, "tiktok_topic_id")),
         QString::fromUtf8(obs_data_get_string(settings, "tiktok_game_id")),
         QString::fromUtf8(obs_data_get_string(settings, "tiktok_game_name")));
@@ -464,7 +464,7 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     tokenLayout->addWidget(streamlabsToken, 1);
     tokenLayout->addWidget(detectToken);
     streamlabsForm->addRow("Streamlabs access token", tokenRow);
-    auto *category = new StreamlabsCategoryWidget(streamlabsGroup);
+    auto *category = new StreamlabsCategoryWidget(SearchStreamlabsCategories, streamlabsGroup);
     std::optional<std::string> savedCategoryId;
     if (obs_data_has_user_value(settings, "streamlabs_category_id"))
         savedCategoryId = obs_data_get_string(settings, "streamlabs_category_id");
