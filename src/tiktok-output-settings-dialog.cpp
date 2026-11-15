@@ -1,6 +1,8 @@
 #include "tiktok-output-settings-dialog.h"
 
 #include "streamlabs-desktop.h"
+#include "streamlabs-category-widget.h"
+#include "tiktok-topic-widget.h"
 #include "tiktok-native/live_client.hpp"
 #include "tiktok-native/qr_login.hpp"
 #include "tiktok-native/tiktok_studio_topics.hpp"
@@ -400,21 +402,11 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     cookieLayout->addWidget(qrLogin);
     studioForm->addRow("TikTok cookies", cookieRow);
 
-    auto *topicId = new QComboBox(studioGroup);
-    topicId->addItem("No topic", "");
-    for (const auto &topic : tiktok_studio_topics())
-        topicId->addItem(topic.name, topic.id);
-    const QString savedTopic = QString::fromUtf8(obs_data_get_string(settings, "tiktok_topic_id"));
-    const int topicIndex = topicId->findData(savedTopic);
-    topicId->setCurrentIndex(topicIndex < 0 ? 0 : topicIndex);
-    auto *gameId = new QLineEdit(QString::fromUtf8(obs_data_get_string(settings, "tiktok_game_id")), studioGroup);
-    gameId->setPlaceholderText("TikTok game tag ID (optional)");
-    studioForm->addRow("LIVE topic", topicId);
-    studioForm->addRow("Game tag ID", gameId);
-    gameId->setVisible(topicId->currentData().toString() == "5");
-    QObject::connect(topicId, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, [topicId, gameId] {
-        gameId->setVisible(topicId->currentData().toString() == "5");
-    });
+    auto *topics = new TikTokTopicWidget(studioGroup);
+    topics->SetSelection(QString::fromUtf8(obs_data_get_string(settings, "tiktok_topic_id")),
+        QString::fromUtf8(obs_data_get_string(settings, "tiktok_game_id")),
+        QString::fromUtf8(obs_data_get_string(settings, "tiktok_game_name")));
+    studioForm->addRow(topics);
     auto *allowGifts = new QCheckBox("Allow gifts", studioGroup);
     auto *allowComments = new QCheckBox("Allow comments", studioGroup);
     allowGifts->setChecked(obs_data_get_bool(settings, "tiktok_allow_gifts") || !obs_data_has_user_value(settings, "tiktok_allow_gifts"));
@@ -471,7 +463,11 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     tokenLayout->addWidget(streamlabsToken, 1);
     tokenLayout->addWidget(detectToken);
     streamlabsForm->addRow("Streamlabs access token", tokenRow);
-    auto *category = new QLineEdit(QString::fromUtf8(obs_data_get_string(settings, "streamlabs_category")), streamlabsGroup);
+    auto *category = new StreamlabsCategoryWidget(streamlabsGroup);
+    std::optional<std::string> savedCategoryId;
+    if (obs_data_has_user_value(settings, "streamlabs_category_id"))
+        savedCategoryId = obs_data_get_string(settings, "streamlabs_category_id");
+    category->SetSelection(QString::fromUtf8(obs_data_get_string(settings, "streamlabs_category")), savedCategoryId);
     streamlabsForm->addRow("Category", category);
     auto *streamlabsMature = new QCheckBox("Mature content", streamlabsGroup);
     streamlabsMature->setChecked(obs_data_get_bool(settings, "streamlabs_mature_content"));
@@ -480,11 +476,18 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
 
     auto updateVisibility = [=] {
         const auto selected = method->currentData().toString();
-        studioGroup->setVisible(selected == "live-studio" || selected == "live-studio-mobile");
+        const bool studioActive = selected == "live-studio" || selected == "live-studio-mobile";
+        const bool mobileCamera = selected == "live-studio-mobile" && mobileBroadcast->currentData().toString() == "video";
+        studioGroup->setVisible(studioActive);
         mobileGroup->setVisible(selected == "live-studio-mobile");
         streamlabsGroup->setVisible(selected == "streamlabs");
+        topics->SetContext(studioActive, cookiePath->text(), mobileCamera);
+        category->SetContext(selected == "streamlabs", streamlabsToken->text().trimmed().toStdString());
     };
     QObject::connect(method, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, updateVisibility);
+    QObject::connect(cookiePath, &QLineEdit::textChanged, &dialog, updateVisibility);
+    QObject::connect(mobileBroadcast, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, updateVisibility);
+    QObject::connect(streamlabsToken, &QLineEdit::textChanged, &dialog, updateVisibility);
     QObject::connect(browseCookie, &QPushButton::clicked, &dialog, [&] {
         const auto path = QFileDialog::getOpenFileName(&dialog, "Select TikTok cookies", cookiePath->text(),
             "Cookie files (*.txt *.cookies);;All files (*.*)");
@@ -507,7 +510,15 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     root->addWidget(buttons);
-    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, [&] {
+        const auto selected = method->currentData().toString();
+        const bool studioActive = selected == "live-studio" || selected == "live-studio-mobile";
+        if (studioActive && topics->RequiresGame() && !topics->HasValidGame()) {
+            QMessageBox::warning(&dialog, "TikTok LIVE", "Select a game from the TikTok catalogue before saving this gaming topic.");
+            return;
+        }
+        dialog.accept();
+    });
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     updateVisibility();
 
@@ -518,8 +529,9 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     obs_data_set_string(settings, "tiktok_title", title->text().toUtf8().constData());
     obs_data_set_string(settings, "tiktok_rapidapi_key", rapidApiKey->text().toUtf8().constData());
     obs_data_set_string(settings, "tiktok_cookie_path", cookiePath->text().toUtf8().constData());
-    obs_data_set_string(settings, "tiktok_topic_id", topicId->currentData().toString().toUtf8().constData());
-    obs_data_set_string(settings, "tiktok_game_id", gameId->text().toUtf8().constData());
+    obs_data_set_string(settings, "tiktok_topic_id", topics->TopicId().toUtf8().constData());
+    obs_data_set_string(settings, "tiktok_game_id", topics->GameId().toUtf8().constData());
+    obs_data_set_string(settings, "tiktok_game_name", topics->GameName().toUtf8().constData());
     obs_data_set_bool(settings, "tiktok_allow_gifts", allowGifts->isChecked());
     obs_data_set_bool(settings, "tiktok_allow_comments", allowComments->isChecked());
     obs_data_set_string(settings, "tiktok_content_disclosure", disclosure->currentData().toString().toUtf8().constData());
@@ -532,7 +544,11 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     obs_data_set_string(settings, "tiktok_device_profiles",
         QJsonDocument(profiles).toJson(QJsonDocument::Compact).constData());
     obs_data_set_string(settings, "streamlabs_access_token", streamlabsToken->text().toUtf8().constData());
-    obs_data_set_string(settings, "streamlabs_category", category->text().toUtf8().constData());
+    obs_data_set_string(settings, "streamlabs_category", category->Name().toUtf8().constData());
+    if (category->SelectedId())
+        obs_data_set_string(settings, "streamlabs_category_id", category->SelectedId()->c_str());
+    else
+        obs_data_set_string(settings, "streamlabs_category_id", "");
     obs_data_set_bool(settings, "streamlabs_mature_content", streamlabsMature->isChecked());
     return true;
 }
