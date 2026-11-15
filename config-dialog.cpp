@@ -324,6 +324,37 @@ OBSBasicSettings::OBSBasicSettings(CanvasDock *canvas_dock, QMainWindow *parent)
 
 	streamingLayout->addRow(streaming_title_layout);
 
+	// Aitum Multistream owns the destination list when it is active. Keep the
+	// TikTok login/configuration surface in Vertical Canvas, but bind it to one
+	// of the destinations supplied by Multistream.
+	tiktok_managed_group = new QGroupBox("TikTok LIVE (Aitum Multistream)");
+	auto tiktokManagedLayout = new QFormLayout(tiktok_managed_group);
+	tiktokManagedLayout->setContentsMargins(9, 8, 9, 9);
+	tiktok_managed_output = new QComboBox(tiktok_managed_group);
+	tiktokManagedLayout->addRow("TikTok destination", tiktok_managed_output);
+	auto tiktokManagedHelp = new QLabel(
+		"Create a dedicated output named TikTok in Aitum Multistream, then select it here. "
+		"Vertical Canvas will obtain the LIVE server and key after TikTok authentication.",
+		tiktok_managed_group);
+	tiktokManagedHelp->setWordWrap(true);
+	tiktokManagedLayout->addRow(tiktokManagedHelp);
+	tiktok_managed_configure = new QPushButton("Configure TikTok LIVE…", tiktok_managed_group);
+	tiktokManagedLayout->addRow(tiktok_managed_configure);
+	connect(tiktok_managed_configure, &QPushButton::clicked, [this] {
+		if (!tiktok_managed_output || !tiktok_managed_output->currentIndex())
+			return;
+		const int outputIndex = tiktok_managed_output->currentData().toInt();
+		auto settingsIt = tiktok_managed_settings.find(outputIndex);
+		if (settingsIt == tiktok_managed_settings.end() ||
+			outputIndex < 0 || static_cast<size_t>(outputIndex) >= canvasDock->streamOutputs.size())
+			return;
+		const auto &outputName = canvasDock->streamOutputs[outputIndex].name;
+		ConfigureTikTokOutput(this, settingsIt->second,
+			QString::fromUtf8(outputName.empty() ? "TikTok" : outputName.c_str()));
+	});
+	streamingLayout->addRow(tiktok_managed_group);
+	tiktok_managed_group->setVisible(false);
+
 	if (!canvasDock->disable_stream_settings) {
 		auto hl = new QHBoxLayout;
 		auto addButton = new QPushButton(QIcon(QString::fromUtf8(":/res/images/plus.svg")),
@@ -998,6 +1029,9 @@ OBSBasicSettings::~OBSBasicSettings()
 	for (auto *settings : output_settings) {
 		obs_data_release(settings);
 	}
+	for (auto &entry : tiktok_managed_settings) {
+		obs_data_release(entry.second);
+	}
 }
 
 QIcon OBSBasicSettings::GetGeneralIcon() const
@@ -1178,6 +1212,28 @@ void OBSBasicSettings::AddServer()
 
 void OBSBasicSettings::LoadSettings()
 {
+	for (auto &entry : tiktok_managed_settings) {
+		obs_data_release(entry.second);
+	}
+	tiktok_managed_settings.clear();
+	if (tiktok_managed_group) {
+		tiktok_managed_group->setVisible(canvasDock->disable_stream_settings);
+		tiktok_managed_output->clear();
+		if (canvasDock->disable_stream_settings) {
+			for (size_t i = 0; i < canvasDock->streamOutputs.size(); ++i) {
+				const auto &output = canvasDock->streamOutputs[i];
+				const QString displayName = output.name.empty()
+					? QString("Output %1").arg(i + 1)
+					: QString::fromUtf8(output.name.c_str());
+				tiktok_managed_output->addItem(displayName, static_cast<int>(i));
+				auto *temporarySettings = obs_data_create();
+				if (output.settings)
+					obs_data_apply(temporarySettings, output.settings);
+				tiktok_managed_settings.emplace(static_cast<int>(i), temporarySettings);
+			}
+		}
+		tiktok_managed_configure->setEnabled(tiktok_managed_output->count() > 0);
+	}
 	if (!canvasDock->newer_version_available.isEmpty()) {
 		newVersion->setText(QString::fromUtf8(obs_module_text("NewVersion")).arg(canvasDock->newer_version_available));
 		newVersion->setVisible(true);
@@ -1431,6 +1487,18 @@ void OBSBasicSettings::SaveSettings()
 				obs_data_release(canvasDock->streamOutputs[idx].settings);
 				canvasDock->streamOutputs.pop_back();
 			}
+		}
+	}
+	} else {
+		// Multistream owns the output list, so only commit our platform-specific
+		// fields to the selected existing outputs; do not alter their endpoints.
+		for (const auto &entry : tiktok_managed_settings) {
+			if (entry.first < 0 || static_cast<size_t>(entry.first) >= canvasDock->streamOutputs.size())
+				continue;
+			auto &output = canvasDock->streamOutputs[entry.first];
+			if (!output.settings)
+				output.settings = obs_data_create();
+			obs_data_apply(output.settings, entry.second);
 		}
 	}
 	canvasDock->UpdateMulti();
