@@ -4,6 +4,8 @@
 #include <QTimer>
 #include <future>
 #include <memory>
+#include <cstdint>
+#include <utility>
 
 class QComboBox;
 class QLabel;
