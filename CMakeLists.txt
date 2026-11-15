@@ -109,21 +109,20 @@ target_sources(${PROJECT_NAME} PRIVATE
 	audio-wrapper-source.h
 	obs-websocket-api.h
 	file-updater.h
-	multi-canvas-source.h)
-
+	multi-canvas-source.h
 	# TikTok integration lives inside this single Vertical Canvas module.
-	tiktok-live-session.cpp
-	tiktok-live-session.h
-	tiktok-output-session.cpp
-	tiktok-output-session.h
-	tiktok-output-settings-dialog.cpp
-	tiktok-output-settings-dialog.h
-	streamlabs-api.cpp
-	streamlabs-api.h
-	streamlabs-info.cpp
-	streamlabs-info.h
-	streamlabs-desktop.cpp
-	streamlabs-desktop.h)
+	src/tiktok-live-session.cpp
+	src/tiktok-live-session.h
+	src/tiktok-output-session.cpp
+	src/tiktok-output-session.h
+	src/tiktok-output-settings-dialog.cpp
+	src/tiktok-output-settings-dialog.h
+	src/streamlabs-api.cpp
+	src/streamlabs-api.h
+	src/streamlabs-info.cpp
+	src/streamlabs-info.h
+	src/streamlabs-desktop.cpp
+	src/streamlabs-desktop.h)
 
 set(TIKTOK_NATIVE_SOURCES
   src/tiktok-native/domain_routing.cpp
