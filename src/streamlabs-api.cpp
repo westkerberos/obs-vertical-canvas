@@ -11,6 +11,14 @@
 
 #define TAG "[TikTok Streamlabs] "
 
+namespace {
+bool EnsureCurlInitialized()
+{
+    static const CURLcode result = curl_global_init(CURL_GLOBAL_DEFAULT);
+    return result == CURLE_OK;
+}
+}
+
 size_t StreamlabsAPI::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
 {
     size_t totalBytes = size * nmemb;
@@ -41,6 +49,8 @@ std::string StreamlabsAPI::ExtractStreamId(const std::string &key)
 
 bool StreamlabsAPI::EndStream(const std::string &token, const std::string &streamID)
 {
+    if (!EnsureCurlInitialized())
+        return false;
     if (streamID.empty()) {
         blog(LOG_WARNING, TAG "EndStream: streamID is empty");
         return false;
@@ -103,6 +113,8 @@ bool StreamlabsAPI::EndStream(const std::string &token, const std::string &strea
 
 std::tuple<bool, std::string, std::string, std::string> StreamlabsAPI::StartStream(const std::string& token, const std::string& title, const std::string& category, const int audienceType)
 {
+    if (!EnsureCurlInitialized())
+        return {false, "Failed to initialize CURL", "", ""};
     CURL* curl = curl_easy_init();
     if (!curl) {
         return {false, "Failed to initialize CURL", "", ""};
