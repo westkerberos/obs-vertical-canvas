@@ -288,10 +288,18 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
 
     QDialog dialog(parent);
     dialog.setWindowTitle(QString("Configure %1").arg(outputName.isEmpty() ? "TikTok" : outputName));
-    dialog.setMinimumWidth(520);
+    dialog.setMinimumSize(560, 620);
     auto *root = new QVBoxLayout(&dialog);
+    auto *scroll = new QScrollArea(&dialog);
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    auto *content = new QWidget(scroll);
+    auto *contentLayout = new QVBoxLayout(content);
+    contentLayout->setAlignment(Qt::AlignTop);
     auto *form = new QFormLayout;
-    root->addLayout(form);
+    contentLayout->addLayout(form);
+    scroll->setWidget(content);
+    root->addWidget(scroll, 1);
 
     auto *method = new QComboBox(&dialog);
     method->addItem("Custom RTMP / stream key", "custom");
