@@ -9102,6 +9102,7 @@ static void PreserveTikTokOutputSettings(obs_data_t *previous, obs_data_t *incom
 	}
 
 	static const char *boolKeys[] = {
+		"tiktok_target",
 		"tiktok_allow_gifts",
 		"tiktok_allow_comments",
 		"tiktok_mature_content",
