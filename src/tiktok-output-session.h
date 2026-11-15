@@ -2,6 +2,7 @@
 
 #include "tiktok-live-session.h"
 #include <QString>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
