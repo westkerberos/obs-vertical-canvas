@@ -34,6 +34,7 @@
 #include "sources-dock.hpp"
 #include "transitions-dock.hpp"
 #include "src/tiktok-output-session.h"
+#include "src/tiktok-output-settings-dialog.h"
 #include "util/config-file.h"
 #include "util/dstr.h"
 #include "util/platform.h"
@@ -275,6 +276,17 @@ static void set_stream_settings(void *data, calldata_t *cd)
 		}
 		return;
 	}
+}
+
+static void configure_tiktok_output(void *data, calldata_t *cd)
+{
+	UNUSED_PARAMETER(data);
+	auto *parent = static_cast<QWidget *>(calldata_ptr(cd, "parent"));
+	auto *settings = static_cast<obs_data_t *>(calldata_ptr(cd, "settings"));
+	const char *name = calldata_string(cd, "name");
+	const bool accepted = parent && settings &&
+		ConfigureTikTokOutput(parent, settings, QString::fromUtf8(name && *name ? name : "TikTok"));
+	calldata_set_bool(cd, "accepted", accepted);
 }
 
 static void start_stream_output(void *data, calldata_t *cd)
@@ -658,6 +670,8 @@ bool obs_module_load(void)
 			 get_stream_settings, nullptr);
 	proc_handler_add(ph, "void aitum_vertical_set_stream_settings(in int width, in int height, in ptr outputs)",
 			 set_stream_settings, nullptr);
+	proc_handler_add(ph, "void aitum_vertical_configure_tiktok_output(in ptr parent, in ptr settings, in string name, out bool accepted)",
+				 configure_tiktok_output, nullptr);
 	proc_handler_add(ph, "void aitum_vertical_get_stream_output(in int width, in int height, in string name, out ptr output)",
 			 get_stream_output, nullptr);
 	proc_handler_add(ph, "void aitum_vertical_start_stream_output(in int width, in int height, in string name)",
