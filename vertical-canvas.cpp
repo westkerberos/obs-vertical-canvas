@@ -14,6 +14,7 @@
 #include <QMainWindow>
 #include <QMenu>
 #include <QMessageBox>
+#include <QJsonDocument>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
@@ -31,6 +32,7 @@
 #include "scenes-dock.hpp"
 #include "sources-dock.hpp"
 #include "transitions-dock.hpp"
+#include "tiktok-output-session.h"
 #include "util/config-file.h"
 #include "util/dstr.h"
 #include "util/platform.h"
@@ -6608,15 +6610,29 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 		}
 	}
 	it->stopping = false;
-	if (!obs_output_start(it->output)) {
+	if (!PrepareTikTokOutput(it)) {
 		if (started_video) {
 			DestroyVideo();
 		}
 		it->stopping = true;
 		QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
-					  Q_ARG(QString, QString::fromUtf8(obs_output_get_last_error(it->output))),
-					  Q_ARG(QString, QString::fromUtf8(it->stream_server)),
-					  Q_ARG(QString, QString::fromUtf8(it->stream_key)));
+					  Q_ARG(QString, QString::fromUtf8(it->runtime_error)),
+					  Q_ARG(QString, QString::fromUtf8(it->active_server)),
+					  Q_ARG(QString, QString::fromUtf8(it->active_key)));
+		return;
+	}
+	if (!obs_output_start(it->output)) {
+		if (started_video) {
+			DestroyVideo();
+		}
+		it->stopping = true;
+		const char *outputError = obs_output_get_last_error(it->output);
+		QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
+					  Q_ARG(QString, QString::fromUtf8(outputError && *outputError ? outputError : it->runtime_error.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_server)),
+					  Q_ARG(QString, QString::fromUtf8(it->active_key)));
+	} else if (it->tiktokSession) {
+		it->tiktokSession->ConfirmStarted();
 	}
 }
 
@@ -6710,6 +6726,87 @@ void CanvasDock::CreateStreamOutput(std::vector<StreamServer>::iterator it)
 	signal_handler_disconnect(signal, "stop", stream_output_stop, this);
 	signal_handler_connect(signal, "start", stream_output_start, this);
 	signal_handler_connect(signal, "stop", stream_output_stop, this);
+}
+
+bool CanvasDock::PrepareTikTokOutput(std::vector<StreamServer>::iterator it)
+{
+	it->runtime_error.clear();
+	it->active_server = it->stream_server;
+	it->active_key = it->stream_key;
+	it->tiktokSession.reset();
+
+	if (!it->settings) {
+		return true;
+	}
+
+	const std::string method = obs_data_get_string(it->settings, "tiktok_method");
+	if (method.empty() || method == "custom") {
+		return true;
+	}
+
+	TikTokOutputConfig config;
+	config.method = method;
+	config.title = obs_data_get_string(it->settings, "tiktok_title");
+	if (config.title.empty()) {
+		config.title = it->name;
+	}
+	config.rapidApiKey = obs_data_get_string(it->settings, "tiktok_rapidapi_key");
+	config.cookieFilePath = obs_data_get_string(it->settings, "tiktok_cookie_path");
+	config.topicId = obs_data_get_string(it->settings, "tiktok_topic_id");
+	config.gameId = obs_data_get_string(it->settings, "tiktok_game_id");
+	config.matureContent = obs_data_get_bool(it->settings, "tiktok_mature_content");
+	config.liveSettings.allowGifts = obs_data_get_bool(it->settings, "tiktok_allow_gifts");
+	config.liveSettings.allowComments = obs_data_get_bool(it->settings, "tiktok_allow_comments");
+	config.liveSettings.contentDisclosure = obs_data_get_string(it->settings, "tiktok_content_disclosure");
+	if (config.liveSettings.contentDisclosure.empty()) {
+		config.liveSettings.contentDisclosure = "off";
+	}
+	config.streamlabsAccessToken = obs_data_get_string(it->settings, "streamlabs_access_token");
+	config.streamlabsCategory = obs_data_get_string(it->settings, "streamlabs_category");
+	config.streamlabsMatureContent = obs_data_get_bool(it->settings, "streamlabs_mature_content");
+	const char *profiles = obs_data_get_string(it->settings, "tiktok_device_profiles");
+	const auto profileJson = QJsonDocument::fromJson(QByteArray(profiles ? profiles : ""));
+	if (profileJson.isObject()) {
+		config.deviceProfiles = profileJson.object();
+	}
+
+	auto session = std::make_shared<TikTokOutputSession>();
+	try {
+		const bool ready = session->Start(config, it->output, [this, it](const QJsonObject &devices) {
+			if (it->settings) {
+				const QByteArray json = QJsonDocument(devices).toJson(QJsonDocument::Compact);
+				obs_data_set_string(it->settings, "tiktok_device_profiles", json.constData());
+				save_canvas();
+			}
+		});
+		if (!ready) {
+			it->runtime_error = session->Error().toUtf8().constData();
+			session->Stop();
+			return false;
+		}
+	} catch (const std::exception &exception) {
+		it->runtime_error = exception.what();
+		session->Stop();
+		return false;
+	} catch (...) {
+		it->runtime_error = "TikTok connection preparation failed.";
+		session->Stop();
+		return false;
+	}
+
+	it->active_server = session->Server();
+	it->active_key = session->Key();
+	it->tiktokSession = std::move(session);
+
+	// Aitum's existing RTMP output receives the dynamic endpoint. No new encoder
+	// is created: StartStreamOutput/StartStream already attached the canvas encoder.
+	auto serviceSettings = obs_data_create();
+	obs_data_set_string(serviceSettings, "server", it->active_server.c_str());
+	obs_data_set_string(serviceSettings, "key", it->active_key.c_str());
+	obs_data_set_string(serviceSettings, "bearer_token", it->active_key.c_str());
+	obs_service_update(it->service, serviceSettings);
+	obs_data_release(serviceSettings);
+	return true;
 }
 
 obs_encoder_t *CanvasDock::GetStreamAudioEncoder()
@@ -6976,21 +7073,32 @@ void CanvasDock::StartStream()
 		if (!it->enabled) {
 			continue;
 		}
+		it->stopping = false;
+		if (!PrepareTikTokOutput(it)) {
+			it->stopping = true;
+			QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
+						  Q_ARG(QString, QString::fromUtf8(it->runtime_error)),
+						  Q_ARG(QString, QString::fromUtf8(it->active_server)),
+						  Q_ARG(QString, QString::fromUtf8(it->active_key)));
+			continue;
+		}
 		if (config) {
 			OBSDataAutoRelease output_settings = obs_data_create();
 			obs_data_set_string(output_settings, "bind_ip", config_get_string(config, "Output", "BindIP"));
 			obs_data_set_string(output_settings, "ip_family", config_get_string(config, "Output", "IPFamily"));
 			obs_output_update(it->output, output_settings);
 		}
-		it->stopping = false;
 		if (obs_output_start(it->output)) {
 			success = true;
+			if (it->tiktokSession)
+				it->tiktokSession->ConfirmStarted();
 		} else {
 			it->stopping = true;
+			const char *outputError = obs_output_get_last_error(it->output);
 			QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
-						  Q_ARG(QString, QString::fromUtf8(obs_output_get_last_error(it->output))),
-						  Q_ARG(QString, QString::fromUtf8(it->stream_server)),
-						  Q_ARG(QString, QString::fromUtf8(it->stream_key)));
+						  Q_ARG(QString, QString::fromUtf8(outputError && *outputError ? outputError : it->runtime_error.c_str())),
+						  Q_ARG(QString, QString::fromUtf8(it->active_server)),
+						  Q_ARG(QString, QString::fromUtf8(it->active_key)));
 		}
 	}
 	if (!success && started_video) {
@@ -7039,8 +7147,8 @@ void CanvasDock::stream_output_stop(void *data, calldata_t *calldata)
 	obs_output_t *t = (obs_output_t *)calldata_ptr(calldata, "output");
 	for (auto it = d->streamOutputs.begin(); it != d->streamOutputs.end(); ++it) {
 		if (it->output == t) {
-			stream_server = QString::fromUtf8(it->stream_server);
-			stream_key = QString::fromUtf8(it->stream_key);
+			stream_server = QString::fromUtf8(it->active_server.empty() ? it->stream_server : it->active_server);
+			stream_key = QString::fromUtf8(it->active_key.empty() ? it->stream_key : it->active_key);
 			it->stopping = true;
 		}
 	}
@@ -7996,7 +8104,19 @@ void CanvasDock::OnStreamStop(int code, QString last_error, QString stream_serve
 {
 	bool active = false;
 	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
-		if (stream_server == QString::fromUtf8(it->stream_server) && stream_key == QString::fromUtf8(it->stream_key)) {
+		const QString activeServer = QString::fromUtf8(it->active_server.empty() ? it->stream_server : it->active_server);
+		const QString activeKey = QString::fromUtf8(it->active_key.empty() ? it->stream_key : it->active_key);
+		if (stream_server == activeServer && stream_key == activeKey) {
+			if (it->tiktokSession) {
+				const QString sessionError = it->tiktokSession->Error();
+				it->tiktokSession->Stop();
+				it->tiktokSession.reset();
+				if (last_error.isEmpty() && !sessionError.isEmpty())
+					last_error = sessionError;
+			}
+			it->active_server.clear();
+			it->active_key.clear();
+			it->runtime_error.clear();
 		} else if (obs_output_active(it->output)) {
 			active = true;
 		}
