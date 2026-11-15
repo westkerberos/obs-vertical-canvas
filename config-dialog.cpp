@@ -1125,6 +1125,10 @@ void OBSBasicSettings::AddServer()
 		const QString outputName = server_names[idx]->text();
 		if (ConfigureTikTokOutput(this, outputSettings, outputName)) {
 			const QString mode = QString::fromUtf8(obs_data_get_string(outputSettings, "tiktok_method"));
+			if (mode != "custom" && (server_names[idx]->text().trimmed().isEmpty() ||
+				server_names[idx]->text().startsWith("Output ", Qt::CaseInsensitive))) {
+				server_names[idx]->setText("TikTok");
+			}
 			if (mode == "live-studio")
 				configureTikTok->setText("TikTok LIVE Studio (Desktop)…");
 			else if (mode == "live-studio-mobile")
