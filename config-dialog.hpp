@@ -55,6 +55,10 @@ private:
 	std::vector<QCheckBox *> servers_enabled;
 	std::vector<QPushButton *> tiktok_config_buttons;
 	std::vector<obs_data_t *> output_settings;
+	QGroupBox *tiktok_managed_group = nullptr;
+	QComboBox *tiktok_managed_output = nullptr;
+	QPushButton *tiktok_managed_configure = nullptr;
+	std::map<int, obs_data_t *> tiktok_managed_settings;
 
 	QCheckBox *streamDelayEnable;
 	QSpinBox *streamDelayDuration;
