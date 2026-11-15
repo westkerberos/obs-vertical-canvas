@@ -5,6 +5,8 @@
 #include "tiktok-native/qr_login.hpp"
 #include "tiktok-native/tiktok_studio_topics.hpp"
 #include "tiktok-native/request_cancellation.hpp"
+#include "tiktok-native/hosted_signing_service.hpp"
+#include "tiktok-native/rapidapi_quota.hpp"
 
 #include <obs-module.h>
 #include <util/bmem.h>
@@ -23,6 +25,9 @@
 #include <QPixmap>
 #include <QProgressDialog>
 #include <QScrollArea>
+#include <QProgressBar>
+#include <QDateTime>
+#include <QLocale>
 #include <QPushButton>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -36,6 +41,66 @@
 #include <utility>
 
 namespace {
+class RapidApiQuotaIndicator final : public QWidget {
+    HostedSigningServiceConfig service_;
+    QProgressBar *bar_ = nullptr;
+    QTimer timer_;
+
+    void Refresh()
+    {
+        const auto quota = ReadRapidApiQuota(service_);
+        bar_->setRange(0, 1000);
+        if (quota.limit > 0 && quota.remaining >= 0) {
+            const auto remaining = std::clamp(quota.remaining, qint64(0), quota.limit);
+            const double fraction = double(remaining) / double(quota.limit);
+            bar_->setValue(static_cast<int>(fraction * 1000.0));
+            bar_->setFormat(QString("%1 of %2 requests remaining")
+                .arg(QLocale().toString(remaining), QLocale().toString(quota.limit)));
+        } else if (quota.remaining >= 0) {
+            bar_->setValue(quota.remaining > 0 ? 1000 : 0);
+            bar_->setFormat(QString("%1 requests remaining").arg(QLocale().toString(quota.remaining)));
+        } else {
+            bar_->setValue(0);
+            bar_->setFormat("Usage appears here after the first TikTok LIVE signing request");
+        }
+
+        QStringList tips;
+        if (quota.observed_epoch_seconds > 0)
+            tips << QString("Last updated: %1").arg(QLocale().toString(
+                QDateTime::fromSecsSinceEpoch(quota.observed_epoch_seconds).toLocalTime(), QLocale::ShortFormat));
+        if (quota.has_calendar_reset())
+            tips << QString("Quota resets: %1").arg(QLocale().toString(
+                QDateTime::fromSecsSinceEpoch(quota.reset_epoch_seconds).toLocalTime(), QLocale::ShortFormat));
+        if (tips.isEmpty())
+            tips << "Quota is read passively from RapidAPI response headers; this indicator does not send requests.";
+        bar_->setToolTip(tips.join('\n'));
+    }
+
+public:
+    explicit RapidApiQuotaIndicator(QWidget *parent = nullptr) : QWidget(parent)
+    {
+        auto *layout = new QFormLayout(this);
+        layout->setContentsMargins(0, 0, 0, 0);
+        bar_ = new QProgressBar(this);
+        bar_->setObjectName("rapidApiQuotaBar");
+        bar_->setMinimumHeight(22);
+        bar_->setTextVisible(true);
+        layout->addRow("RapidAPI quota", bar_);
+        connect(&timer_, &QTimer::timeout, this, [this] {
+            if (isVisible())
+                Refresh();
+        });
+        timer_.start(1000);
+        Refresh();
+    }
+
+    void SetApiKey(const QString &key)
+    {
+        service_.api_key = key.trimmed();
+        Refresh();
+    }
+};
+
 class TikTokQrLoginDialog final : public QDialog {
     QLabel *picture_ = nullptr;
     QLabel *status_ = nullptr;
@@ -320,6 +385,9 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     auto *rapidApiKey = new QLineEdit(QString::fromUtf8(obs_data_get_string(settings, "tiktok_rapidapi_key")), studioGroup);
     rapidApiKey->setEchoMode(QLineEdit::Password);
     studioForm->addRow("RapidAPI key", rapidApiKey);
+    auto *quota = new RapidApiQuotaIndicator(studioGroup);
+    studioForm->addRow(quota);
+    QObject::connect(rapidApiKey, &QLineEdit::textChanged, quota, &RapidApiQuotaIndicator::SetApiKey);
 
     auto *cookieRow = new QWidget(studioGroup);
     auto *cookieLayout = new QHBoxLayout(cookieRow);
