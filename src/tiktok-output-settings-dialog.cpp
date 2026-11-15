@@ -36,6 +36,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <exception>
