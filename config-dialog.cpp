@@ -341,7 +341,7 @@ OBSBasicSettings::OBSBasicSettings(CanvasDock *canvas_dock, QMainWindow *parent)
 	tiktok_managed_configure = new QPushButton("Configure TikTok LIVE…", tiktok_managed_group);
 	tiktokManagedLayout->addRow(tiktok_managed_configure);
 	connect(tiktok_managed_configure, &QPushButton::clicked, [this] {
-		if (!tiktok_managed_output || !tiktok_managed_output->currentIndex())
+		if (!tiktok_managed_output || tiktok_managed_output->currentIndex() < 0)
 			return;
 		const int outputIndex = tiktok_managed_output->currentData().toInt();
 		auto settingsIt = tiktok_managed_settings.find(outputIndex);
@@ -1488,7 +1488,6 @@ void OBSBasicSettings::SaveSettings()
 				canvasDock->streamOutputs.pop_back();
 			}
 		}
-	}
 	} else {
 		// Multistream owns the output list, so only commit our platform-specific
 		// fields to the selected existing outputs; do not alter their endpoints.
