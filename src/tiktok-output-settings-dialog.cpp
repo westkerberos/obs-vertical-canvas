@@ -343,6 +343,31 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     studioForm->addRow(studioMature);
     form->addRow(studioGroup);
 
+    QJsonObject profiles = QJsonDocument::fromJson(
+        QByteArray(obs_data_get_string(settings, "tiktok_device_profiles"))).object();
+    QJsonObject mobileProfile = profiles.value("mobile").toObject();
+    auto *mobileGroup = new QWidget(&dialog);
+    auto *mobileForm = new QFormLayout(mobileGroup);
+    auto *mobileBroadcast = new QComboBox(mobileGroup);
+    mobileBroadcast->addItem("Camera LIVE", "video");
+    mobileBroadcast->addItem("Screen capture", "screen_record");
+    const QString savedBroadcast = mobileProfile.value("broadcast_type").toString("video");
+    mobileBroadcast->setCurrentIndex(mobileBroadcast->findData(savedBroadcast) < 0 ? 0 : mobileBroadcast->findData(savedBroadcast));
+    mobileForm->addRow("Mobile broadcast type", mobileBroadcast);
+    auto *mobileOrientation = new QComboBox(mobileGroup);
+    mobileOrientation->addItem("Portrait", "1");
+    mobileOrientation->addItem("Landscape", "2");
+    const QString savedOrientation = mobileProfile.value("orientation").toString("1");
+    mobileOrientation->setCurrentIndex(mobileOrientation->findData(savedOrientation) < 0 ? 0 : mobileOrientation->findData(savedOrientation));
+    mobileForm->addRow("Screen-capture orientation", mobileOrientation);
+    auto *mobileDeviceId = new QLineEdit(mobileProfile.value("device_id").toString(), mobileGroup);
+    auto *mobileInstallId = new QLineEdit(mobileProfile.value("install_id").toString(), mobileGroup);
+    mobileDeviceId->setPlaceholderText("Leave blank to register automatically");
+    mobileInstallId->setPlaceholderText("Leave blank to register automatically");
+    mobileForm->addRow("Android device ID", mobileDeviceId);
+    mobileForm->addRow("Android install ID", mobileInstallId);
+    form->addRow(mobileGroup);
+
     auto *streamlabsGroup = new QWidget(&dialog);
     auto *streamlabsForm = new QFormLayout(streamlabsGroup);
     auto *streamlabsToken = new QLineEdit(QString::fromUtf8(obs_data_get_string(settings, "streamlabs_access_token")), streamlabsGroup);
@@ -364,6 +389,7 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     auto updateVisibility = [=] {
         const auto selected = method->currentData().toString();
         studioGroup->setVisible(selected == "live-studio" || selected == "live-studio-mobile");
+        mobileGroup->setVisible(selected == "live-studio-mobile");
         streamlabsGroup->setVisible(selected == "streamlabs");
     };
     QObject::connect(method, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, updateVisibility);
@@ -374,13 +400,9 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
             cookiePath->setText(path);
     });
     QObject::connect(qrLogin, &QPushButton::clicked, &dialog, [&] {
-        QJsonObject profiles = QJsonDocument::fromJson(
-            QByteArray(obs_data_get_string(settings, "tiktok_device_profiles"))).object();
         QString savedCookiePath = cookiePath->text();
         if (LoginTikTokWithQr(&dialog, rapidApiKey->text(), &savedCookiePath, &profiles)) {
             cookiePath->setText(savedCookiePath);
-            obs_data_set_string(settings, "tiktok_device_profiles",
-                QJsonDocument(profiles).toJson(QJsonDocument::Compact).constData());
         }
     });
     QObject::connect(detectToken, &QPushButton::clicked, &dialog, [&] {
@@ -410,6 +432,13 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     obs_data_set_bool(settings, "tiktok_allow_comments", allowComments->isChecked());
     obs_data_set_string(settings, "tiktok_content_disclosure", disclosure->currentData().toString().toUtf8().constData());
     obs_data_set_bool(settings, "tiktok_mature_content", studioMature->isChecked());
+    mobileProfile.insert("broadcast_type", mobileBroadcast->currentData().toString());
+    mobileProfile.insert("orientation", mobileOrientation->currentData().toString());
+    mobileProfile.insert("device_id", mobileDeviceId->text().trimmed());
+    mobileProfile.insert("install_id", mobileInstallId->text().trimmed());
+    profiles.insert("mobile", mobileProfile);
+    obs_data_set_string(settings, "tiktok_device_profiles",
+        QJsonDocument(profiles).toJson(QJsonDocument::Compact).constData());
     obs_data_set_string(settings, "streamlabs_access_token", streamlabsToken->text().toUtf8().constData());
     obs_data_set_string(settings, "streamlabs_category", category->text().toUtf8().constData());
     obs_data_set_bool(settings, "streamlabs_mature_content", streamlabsMature->isChecked());
