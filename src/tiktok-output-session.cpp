@@ -109,8 +109,11 @@ void TikTokOutputSession::CancelPreparation()
 void TikTokOutputSession::Stop()
 {
     if (liveStudio_) {
+        const auto nativeError = liveStudio_->Error();
         liveStudio_->Stop();
         liveStudio_.reset();
+        if (error_.isEmpty() && !nativeError.isEmpty())
+            error_ = nativeError;
     }
     if (streamlabsStarted_) {
         const auto token = streamlabsAccessToken_;

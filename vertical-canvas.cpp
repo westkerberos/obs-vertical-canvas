@@ -8108,8 +8108,8 @@ void CanvasDock::OnStreamStop(int code, QString last_error, QString stream_serve
 		const QString activeKey = QString::fromUtf8((it->active_key.empty() ? it->stream_key : it->active_key).c_str());
 		if (stream_server == activeServer && stream_key == activeKey) {
 			if (it->tiktokSession) {
-				const QString sessionError = it->tiktokSession->Error();
 				it->tiktokSession->Stop();
+				const QString sessionError = it->tiktokSession->Error();
 				it->tiktokSession.reset();
 				if (last_error.isEmpty() && !sessionError.isEmpty())
 					last_error = sessionError;
