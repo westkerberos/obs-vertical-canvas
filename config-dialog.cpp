@@ -24,6 +24,7 @@
 #include "obs-module.h"
 #include "version.h"
 #include "vertical-canvas.hpp"
+#include "tiktok-output-settings-dialog.h"
 #include <util/dstr.h>
 #include <util/config-file.h>
 
@@ -988,6 +989,9 @@ OBSBasicSettings::~OBSBasicSettings()
 	obs_properties_destroy(record_encoder_properties);
 	obs_data_release(stream_encoder_settings);
 	obs_data_release(record_encoder_settings);
+	for (auto *settings : output_settings) {
+		obs_data_release(settings);
+	}
 }
 
 QIcon OBSBasicSettings::GetGeneralIcon() const
@@ -1101,6 +1105,32 @@ void OBSBasicSettings::AddServer()
 	auto server_name = new QLineEdit;
 	serverLayout->addRow(QString::fromUtf8(obs_module_text("Name")), server_name);
 	server_names.push_back(server_name);
+
+	// Keep an editable copy until the user accepts the whole Vertical Canvas settings dialog.
+	obs_data_t *outputSettings = obs_data_create();
+	if (idx < canvasDock->streamOutputs.size() && canvasDock->streamOutputs[idx].settings) {
+		obs_data_apply(outputSettings, canvasDock->streamOutputs[idx].settings);
+	}
+	output_settings.push_back(outputSettings);
+
+	auto configureTikTok = new QPushButton("Configure platform…");
+	configureTikTok->setToolTip("Choose custom RTMP, TikTok LIVE Studio or Streamlabs for this output");
+	connect(configureTikTok, &QPushButton::clicked, [this, idx, outputSettings, configureTikTok] {
+		const QString outputName = server_names[idx]->text();
+		if (ConfigureTikTokOutput(this, outputSettings, outputName)) {
+			const QString mode = QString::fromUtf8(obs_data_get_string(outputSettings, "tiktok_method"));
+			if (mode == "live-studio")
+				configureTikTok->setText("TikTok LIVE Studio (Desktop)…");
+			else if (mode == "live-studio-mobile")
+				configureTikTok->setText("TikTok LIVE Studio (Mobile)…");
+			else if (mode == "streamlabs")
+				configureTikTok->setText("Streamlabs Desktop…");
+			else
+				configureTikTok->setText("Configure platform…");
+		}
+	});
+	tiktok_config_buttons.push_back(configureTikTok);
+	serverLayout->addRow(configureTikTok);
 
 	auto server = new QComboBox;
 	server->setEditable(true);
@@ -1349,6 +1379,10 @@ void OBSBasicSettings::SaveSettings()
 				bool whip = strstr(so.stream_server.c_str(), "whip") != nullptr;
 				so.service = obs_service_create(whip ? "whip_custom" : "rtmp_custom", service_name.c_str(), nullptr,
 								nullptr);
+				if (idx < output_settings.size()) {
+					obs_data_addref(output_settings[idx]);
+					so.settings = output_settings[idx];
+				}
 				canvasDock->streamOutputs.push_back(so);
 			}
 			canvasDock->streamOutputs[idx].name = server_names[idx]->text().toUtf8().constData();
@@ -1362,6 +1396,11 @@ void OBSBasicSettings::SaveSettings()
 				}
 			}
 			canvasDock->streamOutputs[idx].enabled = servers_enabled[idx]->isChecked();
+			if (idx < output_settings.size()) {
+				if (!canvasDock->streamOutputs[idx].settings)
+					canvasDock->streamOutputs[idx].settings = obs_data_create();
+				obs_data_apply(canvasDock->streamOutputs[idx].settings, output_settings[idx]);
+			}
 		}
 
 		if (canvasDock->streamOutputs.size() > servers.size()) {
@@ -1379,6 +1418,7 @@ void OBSBasicSettings::SaveSettings()
 				obs_output_release(canvasDock->streamOutputs[idx].output);
 				obs_service_release(canvasDock->streamOutputs[idx].service);
 				obs_encoder_release(old_enc);
+				obs_data_release(canvasDock->streamOutputs[idx].settings);
 				canvasDock->streamOutputs.pop_back();
 			}
 		}
