@@ -118,3 +118,17 @@ The current confirmed replacement scope therefore includes:
 - the device-registration/identity code above, whose cited source repository has no published license.
 
 The other unmarked files still need a file-level provenance check. The absence of a GPL-3.0-only marker does not settle their status.
+
+
+## Additional GPL-3.0-derived integration files outside `src/tiktok-native/`
+
+The pull-request patch contains two additional files with explicit source-provenance comments:
+
+- `src/tiktok-live-session.cpp` begins with: `Native OBS packet integration adapted from TikTok Live OBS (GPL-3.0-only).` It is compiled into the Vertical Canvas module by CMake.
+- `src/streamlabs-desktop.cpp` states that it is adapted from both `StreamLabsTikTokStreamKeyGenerator` and `Smile-4-Me/tiktok-live-obs/src/streamlabs_desktop.cpp`. The Smile-4-Me source file carries an explicit GPL-3.0-only header. The separate [Loukious/StreamLabsTikTokStreamKeyGenerator](https://github.com/Loukious/StreamLabsTikTokStreamKeyGenerator) repository has a GPL-3.0 LICENSE (GitHub metadata: GPL-3.0).
+
+These files do not have a root-level `SPDX-License-Identifier: GPL-3.0-only` marker in the WEST tree, but their own source comments disclose adaptation from GPL-3.0-only material. They must be included in the clean replacement/review scope. This means the inventory now identifies **at least 24 files** with GPL-3.0-only source provenance: 22 marked files under `src/tiktok-native/`, plus these two integration files.
+
+## No-license device source remains a separate blocker
+
+The device-registration source path described above remains separate from the GPL-3.0-only count. The current desktop and Android identity code cites `Loukious/TikTokStreamKeyGenerator`, whose inspected repository head has no LICENSE file and no GitHub license metadata. A public source repository without a license grant must not be treated as redistributable.
