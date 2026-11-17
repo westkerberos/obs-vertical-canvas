@@ -123,6 +123,8 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/account-info.h
 	src/account-info-widget.cpp
 	src/account-info-widget.h
+	src/tiktok-dual-layout-widget.cpp
+	src/tiktok-dual-layout-widget.h
 	src/streamlabs-api.cpp
 	src/streamlabs-api.h
 	src/streamlabs-info.cpp
