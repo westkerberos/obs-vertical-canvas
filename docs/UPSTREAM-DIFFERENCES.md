@@ -81,7 +81,7 @@ This is a deliberate ownership boundary:
 
 ## TikTok integration source and attribution
 
-The TikTok integration was ported and adapted from the TikTok implementation in [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), a downstream fork of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). The native TikTok client/signing components also carry a direct upstream attribution to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs), including its stated GPL-3.0-only license. The exact notices and license texts are retained in `data/licenses/`.
+Only the TikTok authentication portion was borrowed and adapted from [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), a downstream fork of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). The native TikTok client/signing/runtime components carry separate direct attribution to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs), whose README identifies the source as GPL-3.0-only. The exact notices and license texts are retained in `data/licenses/`.
 
 WEST Gaming's changes in this repository are the OBS/Qt integration, connection/settings UI, Vertical Canvas output lifecycle, account and device interface, safety/appeal interface, canvas and encoder ownership, automatic Portrait/Main Canvas encoder reuse, advanced Dual LIVE override, and the configuration bridge used by the companion Aitum Multistream fork.
 
