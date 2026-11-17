@@ -125,14 +125,16 @@ public:
 
 static obs_data_t *EncoderSettings(const QJsonObject &params, int bitrate)
 {
-    OBSDataAutoRelease settings = obs_data_create();
+    obs_data_t *settings = obs_data_create();
+    if (!settings)
+        return nullptr;
     if (bitrate > 0)
         obs_data_set_int(settings, "bitrate", bitrate);
     const auto encoded = QJsonDocument(params).toJson(QJsonDocument::Compact);
     OBSDataAutoRelease supplied = obs_data_create_from_json(encoded.constData());
     if (supplied)
         obs_data_apply(settings, supplied);
-    return obs_data_get_ref(settings);
+    return settings;
 }
 
 static obs_encoder_t *CreateTikTokVideoEncoder(const TikTokLayoutVideoConfig &config,
@@ -322,6 +324,8 @@ struct TikTokOutputSession::DualFeedState {
             obs_output_force_stop(landscapeOutput);
     }
 };
+
+TikTokOutputSession::TikTokOutputSession() = default;
 
 TikTokOutputSession::~TikTokOutputSession()
 {
