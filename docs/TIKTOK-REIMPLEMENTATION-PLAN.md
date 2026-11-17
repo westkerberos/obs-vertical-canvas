@@ -1,98 +1,95 @@
-# TikTok implementation replacement plan
+# TikTok relay implementation plan
 
-Status: planning baseline completed; replacement code not started.
+Status: architecture and provenance planning only. No relay process or C++ runtime refactor has been implemented.
 
 ## Objective
 
-Preserve as much of the tested WEST Gaming user experience as possible without combining Aitum-derived GPL-2.0 code and GPL-3.0-only implementation in one distributed module, and without redistributing code from repositories that publish no license grant.
+Preserve as much of the tested WEST Gaming integration as possible without compiling GPL-3.0-only code into the GPL-2.0 Aitum-derived OBS plugin, and without redistributing code from an unlicensed source repository.
 
-The new preferred experiment is a **separate TikTok relay process**: keep the OBS Vertical Canvas plugin under inherited GPL-2.0 terms, and move the GPL-3.0-only TikTok runtime into a separate GPL-3.0 executable that communicates with OBS only through standard RTMP/FLV over localhost and a minimal documented control protocol. This architecture is described in [LICENSING-ARCHITECTURE-OPTIONS.md](LICENSING-ARCHITECTURE-OPTIONS.md). It is a candidate for legal review, not a guarantee that the programs are separate works.
+Preferred experiment: a separate **WEST TikTok Relay** executable. The existing OBS plugin remains a separate GPL-2.0 program; the helper is a separate GPL-3.0 program. They communicate through RTMP/FLV over localhost for media and a small documented JSON control protocol over pipes for lifecycle/status. See [LICENSING-ARCHITECTURE-OPTIONS.md](LICENSING-ARCHITECTURE-OPTIONS.md).
 
-The no-license device-registration code must still be replaced independently or disabled. If the process boundary cannot be implemented and reviewed, fall back to an independent GPL-2.0-compatible reimplementation or a reduced MIT browser-session provider. The current tested implementation must remain untouched on `feature/tiktok-native-output`; do not merge, release or claim license clearance during this work.
+This is only an engineering candidate. Whether the actual programs remain separate works depends on their implementation and communication semantics; no legal clearance is asserted.
 
-## Source boundary
+## Program responsibilities
 
-See [LICENSING-INVENTORY.md](LICENSING-INVENTORY.md) for the exact 22-file list, the 38-file blob comparison and the current source-license findings.
+### OBS / Vertical Canvas plugin — inherited GPL-2.0
 
-The current build links the native sources directly into the Vertical Canvas module. The GPL-3.0-only files therefore have to be replaced before a combined plugin binary is distributed under GPL-2.0.
+- Own OBS UI, scenes, canvases, preview, encoder selection and OBS lifecycle.
+- Keep existing Portrait and Landscape encoder ownership. Portrait uses the Vertical Canvas TikTok destination encoder. Landscape reuses the active Main Canvas streaming video/audio encoder objects.
+- Launch and supervise a separate relay executable.
+- Send account/provider settings to the relay through the documented control channel; never place secrets in command-line arguments.
+- Create OBS output(s) whose server/key point only to the relay's local RTMP listener.
+- Treat the relay status as the authority for remote LIVE session state, endpoint readiness and shutdown result.
+- Never link to, load, or share C++ classes/data structures with the relay's TikTok runtime.
 
-Replacement code must be independently authored. Do not copy blocks, preserve the original file structure mechanically, translate the original line by line, or merely rename/refactor source files. Use observable product requirements, public API/protocol documentation, standards, and independent tests as the implementation basis. If a particular function cannot be implemented without copying protected source expression or relying on an undocumented mechanism that cannot be independently specified, remove that feature from the GPL-2.0 build until there is a compliant alternative.
+### TikTok Relay — separate GPL-3.0 executable
 
-## Functional requirements to preserve
+- Own TikTok account/session/network operations, signing and remote ingest connections.
+- Receive local RTMP/FLV media from OBS.
+- For normal LIVE, accept one feed. For Dual LIVE, pair the local `portrait` and `landscape` feeds with two remote ingest targets belonging to the same TikTok LIVE session.
+- Own the remote TikTok room lifecycle, stream metadata/SEI operations, reconnect/error reporting and cleanup.
+- Avoid OBS headers, libobs links, Qt plugin APIs and Vertical Canvas internal types wherever possible. Its dependency graph must be independently buildable and auditable.
 
-### Connections and account setup
+## Proposed process protocol
 
-- Custom RTMP with user-provided server URL and stream key.
-- TikTok LIVE Studio Desktop, using the documented user-facing connection flow, cookie-backed account session and hosted signing service credentials.
-- TikTok LIVE Studio Mobile Camera LIVE, including the saved device/install profile.
-- Streamlabs Desktop token flow.
-- QR login and local cookie persistence for the supported native account modes.
-- Refresh account status, username and Dual LIVE eligibility.
-- Protect cookies, tokens, signing keys and device/profile identifiers; never log or commit secrets.
+Use a deliberately small contract:
 
-### LIVE session and metadata
+- Control channel: JSON request/response messages over stdin/stdout pipes (or an authenticated loopback control socket if pipe supervision proves unreliable).
+- Candidate commands: `hello`, `capabilities`, `account_status`, `dual_live_eligibility`, `get_topics`, `get_games`, `start_live`, `stop_live`, `get_status`, `get_safety_status`.
+- A successful `start_live` returns only local RTMP feed URLs/keys, a session correlation ID, and the feed roles required by OBS. Do not return remote TikTok ingest URLs/keys to the plugin.
+- Media: ordinary RTMP/FLV over loopback. One path for Portrait; a second path for Landscape during Dual LIVE.
+- Bind listeners to 127.0.0.1 only. Generate unpredictable local stream keys. Never expose the listener to the LAN.
+- Do not send OBS scene objects, encoder objects, raw OBS packets as private structs, callback pointers, shared memory or custom in-process ABI across the boundary.
+- Pass cookies, RapidAPI keys, Streamlabs tokens and other credentials only through the local control channel. Never place them in command-line arguments, status text, persistent helper logs or crash reports.
+- Helper shutdown and reconnect operations must be idempotent. Stopping one Dual LIVE feed must follow an explicitly documented pair-failure policy.
+- The process boundary and aggregate installer require a software-license review before public binary publication.
 
-- Create or resume a TikTok LIVE room.
-- Obtain the appropriate ingest endpoint and stream key for the selected mode.
-- Select a topic and game using TikTok-returned identifiers.
-- Apply title, gifts/comments, content disclosure and mature-content options where the selected provider supports them.
-- Show hosted signing service quota/errors without exposing credentials.
+This contract is intentionally limited. If the helper needs private OBS/Vertical Canvas structures or a direct shared library to work, stop and reassess the boundary.
 
-### Video/audio and Dual LIVE
+## Source partition
 
-- Support single-feed Portrait and Landscape destinations.
-- Support the current automatic Dual LIVE behavior:
-  - Portrait uses the existing Vertical Canvas TikTok output video/audio encoder objects.
-  - Landscape reuses the active OBS Main Canvas streaming output video/audio encoder objects.
-  - Main Canvas must be streaming before automatic Dual LIVE starts.
-  - If one feed fails terminally, stop and clean up the pair.
-- Keep the manual layout/encoder override if it can be maintained without the incompatible source implementation.
-- Preserve the requirement that TikTok itself reports the account eligible for Dual LIVE.
+See [LICENSING-INVENTORY.md](LICENSING-INVENTORY.md) for exact file paths and upstream revisions. The source audit currently identifies at least 24 GPL-3.0-derived integration files: 22 under `src/tiktok-native/` with explicit GPL-3.0-only headers, plus `src/tiktok-live-session.cpp` and `src/streamlabs-desktop.cpp` with explicit source-provenance comments.
 
-### Safety and shutdown
+The helper must not blindly import the 16 unmarked files from the Loukious fork. Their root repository is GPL-2.0, their individual provenance has not been conclusively classified, and several are dependencies of the marked GPL-3.0 modules. Until they are audited, assume they cannot be moved into a GPL-3.0 helper. Reimplement only the required utility behavior independently inside the helper, or keep an independently verified compatible implementation on the GPL-2.0 side.
 
-- Cleanly stop the LIVE session and both feeds.
-- Do not claim that appeals or safety operations succeeded unless TikTok confirms the result.
-- Preserve manual violation/appeal lookup and monitoring only where the implementation and service endpoints can be independently verified.
-- Cancel pending requests and release cookies/session state when an output stops or OBS unloads.
+The device-registration code is a separate blocker:
+- `tiktok_studio_device.hpp/.cpp` identifies the desktop registration envelope as ported from `Loukious/TikTokStreamKeyGenerator`.
+- `mobile_device.hpp/.cpp` identifies the Android identity/registration path as a port from that repository's `Libs/mobile_device_gen.py` and TTEncrypt codec.
+- The cited public repository has no LICENSE file or GitHub license metadata.
+- The G3 header on one WEST file does not grant rights to the unlicensed source from which that implementation was ported.
 
-## Expanded replacement scope outside the native directory
+The desktop/mobile identity and registration algorithms therefore need independently authored replacements or must be disabled. `mobile_profile.cpp/.hpp` must be audited with them.
 
-The PR patch explicitly identifies two additional source files as derived from GPL-3.0-only projects: `src/tiktok-live-session.cpp` (adapted from TikTok Live OBS) and `src/streamlabs-desktop.cpp` (adapted from StreamLabsTikTokStreamKeyGenerator and Smile-4-Me's Streamlabs module). These must be independently replaced/reviewed too. The Streamlabs token discovery function should be reimplemented from its observable requirements, not translated from the GPL-3 source. The OBS packet/session adapter requires a new design and tests against the output contract.
+Other files that have explicit G3 provenance, including the OBS packet/session adapter and Streamlabs token discovery, may be moved to a G3 helper only if their full dependency graphs are clean. The current OBS packet adapter itself must be replaced by the local RTMP/FLV process boundary; it must not keep shared OBS state inside the relay.
 
-## Replacement work packages
+## Compatible alternatives examined
 
-| Package | Explicitly GPL-3.0-only files | New implementation responsibility |
-| --- | --- | --- |
-| A. Request signing and hosted signer | `hosted_signing_service.hpp`, `tiktok_request_signer.cpp/.hpp` | Define a small typed client for the hosted signing service; validate HTTP status, response shape, quota headers, cancellation and redaction. |
-| B. LIVE session client | `live_client.cpp/.hpp`, `tiktok_studio_session.cpp/.hpp`, `tiktok_studio_account.hpp` | Model account/session state and implement the documented request/response contract without copying the old implementation. |
-| C. Device and login lifecycle | `tiktok_studio_device.cpp/.hpp`, `mobile_device.cpp/.hpp`, `qr_login.hpp`, `tiktok_studio_qr.cpp/.hpp` | Reimplement desktop/mobile identity and registration without using the no-license `Loukious/TikTokStreamKeyGenerator` source; implement QR polling, cookie export and persistence under a new data model. Audit `mobile_profile.cpp/.hpp` as a dependent module. |
-| D. Signed video metadata | `frame_signing.cpp/.hpp`, `sei_metadata.cpp/.hpp` | Implement packet signing integration and standards-based SEI/NAL insertion with isolated unit tests. |
-| E. Topic and game metadata | `tiktok_studio_game_tags.cpp/.hpp`, `tiktok_studio_topics.cpp/.hpp` | Query, parse and validate provider-returned topic/game identifiers. |
-| F. Localization adapter | `localization.hpp` | Replace OBS-coupled native localization helper with a new adapter to WEST's supported translation interface. |
-| G. OBS packet/session integration | `src/tiktok-live-session.cpp` | Rebuild the OBS output/packet adapter against a new internal client contract, with explicit encoder-thread, cancellation, output stop and error-propagation tests. |
-| H. Streamlabs credential discovery | `src/streamlabs-desktop.cpp` | Reimplement local token discovery without copying either GPL-3 source; treat discovered tokens as credentials and never log them. |
+- [TikTok LIVE Native](COMPATIBLE-TIKTOK-ALTERNATIVES.md): MIT, browser-cookie web session, room creation and one RTMP push URL. Linux-only and no Dual LIVE parity.
+- [iqbalmh18/tiktok-signer](COMPATIBLE-TIKTOK-ALTERNATIVES.md): MIT, but documents version 37.0.4 and a different TTEncrypt variant. Not a proven replacement for our 47.x Android path.
+- [9xz/reversetok](COMPATIBLE-TIKTOK-ALTERNATIVES.md): documents newer 47.7.2 behavior, but publishes no license. Do not copy or package its code, fixtures or tests.
 
-The 16 unmarked files are not automatically accepted as clear. Their origin and dependencies must be checked against the source inventory before the final audit. The device-identity files are already flagged because their comments cite a separate repository with no published license. Audit `mobile_profile.cpp/.hpp` alongside them. If any further files are found to contain GPL-3.0-only-derived or unlicensed implementation, add them to the replacement scope.
+No inspected permissively licensed implementation is a proven drop-in replacement for the current LIVE Studio/Android Dual LIVE runtime.
 
-## Engineering safeguards
+## Verification plan
 
-1. Put replacement modules in a new namespace/directory so old source cannot be mixed in accidentally during development.
-2. Add explicit unit tests for parsing, retries, cancellation, quotas, signing-service responses, cookie validation and SEI generation.
-3. Use fixture data with all secrets removed. Do not use real cookies, API keys or account IDs in the repository.
-4. Make the build use only the replacement modules; fail CI if any old GPL-3.0-only file is included in the target.
-5. Run code formatting, static checks and a full Windows x64 build.
-6. Repeat the maintainer's 17 November 2026 runtime smoke test: Landscape, Portrait and Dual LIVE in OBS 33.0.1 with the separate OBS Multi-RTMP plugin disabled.
-7. Re-test QR login, account refresh, reconnects, stop/cleanup, failure paths and the Advanced Dual LIVE override before a general Release.
-8. Audit every dependency and license notice in the final package. Keep the root Aitum-derived license unchanged unless primary evidence clearly establishes a different grant.
+1. Build the relay as an independent process with no OBS/Vertical Canvas link dependencies.
+2. Add contract tests for each control message, credential redaction, invalid/expired cookie handling, start/stop idempotency and helper crash/restart.
+3. Add local media tests for one RTMP feed, two simultaneous feeds, backpressure, reconnect, audio/video timestamp handling and orderly shutdown.
+4. Add protocol fixtures with secrets removed. Do not use real cookies, account IDs, signing keys or stream keys in the repository.
+5. Build the OBS plugin without any GPL-3.0-only source or helper library linked into its module.
+6. Run the existing maintainer smoke test again: OBS 33.0.1 on Windows, Landscape, Portrait and Dual LIVE, with the separate OBS Multi-RTMP plugin disabled.
+7. Test both feed directions, Main Canvas encoder reuse, one-feed failure, relay crash, stop/restart, QR login and all supported connection modes.
+8. Inspect the final Windows package and its separate license manifests/notices. Add cross-platform builds only after the process and media paths are implemented/tested there.
 
-## Compatible implementation candidate\n\nBefore a full clean-room rewrite of every network/session component, evaluate the MIT-licensed [TikTok LIVE Native alternative](COMPATIBLE-TIKTOK-ALTERNATIVES.md). It demonstrates a browser-cookie web session that creates a LIVE room and returns an RTMP push URL without the GPL-3.0-only LIVE Studio signer/device stack. It is Linux-only today and does not provide Dual LIVE or our current account modes, so it is a potential single-feed provider prototype, not a drop-in replacement. Preserve the existing tested implementation until a Windows prototype is validated and the maintainer decides whether any feature downgrade is acceptable.\n\n## Release gate
+## Release gate
 
-The current feature is not license-cleared. The work is complete only when:
-- no GPL-3.0-only-derived source remains inside the GPL-2.0 Vertical Canvas module;
-- no unresolved GPL-3.0-only dependency is linked into the same module;
-- all remaining source provenance and copyright notices are documented;
-- clean Windows builds and runtime tests pass;
-- the documentation, PR description and installer prompts match the final license reality.
+The project remains not cleared for public binary distribution until:
+- the OBS plugin and relay are separate executables with no shared internal code/ABI;
+- only source with compatible, documented terms is included in each program;
+- the unlicensed device-registration implementation has been removed/replaced or the affected mode has been disabled;
+- no GPL-3.0-only code is compiled or linked into the GPL-2.0 OBS plugin;
+- dependency graphs, source notices and package manifests are audited;
+- clean builds and actual LIVE tests pass;
+- the process boundary and bundled distribution have received appropriate legal review.
 
-This plan does not provide legal advice. A qualified software-licensing review is still appropriate before the first public binary Release.
+This plan does not provide legal advice. Preserve the currently tested feature branch unchanged until the relay prototype and tests are ready.
