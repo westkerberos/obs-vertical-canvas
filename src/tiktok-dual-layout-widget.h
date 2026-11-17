@@ -62,6 +62,8 @@ private:
     static void SaveVideo(const VideoFields &fields, TikTokLayoutVideoConfig &config);
 
     QCheckBox *enabled_ = nullptr;
+    QCheckBox *reuseCanvasEncoders_ = nullptr;
+    QWidget *manualSettings_ = nullptr;
     QCheckBox *sameAudio_ = nullptr;
     QGroupBox *settings_ = nullptr;
     VideoFields portrait_;
