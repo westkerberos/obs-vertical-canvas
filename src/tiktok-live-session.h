@@ -28,6 +28,7 @@ struct TikTokLayoutVideoConfig {
 };
 struct TikTokDualLayoutConfig {
     bool enabled = false;
+    bool reuseCanvasEncoders = true;
     bool sameAudio = true;
     bool independentAudioInitialized = false;
     TikTokLayoutAudioConfig sharedAudio;
