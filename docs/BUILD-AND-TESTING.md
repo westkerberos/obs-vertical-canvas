@@ -4,7 +4,7 @@
 
 These instructions apply to the WEST Gaming branch `feature/tiktok-native-output`, not automatically to Aitum's upstream default branch.
 
-The current integration PR is [#1](https://github.com/westkerberos/obs-vertical-canvas/pull/1). The automatic encoder-reuse runtime change was compiled at commit `cb22d71497d2e025bfad686cab8079937f7f6387`. The latest PR head, including the subsequent documentation and attribution updates, is `03c83c3a991265a2c8a445d3fc99c26708d53687`.
+The current integration PR is [#1](https://github.com/westkerberos/obs-vertical-canvas/pull/1). The current PR head, including the implementation, verification notes and documentation/attribution updates, is `1312b4ba1d1fc05cd69ec54afa5d7379f578fa7e`.
 
 ## Dependencies visible in the build configuration
 
@@ -32,18 +32,20 @@ For an in-tree OBS build, follow the OBS plugin integration pattern already used
 
 ## CI and packaging
 
-The latest documented branch head built and packaged successfully for Windows x64:
+The latest PR head built and packaged successfully for Windows x64:
 
-- Workflow: [#44163406280](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44163406280)
-- Commit: `f4a205d50013abde930f6183851f67e63b09e8c9`
-- Artifact: `vertical-canvas-1.6.7-windows-x64-017a3e5eb`
-- The automatic encoder-reuse runtime change was compiled earlier at `cb22d71497d2e025bfad686cab8079937f7f6387`; the latest successful package includes the subsequent documentation and attribution updates.
-- The standard Windows ZIP and ProgramData-layout ZIP were inspected in a preceding package run. Both contained `GPL-2.0.txt`, `qrcodegen.txt`, `tiktok-live-obs.txt` and `tiktok-live-obs-GPL-3.0.txt`.
-- The automatic encoder-reuse runtime change was compiled at commit `cb22d71497d2e025bfad686cab8079937f7f6387`; the later branch commits include documentation, attribution and license-distribution updates.
+- Workflow: [#44164402230](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44164402230)
+- Commit: `1312b4ba1d1fc05cd69ec54afa5d7379f578fa7e`
+- Artifact: `vertical-canvas-1.6.7-windows-x64-188ed878a`
+- Windows build job: success.
+- GitHub event-data validation: success.
+- Ubuntu/macOS build jobs: skipped by this fork's workflow.
+- Formatting jobs: skipped by the workflow configuration.
 - Signing: skipped because this fork does not have signing secrets configured.
-- Ubuntu/macOS: not built by the current fork workflow.
 
-There is no GitHub Release published for this repository yet. GitHub Actions artifacts are build outputs, not a stable release channel.
+The artifact is a CI test package, not a GitHub Release or a supported automatic-update channel. Previous Windows ZIP inspections verified that the package carried the GPL-2.0, QR-code and TikTok third-party notice/license files. Re-inspect the current artifact before any public binary distribution.
+
+There is no GitHub Release published for this fork yet. GitHub Actions artifacts are temporary build outputs, not a stable release channel.
 
 ## What CI proves — and what it does not
 
