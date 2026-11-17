@@ -1,6 +1,6 @@
 Native TikTok integration
 
-Direct source: https://github.com/Smile-4-Me/tiktok-live-obs
+Direct native source: https://github.com/Smile-4-Me/tiktok-live-obs
 Revision: 3d7e7e9ec77b0260b2dde4af726d3b15c5a4d933
 Copyright (C) 2026 TikTok Live OBS Contributors
 License: GPL-3.0-only (see tiktok-live-obs-GPL-3.0.txt)
@@ -10,11 +10,19 @@ project, including request signing, frame signing, SEI metadata, desktop and
 mobile device/session handling, LIVE room lifecycle, topic/game metadata,
 QR login and LIVE safety support.
 
-The OBS/Qt settings UI, Vertical Canvas output adapters, Aitum canvas
-integration and Dual LIVE orchestration are WEST Gaming integrations. They
-were adapted into the Vertical Canvas output lifecycle from the separately
-maintained WEST Gaming obs-multi-rtmp implementation; they are not represented
-as unchanged source files from tiktok-live-obs.
+The TikTok integration was ported and adapted for OBS/Vertical Canvas from
+Loukious/obs-multi-rtmp, a downstream fork of sorayuki/obs-multi-rtmp:
+https://github.com/Loukious/obs-multi-rtmp
+https://github.com/sorayuki/obs-multi-rtmp
+
+The earlier WEST Gaming obs-multi-rtmp fork was a temporary source snapshot
+used during that port. It is not a separately maintained WEST Gaming product,
+not a dependency, and not a supported installation target.
+
+WEST Gaming adaptations in this repository integrate the TikTok connection
+and output lifecycle with OBS/Qt and Vertical Canvas, including canvas and
+encoder ownership, automatic Portrait/Main Canvas encoder reuse, the
+advanced Dual LIVE override and the Aitum Multistream configuration bridge.
 
 The Vertical Canvas fork does not run the original Python application or an
 external media proxy. Preserve this notice and the accompanying GPL-3.0-only
