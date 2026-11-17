@@ -54,6 +54,10 @@ Replacement code must be independently authored. Do not copy blocks, preserve th
 - Preserve manual violation/appeal lookup and monitoring only where the implementation and service endpoints can be independently verified.
 - Cancel pending requests and release cookies/session state when an output stops or OBS unloads.
 
+## Expanded replacement scope outside the native directory
+
+The PR patch explicitly identifies two additional source files as derived from GPL-3.0-only projects: `src/tiktok-live-session.cpp` (adapted from TikTok Live OBS) and `src/streamlabs-desktop.cpp` (adapted from StreamLabsTikTokStreamKeyGenerator and Smile-4-Me's Streamlabs module). These must be independently replaced/reviewed too. The Streamlabs token discovery function should be reimplemented from its observable requirements, not translated from the GPL-3 source. The OBS packet/session adapter requires a new design and tests against the output contract.
+
 ## Replacement work packages
 
 | Package | Explicitly GPL-3.0-only files | New implementation responsibility |
@@ -64,6 +68,8 @@ Replacement code must be independently authored. Do not copy blocks, preserve th
 | D. Signed video metadata | `frame_signing.cpp/.hpp`, `sei_metadata.cpp/.hpp` | Implement packet signing integration and standards-based SEI/NAL insertion with isolated unit tests. |
 | E. Topic and game metadata | `tiktok_studio_game_tags.cpp/.hpp`, `tiktok_studio_topics.cpp/.hpp` | Query, parse and validate provider-returned topic/game identifiers. |
 | F. Localization adapter | `localization.hpp` | Replace OBS-coupled native localization helper with a new adapter to WEST's supported translation interface. |
+| G. OBS packet/session integration | `src/tiktok-live-session.cpp` | Rebuild the OBS output/packet adapter against a new internal client contract, with explicit encoder-thread, cancellation, output stop and error-propagation tests. |
+| H. Streamlabs credential discovery | `src/streamlabs-desktop.cpp` | Reimplement local token discovery without copying either GPL-3 source; treat discovered tokens as credentials and never log them. |
 
 The 16 unmarked files are not automatically accepted as clear. Their origin and dependencies must be checked against the source inventory before the final audit. The device-identity files are already flagged because their comments cite a separate repository with no published license. Audit `mobile_profile.cpp/.hpp` alongside them. If any further files are found to contain GPL-3.0-only-derived or unlicensed implementation, add them to the replacement scope.
 
