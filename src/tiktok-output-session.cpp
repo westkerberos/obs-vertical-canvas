@@ -165,9 +165,17 @@ struct TikTokOutputSession::DualFeedState {
             obs_output_release(landscapeOutput);
         if (landscapeService)
             obs_service_release(landscapeService);
-        for (auto encoder : {portraitVideo, landscapeVideo, sharedAudio, portraitAudio, landscapeAudio})
+        for (auto encoder : {portraitVideo, landscapeVideo})
             if (encoder)
                 obs_encoder_release(encoder);
+        if (sharedAudio) {
+            obs_encoder_release(sharedAudio);
+        } else {
+            if (portraitAudio)
+                obs_encoder_release(portraitAudio);
+            if (landscapeAudio)
+                obs_encoder_release(landscapeAudio);
+        }
     }
 
     static void LandscapeStopped(void *opaque, calldata_t *data)
@@ -214,7 +222,6 @@ struct TikTokOutputSession::DualFeedState {
                 return false;
             portraitAudio = sharedAudio;
             landscapeAudio = sharedAudio;
-            obs_encoder_addref(sharedAudio);
         } else {
             portraitAudio = CreateTikTokAudioEncoder(config.dualLayout.portrait.audio, "tiktok_dual_portrait_audio", error);
             if (!portraitAudio)
