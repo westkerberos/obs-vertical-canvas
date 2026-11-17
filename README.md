@@ -2,7 +2,7 @@
 
 A WEST Gaming-maintained fork of [Aitum Vertical Canvas](https://github.com/Aitum/obs-vertical-canvas), built on the upstream native multi-canvas plugin and extended with TikTok LIVE output support.
 
-This repository is the WEST Gaming-maintained Vertical Canvas fork. Its TikTok destination is implemented here; the matching [Aitum Multistream fork](https://github.com/westkerberos/obs-aitum-multistream) provides an optional destination-wizard bridge.
+This repository is the WEST Gaming-maintained Vertical Canvas fork. It owns the TikTok destination, connection UI and runtime. The matching [Aitum Multistream fork](https://github.com/westkerberos/obs-aitum-multistream) is an optional wizard/dock bridge; it does not implement TikTok connectivity.
 
 > **Development status — 17 November 2026:** the TikTok integration is on [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), branch `feature/tiktok-native-output`. The default `main` branch does not contain these additions until the PR is merged. There is no GitHub Release for this fork yet. The current Windows x64 workflow produces test artifacts, not a stable public release.
 
@@ -27,6 +27,14 @@ The upstream Vertical Canvas canvas/scene workflow remains the foundation. WEST 
 - **Aitum Multistream bridge:** the matching WEST Gaming Aitum Multistream fork can open the TikTok configuration dialog for a Vertical Canvas destination without duplicating the TikTok runtime.
 
 The implementation and user workflow are documented in [TikTok LIVE](docs/TIKTOK-LIVE.md). See [Upstream differences](docs/UPSTREAM-DIFFERENCES.md) for what is inherited and what this fork adds.
+
+## What this fork does not do
+
+- It does not replace OBS's ordinary Main Canvas streaming service or turn TikTok into a standalone Main Canvas provider.
+- It does not require a separate Multi-RTMP plugin. The maintained product pair is this Vertical Canvas runtime plus the optional Aitum Multistream configuration bridge.
+- It does not move TikTok session/signing/safety logic into Multistream or create a second copy of that runtime.
+- Automatic Dual LIVE does not clone every horizontal scene/source into a new vertical composition. It reuses the already configured Vertical Canvas output for Portrait and the active Main Canvas stream encoders for Landscape. Scene composition remains configured through OBS and Vertical Canvas.
+- It does not guarantee account eligibility, LIVE approval, endpoint availability or policy outcomes controlled by TikTok.
 
 ## Dual LIVE: recommended configuration
 
@@ -62,7 +70,7 @@ Dual LIVE requires an eligible TikTok account and supports LIVE Studio Desktop o
 
 There is currently no GitHub Release published for this fork. Do not mistake the upstream Aitum installer, Flatpak or website downloads for a WEST Gaming build: they do not automatically contain this fork's TikTok additions.
 
-For development, use the branch and exact commit identified in [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), or the corresponding GitHub Actions artifact linked from the successful workflow in [Build and testing](docs/BUILD-AND-TESTING.md). Do not install an unreviewed CI artifact into a critical production OBS profile.
+For development, use the branch and exact commit identified in [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), or the corresponding GitHub Actions artifact linked from the successful workflow in [Build and testing](docs/BUILD-AND-TESTING.md). The latest documented Windows x64 package is `vertical-canvas-1.6.7-windows-x64-0fae1f8cb` from [workflow #44159137647](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44159137647). Do not install an unreviewed CI artifact into a critical production OBS profile.
 
 ## Build
 
@@ -79,7 +87,7 @@ For CI status, packaging details, and what has and has not been runtime-tested, 
 
 ## Attribution and licensing
 
-This is a fork of Aitum's GPL-licensed Vertical Canvas project. TikTok-native components adapted from [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs) are identified in [data/licenses](data/licenses/). The QR generator attribution is also recorded there.
+This is a fork of Aitum's GPL-licensed Vertical Canvas project. The TikTok integration was ported and adapted from the TikTok implementation in [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), itself downstream of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). Native TikTok client/signing components also carry direct attribution to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs). The exact notices and license texts, including the QR generator attribution, are recorded in [data/licenses](data/licenses/).
 
 **Maintainer action before publishing a release:** the repository's main LICENSE is the GNU GPL version 2 text, while the referenced TikTok-native source is explicitly identified as GPL-3.0-only. Review the compatibility and the original source's exact licensing grant before distributing a combined binary. Do not change the repository's license or remove third-party notices without confirming the rights to do so.
 
