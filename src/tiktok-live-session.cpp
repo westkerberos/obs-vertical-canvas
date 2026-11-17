@@ -1,6 +1,7 @@
 // Native OBS packet integration adapted from TikTok Live OBS (GPL-3.0-only).
 // See data/licenses/tiktok-live-obs.txt for attribution and source revision.
 #include "tiktok-live-session.h"
+#include "tiktok-safety.h"
 #include "tiktok-native/live_client.hpp"
 #include "tiktok-native/sei_metadata.hpp"
 #include "tiktok-native/mobile_profile.hpp"
@@ -100,6 +101,8 @@ struct TikTokLiveSession::State {
     std::thread heartbeat, signatures;
     bool stopping = false;
     bool adopted = false;
+    std::optional<TikTokSafetyContext> safetyContext;
+    std::unique_ptr<TikTokSafetyMonitor> safety;
     QByteArray accountLease, roomLease;
 
     bool Reserve(const QByteArray& key, QByteArray& slot) {
@@ -259,6 +262,8 @@ bool TikTokLiveSession::Start(const TikTokOutputConfig &config, obs_output_t *ou
         s.error = "TikTok connection cancelled."; s.failed = true;
     }
     if (s.failed) { Stop(); return false; }
+    if (config.monitorViolations)
+        s.safetyContext = MakeTikTokSafetyContext(config);
     for (const auto& feed : s.feeds) obs_output_add_packet_callback(feed->output, State::Packet, feed.get());
     s.monitor.start(250);
     s.heartbeat = std::thread([&s] {
@@ -322,6 +327,10 @@ void TikTokLiveSession::Stop()
         if (s.heartbeat.joinable()) s.heartbeat.join();
         if (s.signatures.joinable()) s.signatures.join();
     }
+    if (s.safety) {
+        FinishTikTokSafety(std::move(s.safety));
+    }
+    s.safetyContext.reset();
     s.ReleaseLeases();
 }
 
@@ -332,7 +341,16 @@ QString TikTokLiveSession::Error() const
     if (!state_->signer.api_key.isEmpty()) error.replace(state_->signer.api_key, "<redacted>");
     return error;
 }
-void TikTokLiveSession::ConfirmStarted() { state_->adopted = true; }
+void TikTokLiveSession::ConfirmStarted()
+{
+    auto& s = *state_;
+    s.adopted = true;
+    if (s.safetyContext && !s.safety) {
+        s.safety = std::make_unique<TikTokSafetyMonitor>(std::move(*s.safetyContext));
+        s.safetyContext.reset();
+        s.safety->Start();
+    }
+}
 void TikTokLiveSession::CancelPreparation() { state_->cancelled = true; state_->wake.notify_all(); }
 std::string TikTokLiveSession::Server() const { return state_->live.server.toStdString(); }
 std::string TikTokLiveSession::Key() const { return state_->live.key.toStdString(); }
