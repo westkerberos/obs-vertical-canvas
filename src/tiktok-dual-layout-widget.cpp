@@ -264,6 +264,7 @@ void TikTokDualLayoutWidget::Load(const TikTokDualLayoutConfig &config)
     QSignalBlocker enabledBlock(enabled_);
     QSignalBlocker audioBlock(sameAudio_);
     enabled_->setChecked(config.enabled);
+    pendingSavedDual_ = config.enabled && !canDual_;
     sameAudio_->setChecked(config.sameAudio);
     LoadVideo(portrait_, config.portrait);
     LoadVideo(landscape_, config.landscape);
@@ -333,10 +334,18 @@ bool TikTokDualLayoutWidget::Validate(QString *error) const
 void TikTokDualLayoutWidget::SetAccess(std::optional<bool> available, bool cameraLive)
 {
     cameraLive_ = cameraLive;
-    canDual_ = available.value_or(false);
+    if (available.has_value()) {
+        canDual_ = *available;
+        if (pendingSavedDual_ && canDual_ && cameraLive_ && nativeMethod_) {
+            enabled_->setChecked(true);
+            pendingSavedDual_ = false;
+        } else if (!canDual_) {
+            pendingSavedDual_ = false;
+        }
+    }
     const bool allowed = canDual_ && cameraLive_ && nativeMethod_;
-    enabled_->setEnabled(allowed);
-    if (!allowed)
+    enabled_->setEnabled(allowed || (pendingSavedDual_ && cameraLive_ && nativeMethod_));
+    if (!allowed && !pendingSavedDual_)
         enabled_->setChecked(false);
     if (!cameraLive_)
         accessStatus_->setText("Dual LIVE requires the TikTok mobile camera broadcast mode.");
