@@ -21,6 +21,7 @@
 namespace {
 struct TikTokDualCatalog {
     QVector<TikTokDualChoice> scenes;
+    QVector<TikTokDualChoice> canvases;
     QVector<TikTokDualChoice> videoEncoders;
     QVector<TikTokDualChoice> audioEncoders;
 };
@@ -49,6 +50,11 @@ TikTokDualCatalog ReadTikTokDualCatalog()
     obs_enum_canvases([](void *opaque, obs_canvas_t *canvas) {
         if (obs_canvas_removed(canvas) || (obs_canvas_get_flags(canvas) & EPHEMERAL))
             return true;
+        if (!(obs_canvas_get_flags(canvas) & MAIN)) {
+            auto catalog = static_cast<TikTokDualCatalog *>(opaque);
+            catalog->canvases.push_back({QString::fromUtf8(obs_canvas_get_uuid(canvas)),
+                QString::fromUtf8(obs_canvas_get_name(canvas)), QString::fromUtf8(obs_canvas_get_uuid(canvas))});
+        }
         obs_canvas_enum_scenes(canvas, EnumTikTokDualScene, opaque);
         return true;
     }, &result);
@@ -161,6 +167,20 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
 
     QObject::connect(enabled_, &QCheckBox::toggled, this, [this] { UpdateVisibility(); });
     QObject::connect(sameAudio_, &QCheckBox::toggled, this, [this] { UpdateVisibility(); });
+    for (auto fields : {&portrait_, &landscape_}) {
+        QObject::connect(fields->canvas, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, fields] {
+            const auto id = fields->canvas->currentData().toString();
+            if (!id.isEmpty()) {
+                OBSCanvasAutoRelease canvas = obs_get_canvas_by_uuid(id.toUtf8().constData());
+                obs_video_info info{};
+                if (canvas && obs_canvas_get_video_info(canvas, &info)) {
+                    fields->width->setValue(static_cast<int>(info.output_width));
+                    fields->height->setValue(static_cast<int>(info.output_height));
+                }
+            }
+            RefreshCatalog();
+        });
+    }
     RefreshCatalog();
     SetAccess(std::nullopt);
     UpdateVisibility();
@@ -186,6 +206,8 @@ TikTokDualLayoutWidget::VideoFields TikTokDualLayoutWidget::CreateVideoFields(QW
     fields.group = new QGroupBox(portrait ? "Portrait feed" : "Landscape feed", parent);
     fields.group->setObjectName(prefix + "DualVideoSettings");
     auto form = new QFormLayout(fields.group);
+    fields.canvas = new QComboBox(fields.group);
+    fields.canvas->setObjectName(prefix + "DualCanvas");
     fields.scene = new QComboBox(fields.group);
     fields.scene->setObjectName(prefix + "DualScene");
     fields.encoder = new QComboBox(fields.group);
@@ -198,6 +220,7 @@ TikTokDualLayoutWidget::VideoFields TikTokDualLayoutWidget::CreateVideoFields(QW
     fields.framing->setObjectName(prefix + "DualFraming");
     fields.framing->addItem("Fit", false);
     fields.framing->addItem("Crop to fill", true);
+    form->addRow("OBS canvas (optional)", fields.canvas);
     form->addRow("OBS scene", fields.scene);
     form->addRow("Video encoder", fields.encoder);
     form->addRow("Width", fields.width);
@@ -213,7 +236,21 @@ void TikTokDualLayoutWidget::RefreshCatalog()
     const auto catalog = ReadTikTokDualCatalog();
     for (auto fields : {&portrait_, &landscape_}) {
         const QString currentScene = fields->scene->currentData().toString();
-        PopulateCombo(fields->scene, catalog.scenes);
+        const QString currentCanvas = fields->canvas->currentData().toString();
+        PopulateCombo(fields->canvas, catalog.canvases);
+        if (!currentCanvas.isEmpty())
+            fields->canvas->setCurrentIndex(fields->canvas->findData(currentCanvas));
+        else {
+            fields->canvas->insertItem(0, "Create a dedicated canvas", QString());
+            fields->canvas->setCurrentIndex(0);
+        }
+        QVector<TikTokDualChoice> scenes;
+        const QString selectedCanvas = fields->canvas->currentData().toString();
+        for (const auto &scene : catalog.scenes) {
+            if (selectedCanvas.isEmpty() || scene.canvasId == selectedCanvas)
+                scenes.push_back(scene);
+        }
+        PopulateCombo(fields->scene, scenes);
         if (!currentScene.isEmpty())
             fields->scene->setCurrentIndex(fields->scene->findData(currentScene));
         PopulateCombo(fields->encoder, catalog.videoEncoders);
@@ -351,6 +388,8 @@ void TikTokDualLayoutWidget::SaveAudio(const AudioFields &fields, TikTokLayoutAu
 void TikTokDualLayoutWidget::LoadVideo(const VideoFields &fields, const TikTokLayoutVideoConfig &config)
 {
     fields.encoderParams = config.encoderParams;
+    const int canvas = fields.canvas->findData(QString::fromStdString(config.canvasUuid));
+    if (canvas >= 0) fields.canvas->setCurrentIndex(canvas);
     const int scene = fields.scene->findData(QString::fromStdString(config.sceneUuid));
     if (scene >= 0) fields.scene->setCurrentIndex(scene);
     const int encoder = fields.encoder->findData(QString::fromStdString(config.encoderId));
@@ -369,7 +408,7 @@ void TikTokDualLayoutWidget::SaveVideo(const VideoFields &fields, TikTokLayoutVi
     config.sceneName = (fields.scene->currentData(Qt::UserRole + 1).isValid()
         ? fields.scene->currentData(Qt::UserRole + 1).toString()
         : fields.scene->currentText()).toStdString();
-    config.canvasUuid.clear();
+    config.canvasUuid = fields.canvas->currentData().toString().toStdString();
     config.encoderId = fields.encoder->currentData().toString().toStdString();
     config.width = fields.width->value();
     config.height = fields.height->value();
