@@ -165,3 +165,7 @@ if(BUILD_OUT_OF_TREE)
 else()
 	set_target_properties_obs(${PROJECT_NAME} PROPERTIES FOLDER "plugins/aitum" PREFIX "")
 endif()
+
+# Independent process prototype. It has its own GPL-3.0-only subproject license
+# and deliberately does not link against libobs or this plugin target.
+add_subdirectory(tiktok-relay)
