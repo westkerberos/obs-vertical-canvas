@@ -61,7 +61,7 @@ WEST Gaming subsequently added a default automatic reuse mode:
 - The Main Canvas stream must already be active for automatic mode.
 - Manual layout configuration remains available as an advanced override.
 
-This is specific to the WEST Gaming Vertical Canvas implementation. Do not copy the assumption into the separate `obs-multi-rtmp` plugin: that repository has its own dual-layout implementation and its own encoder/canvas ownership model.
+This is specific to the WEST Gaming Vertical Canvas implementation. The earlier Multi-RTMP source was only a donor for the TikTok integration port; it is not maintained as a separate WEST Gaming product or supported runtime.
 
 ### Aitum Multistream bridge
 
@@ -76,8 +76,16 @@ This is a deliberate ownership boundary:
 
 - This fork is not a replacement for the OBS built-in Main Canvas streaming provider.
 - It is not a general-purpose TikTok API SDK.
-- It is not the same plugin as `obs-multi-rtmp`.
+- It does not require or install a separate Multi-RTMP plugin.
 - It does not make Aitum's official website downloads, Flatpak package or upstream release artifacts include WEST Gaming's changes.
+
+## TikTok integration source and attribution
+
+The Vertical Canvas TikTok integration was developed by porting and adapting the TikTok implementation from [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), a downstream fork of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). The earlier WEST Gaming Multi-RTMP fork was a temporary source snapshot used during that port; it is not an independently maintained WEST Gaming product and is not needed by end users.
+
+The native TikTok client/signing components also carry a direct upstream attribution to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs), including its stated GPL-3.0-only license. The required notices and license texts are retained in `data/licenses/`.
+
+The WEST Gaming work in this repository is the adaptation to Vertical Canvas: output lifecycle integration, canvas/encoder ownership, the automatic Portrait/Main Canvas encoder-reuse mode, its advanced manual override, and the companion Aitum Multistream configuration bridge. This wording distinguishes the upstream contribution from the integration and adaptation performed in this fork.
 
 ## How to read the upstream comparison
 
