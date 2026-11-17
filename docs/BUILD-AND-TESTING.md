@@ -4,7 +4,7 @@
 
 These instructions apply to the WEST Gaming branch `feature/tiktok-native-output`, not automatically to Aitum's upstream default branch.
 
-The current integration PR is [#1](https://github.com/westkerberos/obs-vertical-canvas/pull/1). The latest implementation documented here is commit `cb22d71497d2e025bfad686cab8079937f7f6387`.
+The current integration PR is [#1](https://github.com/westkerberos/obs-vertical-canvas/pull/1). The automatic encoder-reuse runtime change was compiled at commit `cb22d71497d2e025bfad686cab8079937f7f6387`. The latest PR head, including the subsequent documentation and attribution updates, is `03c83c3a991265a2c8a445d3fc99c26708d53687`.
 
 ## Dependencies visible in the build configuration
 
@@ -32,13 +32,13 @@ For an in-tree OBS build, follow the OBS plugin integration pattern already used
 
 ## CI and packaging
 
-The current PR branch built and packaged successfully for Windows x64:
+The latest PR head built and packaged successfully for Windows x64:
 
-- Workflow: [#44152864999](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44152864999)
-- Commit: `ce25bf928c83e078d61085bd4762756292380e29`
-- Artifact: `vertical-canvas-1.6.7-windows-x64-021276d44`
-- SHA-256: `8c084946517cfb6b32fd89f52b735e51a1568686decbaef7845724c21abfd6e9`
-- The standard Windows ZIP and ProgramData-layout ZIP were both inspected. Both contain `GPL-2.0.txt`, `qrcodegen.txt`, `tiktok-live-obs.txt` and `tiktok-live-obs-GPL-3.0.txt`.
+- Workflow: [#44159137647](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44159137647)
+- Commit: `03c83c3a991265a2c8a445d3fc99c26708d53687`
+- Artifact: `vertical-canvas-1.6.7-windows-x64-0fae1f8cb`
+- The automatic encoder-reuse runtime change was compiled earlier at `cb22d71497d2e025bfad686cab8079937f7f6387`; the latest successful package includes the subsequent documentation and attribution updates.
+- The standard Windows ZIP and ProgramData-layout ZIP were inspected in the preceding package run. Both contained `GPL-2.0.txt`, `qrcodegen.txt`, `tiktok-live-obs.txt` and `tiktok-live-obs-GPL-3.0.txt`.
 - The automatic encoder-reuse runtime change was compiled at commit `cb22d71497d2e025bfad686cab8079937f7f6387`; the later branch commits include documentation, attribution and license-distribution updates.
 - Signing: skipped because this fork does not have signing secrets configured.
 - Ubuntu/macOS: not built by the current fork workflow.
