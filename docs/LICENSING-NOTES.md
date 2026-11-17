@@ -1,6 +1,6 @@
 # Licensing review and remediation plan
 
-This document records the repository's current source-based licensing findings and the maintainer's chosen remediation path. It is not legal advice.
+This document records the repository's current source-based licensing findings and the maintainer's chosen remediation path. It is not legal advice. See [the file-level source inventory](LICENSING-INVENTORY.md) for the auditable lists and source revision IDs.
 
 ## Current license facts
 
@@ -54,3 +54,22 @@ Until the source remediation and full audit are complete:
 GPL software is free in the sense of user freedoms, not necessarily zero price. GPL permits redistribution and commercial sale, subject to its conditions. WEST Gaming can choose to provide its own official downloads at no charge while preserving the rights users receive under the GPL. See the [GNU explanation of free software and GPL permissions](https://www.gnu.org/licenses/gpl-faq.html#GPLCommercially).
 
 This is a source-based compatibility assessment, not legal advice. A qualified software-licensing lawyer should review the final implementation and distribution model before the first public Release.
+
+
+## Second source blocker: code from a repository with no published license
+
+The source audit also found a distinct provenance issue, separate from GPL-3.0-only:
+
+- `src/tiktok-native/tiktok_studio_device.hpp` identifies the desktop registration-envelope implementation as ported from [Loukious/TikTokStreamKeyGenerator](https://github.com/Loukious/TikTokStreamKeyGenerator).
+- `src/tiktok-native/mobile_device.hpp` identifies the Android identity generator as a native port of `Libs/mobile_device_gen.py` from that repository.
+- The inspected repository head is `ba5041bf2e02c3802b0b457fcad03803c8dc29c2` (9 November 2026).
+- The public repository tree has no `LICENSE` file and the GitHub repository metadata reports `license: null`.
+
+Public access to source code does not grant redistribution or derivative-work rights. The files `tiktok_studio_device.cpp`, `mobile_device.cpp/.hpp` and dependent profile logic cannot be treated as clear merely by changing their SPDX headers. Replace these implementations independently or disable the affected registration mode until a permitted implementation exists. The provenance of `mobile_profile.cpp/.hpp` must be audited together with the device-registration path.
+
+## Current release blockers
+
+1. **GPL compatibility:** 22 native integration files carry GPL-3.0-only notices, but they are compiled into the same Vertical Canvas module as Aitum-derived GPL-2.0 code.
+2. **No published license:** desktop/mobile device identity code cites a public repository with no license grant.
+
+Both findings are recorded in [the detailed source inventory](LICENSING-INVENTORY.md). Neither is fixed by adding more license text to the ZIP.
