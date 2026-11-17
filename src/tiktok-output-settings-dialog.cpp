@@ -1,6 +1,7 @@
 #include "tiktok-output-settings-dialog.h"
 #include "tiktok-safety.h"
 #include "account-info-widget.h"
+#include "tiktok-dual-layout-widget.h"
 
 #include "streamlabs-desktop.h"
 #include "streamlabs-category-widget.h"
@@ -351,6 +352,76 @@ bool LoginTikTokWithQr(QWidget *parent, const QString &rapidApiKey,
     }
     return true;
 }
+static QJsonObject DualAudioToJson(const TikTokLayoutAudioConfig &audio)
+{
+    return {
+        {"encoder_id", QString::fromStdString(audio.encoderId)},
+        {"mixer", audio.mixer},
+        {"bitrate", audio.bitrate},
+        {"encoder_params", audio.encoderParams}
+    };
+}
+
+static QJsonObject DualVideoToJson(const TikTokLayoutVideoConfig &video)
+{
+    return {
+        {"scene_uuid", QString::fromStdString(video.sceneUuid)},
+        {"scene_name", QString::fromStdString(video.sceneName)},
+        {"encoder_id", QString::fromStdString(video.encoderId)},
+        {"width", video.width},
+        {"height", video.height},
+        {"bitrate", video.bitrate},
+        {"crop", video.crop},
+        {"fps_divisor", video.fpsDivisor},
+        {"encoder_params", video.encoderParams},
+        {"canvas_uuid", QString::fromStdString(video.canvasUuid)},
+        {"audio", DualAudioToJson(video.audio)}
+    };
+}
+
+static QJsonObject DualLayoutToJson(const TikTokDualLayoutConfig &config)
+{
+    return {
+        {"enabled", config.enabled},
+        {"same_audio", config.sameAudio},
+        {"independent_audio_initialized", config.independentAudioInitialized},
+        {"shared_audio", DualAudioToJson(config.sharedAudio)},
+        {"portrait", DualVideoToJson(config.portrait)},
+        {"landscape", DualVideoToJson(config.landscape)}
+    };
+}
+
+static TikTokDualLayoutConfig DualLayoutFromJson(const QJsonObject &json)
+{
+    TikTokDualLayoutConfig config;
+    config.enabled = json.value("enabled").toBool(false);
+    config.sameAudio = json.value("same_audio").toBool(true);
+    config.independentAudioInitialized = json.value("independent_audio_initialized").toBool(false);
+    const auto readAudio = [](const QJsonObject &value, TikTokLayoutAudioConfig &audio) {
+        audio.encoderId = value.value("encoder_id").toString("ffmpeg_aac").toStdString();
+        audio.mixer = value.value("mixer").toInt(0);
+        audio.bitrate = value.value("bitrate").toInt(160);
+        audio.encoderParams = value.value("encoder_params").toObject();
+    };
+    const auto readVideo = [&](const QJsonObject &value, TikTokLayoutVideoConfig &video) {
+        video.sceneUuid = value.value("scene_uuid").toString().toStdString();
+        video.sceneName = value.value("scene_name").toString().toStdString();
+        video.encoderId = value.value("encoder_id").toString().toStdString();
+        video.width = value.value("width").toInt(video.width);
+        video.height = value.value("height").toInt(video.height);
+        video.bitrate = value.value("bitrate").toInt(video.bitrate);
+        video.crop = value.value("crop").toBool(false);
+        video.fpsDivisor = value.value("fps_divisor").toInt(1);
+        video.encoderParams = value.value("encoder_params").toObject();
+        video.canvasUuid = value.value("canvas_uuid").toString().toStdString();
+        readAudio(value.value("audio").toObject(), video.audio);
+    };
+    readAudio(json.value("shared_audio").toObject(), config.sharedAudio);
+    readVideo(json.value("portrait").toObject(), config.portrait);
+    readVideo(json.value("landscape").toObject(), config.landscape);
+    return config;
+}
+
 } // namespace
 
 bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString &outputName)
@@ -497,9 +568,23 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     streamlabsForm->addRow(streamlabsMature);
     form->addRow(streamlabsGroup);
 
+    const char *savedDualText = obs_data_get_string(settings, "tiktok_dual_layout");
+    const auto savedDualDoc = QJsonDocument::fromJson(QByteArray(savedDualText ? savedDualText : ""));
+    auto *dualLayout = new TikTokDualLayoutWidget(content);
+    dualLayout->Load(savedDualDoc.isObject() ? DualLayoutFromJson(savedDualDoc.object()) : TikTokDualLayoutConfig{});
+    form->addRow(dualLayout);
+
     auto *accountInfo = new AccountInfoWidget(LookupAccountInfo, &dialog);
     accountInfo->setObjectName("tiktokAccountInfo");
     form->addRow(accountInfo);
+    std::optional<bool> dualAccess;
+    accountInfo->SetDualAccessChangedCallback([&](std::optional<bool> available) {
+        dualAccess = available;
+        const auto selected = method->currentData().toString();
+        const bool cameraLive = selected != "live-studio-mobile" ||
+            mobileBroadcast->currentData().toString() == "video";
+        dualLayout->SetAccess(available, cameraLive);
+    });
     accountInfo->SetDeviceProfileChangedCallback([&](const std::string &client, const QJsonObject &profile) {
         profiles.insert(QString::fromStdString(client), profile);
         if (client == "mobile") {
@@ -528,6 +613,10 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
             config.deviceProfiles.insert("mobile", profile);
         }
         accountInfo->SetConfig(config);
+        dualLayout->SetMethod(QString::fromStdString(config.method));
+        const bool cameraLive = config.method != "live-studio-mobile" ||
+            mobileBroadcast->currentData().toString() == "video";
+        dualLayout->SetAccess(dualAccess, cameraLive);
     };
 
     auto updateVisibility = [&] {
@@ -578,6 +667,13 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
             QMessageBox::warning(&dialog, "TikTok LIVE", "Select a game from the TikTok catalogue before saving this gaming topic.");
             return;
         }
+        if (studioActive && dualLayout->Enabled()) {
+            QString validationError;
+            if (!dualLayout->Validate(&validationError)) {
+                QMessageBox::warning(&dialog, "TikTok Dual LIVE", validationError);
+                return;
+            }
+        }
         dialog.accept();
     });
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -598,6 +694,10 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     obs_data_set_string(settings, "tiktok_content_disclosure", disclosure->currentData().toString().toUtf8().constData());
     obs_data_set_bool(settings, "tiktok_mature_content", studioMature->isChecked());
     obs_data_set_bool(settings, "tiktok_monitor_violations", monitorViolations->isChecked());
+    TikTokDualLayoutConfig dualConfig;
+    dualLayout->Save(dualConfig);
+    const QByteArray dualJson = QJsonDocument(DualLayoutToJson(dualConfig)).toJson(QJsonDocument::Compact);
+    obs_data_set_string(settings, "tiktok_dual_layout", dualJson.constData());
     mobileProfile.insert("broadcast_type", mobileBroadcast->currentData().toString());
     mobileProfile.insert("orientation", mobileOrientation->currentData().toString());
     mobileProfile.insert("device_id", mobileDeviceId->text().trimmed());
