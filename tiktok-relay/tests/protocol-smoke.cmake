@@ -20,7 +20,15 @@ foreach(expected
     "\"rtmp_ingest\":false"
     "\"state\":\"idle\""
     "\"error\":\"not_implemented\""
-    "\"error\":\"unknown_command\"")
+    "\"error\":\"unknown_command\""
+    "\"request_id\":\"hello-1\""
+    "\"request_id\":\"caps-1\""
+    "\"request_id\":\"status-1\""
+    "\"request_id\":\"start-1\""
+    "\"request_id\":\"stop-1\""
+    "\"error\":\"protocol_version_mismatch\""
+    "\"request_id\":\"version-1\""
+    "\"error\":\"invalid_request_id\"")
   string(FIND "${relay_output}" "${expected}" match_index)
   if(match_index EQUAL -1)
     message(FATAL_ERROR "Expected protocol marker not found: ${expected}\nOutput: ${relay_output}")
