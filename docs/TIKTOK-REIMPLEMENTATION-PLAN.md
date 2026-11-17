@@ -84,7 +84,7 @@ The 16 unmarked files are not automatically accepted as clear. Their origin and 
 7. Re-test QR login, account refresh, reconnects, stop/cleanup, failure paths and the Advanced Dual LIVE override before a general Release.
 8. Audit every dependency and license notice in the final package. Keep the root Aitum-derived license unchanged unless primary evidence clearly establishes a different grant.
 
-## Release gate
+## Compatible implementation candidate\n\nBefore a full clean-room rewrite of every network/session component, evaluate the MIT-licensed [TikTok LIVE Native alternative](COMPATIBLE-TIKTOK-ALTERNATIVES.md). It demonstrates a browser-cookie web session that creates a LIVE room and returns an RTMP push URL without the GPL-3.0-only LIVE Studio signer/device stack. It is Linux-only today and does not provide Dual LIVE or our current account modes, so it is a potential single-feed provider prototype, not a drop-in replacement. Preserve the existing tested implementation until a Windows prototype is validated and the maintainer decides whether any feature downgrade is acceptable.\n\n## Release gate
 
 The current feature is not license-cleared. The work is complete only when:
 - no GPL-3.0-only-derived source remains inside the GPL-2.0 Vertical Canvas module;
