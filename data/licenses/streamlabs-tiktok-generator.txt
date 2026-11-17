@@ -1,0 +1,17 @@
+StreamLabs TikTok Stream Key Generator
+
+Source repository:
+https://github.com/Loukious/StreamLabsTikTokStreamKeyGenerator
+
+Inspected source revision:
+8045d9cc1e332a430648475ac8e114c244a2a2e0 (8 November 2026)
+
+License:
+GNU General Public License, version 3 (GPL-3.0).
+The source repository's LICENSE.txt is byte-for-byte identical to the GPL-3.0 license text already included in tiktok-live-obs-GPL-3.0.txt.
+
+WEST source attribution:
+src/streamlabs-desktop.cpp identifies its local token-discovery adaptation as derived from this project and from Smile-4-Me/tiktok-live-obs/src/streamlabs_desktop.cpp.
+
+Important:
+This notice records source provenance and does not resolve compatibility with the Aitum GPL-2.0 base. The adapted Streamlabs code must be independently replaced or removed before redistributing the combined Vertical Canvas plugin under the inherited GPL-2.0 terms.
