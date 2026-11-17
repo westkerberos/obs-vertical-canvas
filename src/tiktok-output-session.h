@@ -21,6 +21,8 @@ public:
     std::string Key() const;
 
 private:
+    struct DualFeedState;
+    std::unique_ptr<DualFeedState> dual_;
     std::unique_ptr<TikTokLiveSession> liveStudio_;
     std::string streamlabsAccessToken_;
     std::string streamlabsId_;
