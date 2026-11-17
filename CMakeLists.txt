@@ -132,6 +132,7 @@ target_sources(${PROJECT_NAME} PRIVATE
 
 set(TIKTOK_NATIVE_SOURCES
   src/tiktok-native/domain_routing.cpp
+  src/tiktok-native/live_safety.cpp
   src/tiktok-native/frame_signing.cpp
   src/tiktok-native/live_client.cpp
   src/tiktok-native/mobile_device.cpp
