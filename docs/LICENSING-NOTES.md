@@ -1,0 +1,24 @@
+# Licensing review notes
+
+This file records a maintainer review item. It is not legal advice and does not replace confirmation from the relevant copyright holders.
+
+## Notices present in this repository
+
+- The repository contains the GNU General Public License, version 2, in the root `LICENSE` file.
+- The TikTok-native integration is attributed to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs), revision `3d7e7e9ec77b0260b2dde4af726d3b15c5a4d933`, in `data/licenses/tiktok-live-obs.txt`.
+- That attribution identifies the adapted component as **GPL-3.0-only** and supplies the corresponding license text in `data/licenses/tiktok-live-obs-GPL-3.0.txt`.
+- The QR-code generator dependency attribution is in `data/licenses/qrcodegen.txt`.
+
+## Release blocker to resolve
+
+A GPL-3.0-only component incorporated into a project whose declared license is GPL-2.0 raises a license-compatibility question for the combined work. Do not assume the root LICENSE by itself covers the TikTok-derived files, and do not change the license identifier by guesswork.
+
+Before publishing a release, the maintainer should:
+
+1. Review the exact license notices and source files from the identified upstream revision.
+2. Confirm whether the original project or relevant copyright holders grant an additional permission or a different licensing option.
+3. Obtain appropriate legal advice if the compatibility position is unclear.
+4. Record the resolved project-wide and per-component licensing position.
+5. Preserve third-party notices and include the required corresponding license texts with source and binary distributions.
+
+This note intentionally leaves the resolution open; no relicensing or copyright permission is asserted here.
