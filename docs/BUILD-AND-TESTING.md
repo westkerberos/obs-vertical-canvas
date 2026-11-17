@@ -34,9 +34,9 @@ For an in-tree OBS build, follow the OBS plugin integration pattern already used
 
 The latest documented branch head built and packaged successfully for Windows x64:
 
-- Workflow: [#44162348342](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44162348342)
-- Commit: `e03efd606a7828f52d883b1d41f250ba0fd48b13`
-- Artifact: `vertical-canvas-1.6.7-windows-x64-ec2ec5c53`
+- Workflow: [#44163406280](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44163406280)
+- Commit: `f4a205d50013abde930f6183851f67e63b09e8c9`
+- Artifact: `vertical-canvas-1.6.7-windows-x64-017a3e5eb`
 - The automatic encoder-reuse runtime change was compiled earlier at `cb22d71497d2e025bfad686cab8079937f7f6387`; the latest successful package includes the subsequent documentation and attribution updates.
 - The standard Windows ZIP and ProgramData-layout ZIP were inspected in a preceding package run. Both contained `GPL-2.0.txt`, `qrcodegen.txt`, `tiktok-live-obs.txt` and `tiktok-live-obs-GPL-3.0.txt`.
 - The automatic encoder-reuse runtime change was compiled at commit `cb22d71497d2e025bfad686cab8079937f7f6387`; the later branch commits include documentation, attribution and license-distribution updates.
