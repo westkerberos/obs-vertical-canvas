@@ -384,6 +384,7 @@ static QJsonObject DualLayoutToJson(const TikTokDualLayoutConfig &config)
 {
     return {
         {"enabled", config.enabled},
+        {"reuse_canvas_encoders", config.reuseCanvasEncoders},
         {"same_audio", config.sameAudio},
         {"independent_audio_initialized", config.independentAudioInitialized},
         {"shared_audio", DualAudioToJson(config.sharedAudio)},
@@ -396,6 +397,7 @@ static TikTokDualLayoutConfig DualLayoutFromJson(const QJsonObject &json)
 {
     TikTokDualLayoutConfig config;
     config.enabled = json.value("enabled").toBool(false);
+    config.reuseCanvasEncoders = json.value("reuse_canvas_encoders").toBool(true);
     config.sameAudio = json.value("same_audio").toBool(true);
     config.independentAudioInitialized = json.value("independent_audio_initialized").toBool(false);
     const auto readAudio = [](const QJsonObject &value, TikTokLayoutAudioConfig &audio) {
