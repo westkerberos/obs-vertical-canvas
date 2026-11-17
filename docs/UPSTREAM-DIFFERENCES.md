@@ -89,7 +89,7 @@ There is no separate Multi-RTMP plugin in the maintained product architecture. E
 
 ## How to read the upstream comparison
 
-The repository is a fork of [Aitum/obs-vertical-canvas](https://github.com/Aitum/obs-vertical-canvas). The feature branch is not yet merged into the WEST Gaming `main` branch. Its current head `03c83c3a991265a2c8a445d3fc99c26708d53687` passed the Windows x64 CI/package workflow [#44159137647](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44159137647).
+The repository is a fork of [Aitum/obs-vertical-canvas](https://github.com/Aitum/obs-vertical-canvas). The feature branch is not yet merged into the WEST Gaming `main` branch. The current Windows x64 build/test status and artifact are maintained in [Build and verification](BUILD-AND-TESTING.md).
 
 The exact changed-file, addition and deletion totals are intentionally not duplicated here because they change as the PR is updated. Use the live [PR #1 Files view](https://github.com/westkerberos/obs-vertical-canvas/pull/1/files) for current totals. Those PR-level totals are not a claim that every changed line is newly authored by WEST Gaming: the branch retains upstream Aitum code and includes third-party adaptations. The source-provenance and licensing sections below distinguish those contributions.
 
