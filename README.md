@@ -6,6 +6,12 @@ This repository is **not** the same project as [WEST Gaming's obs-multi-rtmp](ht
 
 > **Development status — 17 November 2026:** the TikTok integration is on [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), branch `feature/tiktok-native-output`. The default `main` branch does not contain these additions until the PR is merged. There is no GitHub Release for this fork yet. The current Windows x64 workflow produces test artifacts, not a stable public release.
 
+## Who should use this fork
+
+Use this project when you already use **Aitum Vertical Canvas** and want TikTok as an output managed by the vertical canvas workflow, especially when you want Portrait to reuse your existing Vertical Canvas encoders and Landscape to reuse the active OBS Main Canvas encoders.
+
+This is not the best choice if you want a standalone TikTok primary streaming provider without the Aitum canvas workflow; use [obs-multi-rtmp](https://github.com/westkerberos/obs-multi-rtmp) for that separate implementation. If you want to add and start the TikTok destination from the Aitum Multistream dock, install this plugin together with the matching [obs-aitum-multistream](https://github.com/westkerberos/obs-aitum-multistream) bridge.
+
 ## What this fork adds
 
 The upstream Vertical Canvas canvas/scene workflow remains the foundation. WEST Gaming adds TikTok connection and output management inside the Vertical Canvas output lifecycle:
