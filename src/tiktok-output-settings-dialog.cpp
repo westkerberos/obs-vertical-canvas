@@ -1,4 +1,5 @@
 #include "tiktok-output-settings-dialog.h"
+#include "tiktok-safety.h"
 
 #include "streamlabs-desktop.h"
 #include "streamlabs-category-widget.h"
@@ -423,6 +424,15 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     const int disclosureIndex = disclosure->findData(savedDisclosure.isEmpty() ? "off" : savedDisclosure);
     disclosure->setCurrentIndex(disclosureIndex < 0 ? 0 : disclosureIndex);
     studioForm->addRow("Content disclosure", disclosure);
+    auto *monitorViolations = new QCheckBox("Monitor LIVE violations and notify me", studioGroup);
+    monitorViolations->setObjectName("monitorTikTokViolations");
+    monitorViolations->setChecked(!obs_data_has_user_value(settings, "tiktok_monitor_violations") ||
+        obs_data_get_bool(settings, "tiktok_monitor_violations"));
+    studioForm->addRow(monitorViolations);
+    auto *checkSafety = new QPushButton("Check LIVE violations and appeals", studioGroup);
+    checkSafety->setObjectName("checkTikTokViolations");
+    checkSafety->setAutoDefault(false);
+    studioForm->addRow(checkSafety);
     auto *studioMature = new QCheckBox("Mature content", studioGroup);
     studioMature->setChecked(obs_data_get_bool(settings, "tiktok_mature_content"));
     studioForm->addRow(studioMature);
@@ -431,6 +441,16 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     QJsonObject profiles = QJsonDocument::fromJson(
         QByteArray(obs_data_get_string(settings, "tiktok_device_profiles"))).object();
     QJsonObject mobileProfile = profiles.value("mobile").toObject();
+    QObject::connect(checkSafety, &QPushButton::clicked, &dialog, [&] {
+        TikTokOutputConfig config;
+        config.method = method->currentData().toString().toStdString();
+        config.title = title->text().toStdString();
+        config.rapidApiKey = rapidApiKey->text().trimmed().toStdString();
+        config.cookieFilePath = cookiePath->text().trimmed().toStdString();
+        config.client = config.method == "live-studio-mobile" ? "mobile" : "pc";
+        config.deviceProfiles = profiles;
+        OpenTikTokSafety(config, &dialog);
+    });
     auto *mobileGroup = new QWidget(&dialog);
     auto *mobileForm = new QFormLayout(mobileGroup);
     auto *mobileBroadcast = new QComboBox(mobileGroup);
@@ -537,6 +557,7 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     obs_data_set_bool(settings, "tiktok_allow_comments", allowComments->isChecked());
     obs_data_set_string(settings, "tiktok_content_disclosure", disclosure->currentData().toString().toUtf8().constData());
     obs_data_set_bool(settings, "tiktok_mature_content", studioMature->isChecked());
+    obs_data_set_bool(settings, "tiktok_monitor_violations", monitorViolations->isChecked());
     mobileProfile.insert("broadcast_type", mobileBroadcast->currentData().toString());
     mobileProfile.insert("orientation", mobileOrientation->currentData().toString());
     mobileProfile.insert("device_id", mobileDeviceId->text().trimmed());
