@@ -4,7 +4,7 @@ This directory is a separate-process prototype. It is intentionally a separate C
 
 ## Status
 
-**Protocol stub only.** It currently implements JSON-lines process startup, capability reporting and an explicit `not_implemented` response for LIVE commands. It does not:
+**Protocol stub only.** It currently implements JSON-lines process startup, protocol-version validation, request/response correlation with `request_id`, capability reporting and an explicit `not_implemented` response for LIVE commands. It does not:
 - connect to TikTok;
 - accept RTMP/FLV media;
 - read cookies, API keys or account credentials;
@@ -13,6 +13,10 @@ This directory is a separate-process prototype. It is intentionally a separate C
 - get installed or included in the Windows plugin packages.
 
 Do not enter credentials into this prototype. The existing tested TikTok integration remains in the main plugin and has not been replaced.
+
+## Control protocol v1
+
+Each input line is one JSON object and each output line is one JSON response. Every request must include `protocol_version: 1` and a `command`. An optional `request_id` (non-empty, up to 64 characters) is echoed so the caller can associate responses with requests. Supported commands today are `hello`, `capabilities` and `status`; LIVE, account, topics, games and safety commands return `not_implemented`. Unsupported protocol versions return `protocol_version_mismatch`.
 
 ## Process boundary being prototyped
 
