@@ -1,6 +1,8 @@
 #include "tiktok-encoder-properties-dialog.h"
 #include <obs.h>
 #include <obs-module.h>
+#include <QJsonDocument>
+#include <QByteArray>
 #include <QCheckBox>
 #include <QColor>
 #include <QColorDialog>
@@ -57,6 +59,8 @@ public:
 
     void Rebuild()
     {
+        if (properties)
+            obs_properties_apply_settings(properties, settings);
         contents = new QWidget(scroll);
         auto form = new QFormLayout(contents);
         form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
@@ -68,8 +72,6 @@ public:
             form->addRow(label);
         }
         scroll->setWidget(contents);
-        if (properties)
-            obs_properties_apply_settings(properties, settings);
     }
 
     void PropertyChanged(obs_property_t *property)
