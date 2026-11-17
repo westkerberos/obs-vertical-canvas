@@ -6790,6 +6790,36 @@ bool CanvasDock::PrepareTikTokOutput(std::vector<StreamServer>::iterator it)
 		config.deviceProfiles = profileJson.object();
 	}
 
+	const char *dualSettings = obs_data_get_string(it->settings, "tiktok_dual_layout");
+	const auto dualJson = QJsonDocument::fromJson(QByteArray(dualSettings ? dualSettings : ""));
+	if (dualJson.isObject()) {
+		const auto dual = dualJson.object();
+		config.dualLayout.enabled = dual.value("enabled").toBool(false);
+		config.dualLayout.sameAudio = dual.value("same_audio").toBool(true);
+		const auto readAudio = [](const QJsonObject &json, TikTokLayoutAudioConfig &audio) {
+			audio.encoderId = json.value("encoder_id").toString("ffmpeg_aac").toStdString();
+			audio.mixer = json.value("mixer").toInt(0);
+			audio.bitrate = json.value("bitrate").toInt(160);
+			audio.encoderParams = json.value("encoder_params").toObject();
+		};
+		const auto readVideo = [&](const QJsonObject &json, TikTokLayoutVideoConfig &video) {
+			video.sceneUuid = json.value("scene_uuid").toString().toStdString();
+			video.sceneName = json.value("scene_name").toString().toStdString();
+			video.encoderId = json.value("encoder_id").toString().toStdString();
+			video.width = json.value("width").toInt(video.width);
+			video.height = json.value("height").toInt(video.height);
+			video.bitrate = json.value("bitrate").toInt(video.bitrate);
+			video.crop = json.value("crop").toBool(false);
+			video.fpsDivisor = json.value("fps_divisor").toInt(1);
+			video.encoderParams = json.value("encoder_params").toObject();
+			video.canvasUuid = json.value("canvas_uuid").toString().toStdString();
+			readAudio(json.value("audio").toObject(), video.audio);
+		};
+		readAudio(dual.value("shared_audio").toObject(), config.dualLayout.sharedAudio);
+		readVideo(dual.value("portrait").toObject(), config.dualLayout.portrait);
+		readVideo(dual.value("landscape").toObject(), config.dualLayout.landscape);
+	}
+
 	auto session = std::make_shared<TikTokOutputSession>();
 	try {
 		const bool ready = session->Start(config, it->output, [this, it](const QJsonObject &devices) {
@@ -9100,6 +9130,7 @@ static void PreserveTikTokOutputSettings(obs_data_t *previous, obs_data_t *incom
 		"streamlabs_category_id",
 		"tiktok_content_disclosure",
 		"tiktok_device_profiles",
+		"tiktok_dual_layout",
 		"streamlabs_access_token",
 		"streamlabs_category",
 	};
