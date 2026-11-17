@@ -11,18 +11,17 @@ mobile device/session handling, LIVE room lifecycle, topic/game metadata,
 QR login and LIVE safety support.
 
 The TikTok integration was ported and adapted for OBS/Vertical Canvas from
-Loukious/obs-multi-rtmp, a downstream fork of sorayuki/obs-multi-rtmp:
+the implementation in Loukious/obs-multi-rtmp, a downstream fork of
+sorayuki/obs-multi-rtmp:
 https://github.com/Loukious/obs-multi-rtmp
 https://github.com/sorayuki/obs-multi-rtmp
-
-The earlier WEST Gaming obs-multi-rtmp fork was a temporary source snapshot
-used during that port. It is not a separately maintained WEST Gaming product,
-not a dependency, and not a supported installation target.
 
 WEST Gaming adaptations in this repository integrate the TikTok connection
 and output lifecycle with OBS/Qt and Vertical Canvas, including canvas and
 encoder ownership, automatic Portrait/Main Canvas encoder reuse, the
 advanced Dual LIVE override and the Aitum Multistream configuration bridge.
+No separate Multi-RTMP plugin is a runtime dependency or supported install
+target for this Vertical Canvas integration.
 
 The Vertical Canvas fork does not run the original Python application or an
 external media proxy. Preserve this notice and the accompanying GPL-3.0-only
