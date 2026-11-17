@@ -8,6 +8,7 @@ This file records a maintainer review item. It is not legal advice and does not 
 - The TikTok-native integration is attributed to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs), revision `3d7e7e9ec77b0260b2dde4af726d3b15c5a4d933`, in `data/licenses/tiktok-live-obs.txt`.
 - That attribution identifies the adapted component as **GPL-3.0-only** and supplies the corresponding license text in `data/licenses/tiktok-live-obs-GPL-3.0.txt`.
 - The QR-code generator dependency attribution is in `data/licenses/qrcodegen.txt`.
+- Only the TikTok authentication portion is attributed to [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), downstream of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). The broader OBS Multi-RTMP plugin is not bundled or required at runtime. Its GPL-2 source attribution is distinct from the GPL-3.0-only native components above.
 
 ## Distribution packaging
 
