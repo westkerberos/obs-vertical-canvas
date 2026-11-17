@@ -33,6 +33,7 @@ private:
         QComboBox *encoder = nullptr;
         QComboBox *track = nullptr;
         QSpinBox *bitrate = nullptr;
+        QPushButton *advanced = nullptr;
         QJsonObject encoderParams;
     };
     struct VideoFields {
