@@ -60,12 +60,12 @@ Replacement code must be independently authored. Do not copy blocks, preserve th
 | --- | --- | --- |
 | A. Request signing and hosted signer | `hosted_signing_service.hpp`, `tiktok_request_signer.cpp/.hpp` | Define a small typed client for the hosted signing service; validate HTTP status, response shape, quota headers, cancellation and redaction. |
 | B. LIVE session client | `live_client.cpp/.hpp`, `tiktok_studio_session.cpp/.hpp`, `tiktok_studio_account.hpp` | Model account/session state and implement the documented request/response contract without copying the old implementation. |
-| C. Device and login lifecycle | `tiktok_studio_device.cpp/.hpp`, `qr_login.hpp`, `tiktok_studio_qr.cpp/.hpp` | Implement desktop/mobile profile setup, QR polling, cookie export and persistence under a new data model. |
+| C. Device and login lifecycle | `tiktok_studio_device.cpp/.hpp`, `mobile_device.cpp/.hpp`, `qr_login.hpp`, `tiktok_studio_qr.cpp/.hpp` | Reimplement desktop/mobile identity and registration without using the no-license `Loukious/TikTokStreamKeyGenerator` source; implement QR polling, cookie export and persistence under a new data model. Audit `mobile_profile.cpp/.hpp` as a dependent module. |
 | D. Signed video metadata | `frame_signing.cpp/.hpp`, `sei_metadata.cpp/.hpp` | Implement packet signing integration and standards-based SEI/NAL insertion with isolated unit tests. |
 | E. Topic and game metadata | `tiktok_studio_game_tags.cpp/.hpp`, `tiktok_studio_topics.cpp/.hpp` | Query, parse and validate provider-returned topic/game identifiers. |
 | F. Localization adapter | `localization.hpp` | Replace OBS-coupled native localization helper with a new adapter to WEST's supported translation interface. |
 
-The 16 unmarked files are not automatically accepted as clear. Their origin and dependencies must be checked against the source inventory before the final audit. If any are found to contain GPL-3.0-only-derived implementation, add them to the replacement scope.
+The 16 unmarked files are not automatically accepted as clear. Their origin and dependencies must be checked against the source inventory before the final audit. The device-identity files are already flagged because their comments cite a separate repository with no published license. Audit `mobile_profile.cpp/.hpp` alongside them. If any further files are found to contain GPL-3.0-only-derived or unlicensed implementation, add them to the replacement scope.
 
 ## Engineering safeguards
 
