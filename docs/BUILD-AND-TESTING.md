@@ -78,10 +78,12 @@ Never run first-time Dual LIVE tests during a critical public broadcast.
 ## Release checklist
 
 - [ ] Merge PR #1 or clearly identify the exact supported feature branch/commit.
-- [ ] Remove/replace every GPL-3.0-only-derived implementation and every component ported from a source with no published license; complete a source-level provenance and license audit before redistributing binaries.
+- [ ] Ensure no GPL-3.0-only code is compiled or linked into the GPL-2.0 Vertical Canvas module. If using the separate-process relay design, build it as an independent executable with standard RTMP/FLV + documented control IPC.
+- [ ] Independently replace or disable all device-registration code ported from sources with no published license; audit unmarked helper dependencies before assigning them to either program.
 - [ ] Verify the standard installer and the ZIP on a clean OBS installation.
 - [ ] Decide whether Windows code signing will be configured.
 - [ ] Add macOS/Linux jobs only when the dependencies and runtime paths are implemented and tested.
 - [ ] Publish a GitHub Release with exact OBS compatibility, asset names, hashes and known limitations.
 - [ ] Keep the matching Aitum Multistream bridge documentation/version synchronized.
+- [ ] Validate the process boundary and aggregate installer with a qualified software-licensing review before public binary distribution.
 - [ ] Evaluate the MIT browser-session provider prototype separately; do not claim parity with LIVE Studio or Dual LIVE until Windows and runtime tests pass.
