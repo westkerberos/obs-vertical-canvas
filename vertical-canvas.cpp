@@ -35,6 +35,7 @@
 #include "transitions-dock.hpp"
 #include "src/tiktok-output-session.h"
 #include "src/tiktok-output-settings-dialog.h"
+#include "src/tiktok-safety.h"
 #include "util/config-file.h"
 #include "util/dstr.h"
 #include "util/platform.h"
@@ -790,6 +791,7 @@ void obs_module_unload(void)
 		obs_websocket_vendor_unregister_request(vendor, "pause_recording");
 		obs_websocket_vendor_unregister_request(vendor, "unpause_recording");
 	}
+	ShutdownTikTokSafety();
 	obs_frontend_remove_event_callback(frontend_event, nullptr);
 	if (version_update_info) {
 		update_info_destroy(version_update_info);
