@@ -32,13 +32,13 @@ For an in-tree OBS build, follow the OBS plugin integration pattern already used
 
 ## CI and packaging
 
-The latest PR head built and packaged successfully for Windows x64:
+The latest documented branch head built and packaged successfully for Windows x64:
 
-- Workflow: [#44159137647](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44159137647)
-- Commit: `03c83c3a991265a2c8a445d3fc99c26708d53687`
-- Artifact: `vertical-canvas-1.6.7-windows-x64-0fae1f8cb`
+- Workflow: [#44162348342](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44162348342)
+- Commit: `e03efd606a7828f52d883b1d41f250ba0fd48b13`
+- Artifact: `vertical-canvas-1.6.7-windows-x64-ec2ec5c53`
 - The automatic encoder-reuse runtime change was compiled earlier at `cb22d71497d2e025bfad686cab8079937f7f6387`; the latest successful package includes the subsequent documentation and attribution updates.
-- The standard Windows ZIP and ProgramData-layout ZIP were inspected in the preceding package run. Both contained `GPL-2.0.txt`, `qrcodegen.txt`, `tiktok-live-obs.txt` and `tiktok-live-obs-GPL-3.0.txt`.
+- The standard Windows ZIP and ProgramData-layout ZIP were inspected in a preceding package run. Both contained `GPL-2.0.txt`, `qrcodegen.txt`, `tiktok-live-obs.txt` and `tiktok-live-obs-GPL-3.0.txt`.
 - The automatic encoder-reuse runtime change was compiled at commit `cb22d71497d2e025bfad686cab8079937f7f6387`; the later branch commits include documentation, attribution and license-distribution updates.
 - Signing: skipped because this fork does not have signing secrets configured.
 - Ubuntu/macOS: not built by the current fork workflow.
