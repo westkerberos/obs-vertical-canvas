@@ -98,7 +98,7 @@ Use manual mode only when the inherited Vertical Canvas and Main Canvas configur
 
 ## Current verification status
 
-The latest verified PR build compiled and packaged successfully for Windows x64 in [GitHub Actions run #44163406280](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44163406280). The workflow artifact is `vertical-canvas-1.6.7-windows-x64-017a3e5eb`. The automatic encoder-reuse runtime change was first compiled at `cb22d71497d2e025bfad686cab8079937f7f6387`; the later commits update documentation and third-party notices.
+The latest successful Windows x64 package for the implementation before the subsequent documentation/attribution-only commits was produced by [GitHub Actions run #44164402230](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44164402230), commit `1312b4ba1d1fc05cd69ec54afa5d7379f578fa7e`, artifact `vertical-canvas-1.6.7-windows-x64-188ed878a`. Subsequent commits corrected documentation, source attribution and licensing notes; they did not change the compiled C++ implementation. Check [Build and verification](BUILD-AND-TESTING.md) for the current CI state.
 
 On 17 November 2026, the repository owner completed an approximately 30-minute maintainer smoke test in OBS 33.0.1 on Windows. Landscape, Portrait and Dual LIVE were all tested and reported working correctly. The separate OBS Multi-RTMP plugin was disabled in OBS during the test; the integration still worked, confirming it is not a runtime dependency. This is evidence for the tested Windows/OBS setup, not a published cross-platform compatibility matrix or an extended soak test. QR login, other operating systems, extended reconnect soak tests and every appeal edge case should be regression-tested before a general release.
 
