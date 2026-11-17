@@ -3,6 +3,9 @@
 #include <QWidget>
 #include <QTimer>
 #include <future>
+#include <cstdint>
+#include <string>
+#include <utility>
 #include <memory>
 
 class QLabel;
