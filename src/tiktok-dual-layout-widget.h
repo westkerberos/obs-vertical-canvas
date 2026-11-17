@@ -3,6 +3,7 @@
 #include "tiktok-live-session.h"
 #include <QWidget>
 #include <optional>
+#include <QJsonObject>
 
 class QCheckBox;
 class QComboBox;
@@ -31,6 +32,7 @@ private:
         QComboBox *encoder = nullptr;
         QComboBox *track = nullptr;
         QSpinBox *bitrate = nullptr;
+        QJsonObject encoderParams;
     };
     struct VideoFields {
         QGroupBox *group = nullptr;
@@ -41,6 +43,7 @@ private:
         QSpinBox *bitrate = nullptr;
         QSpinBox *fpsDivisor = nullptr;
         QComboBox *framing = nullptr;
+        QJsonObject encoderParams;
         AudioFields audio;
     };
 
