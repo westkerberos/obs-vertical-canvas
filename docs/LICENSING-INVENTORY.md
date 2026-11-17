@@ -132,3 +132,5 @@ These files do not have a root-level `SPDX-License-Identifier: GPL-3.0-only` mar
 ## No-license device source remains a separate blocker
 
 The device-registration source path described above remains separate from the GPL-3.0-only count. The current desktop and Android identity code cites `Loukious/TikTokStreamKeyGenerator`, whose inspected repository head has no LICENSE file and no GitHub license metadata. A public source repository without a license grant must not be treated as redistributable.
+
+The source root license for `Loukious/StreamLabsTikTokStreamKeyGenerator` is GPL-3.0. Its `LICENSE.txt` was compared byte-for-byte with `data/licenses/tiktok-live-obs-GPL-3.0.txt` and the text is identical, so the repository can carry one copy of the canonical GPL-3.0 text while keeping a separate source notice. That notice has been added as `data/licenses/streamlabs-tiktok-generator.txt`. The final Windows package still needs to be rebuilt and inspected to verify the new notice is present in both ZIP and installer layouts.
