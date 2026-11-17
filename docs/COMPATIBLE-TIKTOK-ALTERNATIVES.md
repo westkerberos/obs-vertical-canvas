@@ -45,3 +45,36 @@ Keep the existing tested integration untouched. Build a separate provider protot
 - Compare the new provider against the current user's required workflows before deciding whether it is an acceptable replacement.
 
 This candidate is a potential route out of the licensing conflict, not proof that all existing features can be preserved. No code has been copied from it yet.
+
+
+## Candidate reviewed: iqbalmh18/tiktok-signer
+
+Repository: https://github.com/iqbalmh18/tiktok-signer
+License: MIT (root LICENSE and `pyproject.toml`).
+The inspected README identifies its Android defaults as TikTok app version **37.0.4**.
+
+It provides Argus, Gorgon, Ladon, Khronos, request tickets, device profiles and an older TTEncrypt implementation. MIT is compatible with the inherited GPL-2.0 terms when its copyright and license notices are retained.
+
+**It is not a drop-in replacement for the current WEST mobile-registration path.** The current WEST mobile code is based on a newer AppLog 2.5.14.6 / TikTok 47.1.4 flow. Its envelope derives an AES key and IV from a 32-byte seed using a double-SHA-512 construction plus a fixed derivation constant, then encrypts SHA-512(payload) plus the payload with AES-128-CBC. The inspected MIT library implements a different TTEncrypt construction with its own lookup tables and key-stream generation, and documents version 37.0.4. Sharing the outer `74 63 05 10 00 00` prefix is not enough to establish compatibility.
+
+Use it only if a future test proves the specific required endpoint/version accepts its output. Do not replace the 47.1.4 implementation based on the name TTEncrypt alone.
+
+## Candidate reviewed: 9xz/reversetok
+
+Repository: https://github.com/9xz/reversetok
+Inspected README target: TikTok Android **47.7.2**.
+GitHub repository metadata reports no license, and the repository tree contains no LICENSE file.
+
+The README documents a TTEncrypt envelope for the 47.7.2 Android client using a 32-byte key stream and AES-128-CBC over SHA-512(payload) plus the payload. That is much closer to the format documented in WEST's current Android registration path than the older MIT signer above.
+
+However, **the repository has no published license grant**. It is not a source-code dependency candidate and none of its Python, TypeScript, Rust code, fixtures or test vectors should be copied into WEST or redistributed. Its high-level protocol description may guide independent investigation, but a new implementation must be authored from a separately written functional specification and validated against TikTok itself, not translated from this repository.
+
+## Candidate conclusion
+
+No inspected permissively licensed source is currently a proven drop-in replacement for the Android 47.x registration/signing path:
+
+- `aemon1977/tiktok-live-native` (MIT) is a credible alternate browser-session → LIVE-room → RTMP-key path, but it is Linux-only and single-feed.
+- `iqbalmh18/tiktok-signer` (MIT) implements a different, older Android signing/TTEncrypt version (37.0.4).
+- `9xz/reversetok` documents the more recent 47.7.2 format but has no published license, so its code cannot be incorporated.
+
+The preferred full-feature experiment therefore remains a separate-process TikTok relay under GPL-3.0, with a standard RTMP/FLV media boundary to the GPL-2.0 OBS plugin. The no-license device-registration path still needs independent replacement or a reduced provider that does not use it.
