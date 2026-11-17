@@ -9,6 +9,7 @@
 #include <QMetaObject>
 #include <QTimer>
 #include <obs-module.h>
+#include <obs-frontend-api.h>
 #include <obs.hpp>
 #include <graphics/vec2.h>
 #include <atomic>
@@ -256,44 +257,73 @@ struct TikTokOutputSession::DualFeedState {
     bool Create(const TikTokOutputConfig &config, obs_output_t *primary, QString *error)
     {
         primaryOutput = primary;
-        portraitScene = std::make_unique<TikTokLayoutScene>();
-        landscapeScene = std::make_unique<TikTokLayoutScene>();
-        if (!portraitScene->Create(config.dualLayout.portrait, "portrait", error) ||
-            !landscapeScene->Create(config.dualLayout.landscape, "landscape", error))
-            return false;
-
-        portraitVideo = CreateTikTokVideoEncoder(config.dualLayout.portrait,
-            "tiktok_dual_portrait_video", portraitScene->Video(), error);
-        if (!portraitVideo)
-            return false;
-        landscapeVideo = CreateTikTokVideoEncoder(config.dualLayout.landscape,
-            "tiktok_dual_landscape_video", landscapeScene->Video(), error);
-        if (!landscapeVideo)
-            return false;
-
-        if (config.dualLayout.sameAudio) {
-            sharedAudio = CreateTikTokAudioEncoder(config.dualLayout.sharedAudio, "tiktok_dual_shared_audio", error);
-            if (!sharedAudio)
+        if (config.dualLayout.reuseCanvasEncoders) {
+            // Portrait is already configured by Vertical Canvas. Leave its
+            // current output encoders untouched so its canvas settings are
+            // inherited exactly as configured by the user.
+            if (!obs_output_get_video_encoder(primaryOutput)) {
+                *error = "Vertical Canvas has no portrait video encoder configured for this TikTok output.";
                 return false;
-            portraitAudio = sharedAudio;
-            landscapeAudio = sharedAudio;
+            }
+
+            // Landscape reuses OBS' Main Canvas streaming encoders. These
+            // objects are already bound to the active Main Canvas video and
+            // carry the exact encoder and audio settings used by the normal
+            // horizontal stream.
+            obs_output_t *mainOutput = obs_frontend_get_streaming_output();
+            if (!mainOutput) {
+                *error = "OBS Main Canvas streaming output is unavailable. Start your horizontal stream first, then start TikTok Dual LIVE.";
+                return false;
+            }
+            auto mainVideo = obs_output_get_video_encoder(mainOutput);
+            auto mainAudio = obs_output_get_audio_encoder(mainOutput, 0);
+            landscapeVideo = mainVideo ? obs_encoder_get_ref(mainVideo) : nullptr;
+            landscapeAudio = mainAudio ? obs_encoder_get_ref(mainAudio) : nullptr;
+            obs_output_release(mainOutput);
+            if (!landscapeVideo || !landscapeAudio) {
+                *error = "OBS Main Canvas does not have both video and audio encoders assigned. Start the horizontal stream first, then retry TikTok Dual LIVE.";
+                return false;
+            }
         } else {
-            portraitAudio = CreateTikTokAudioEncoder(config.dualLayout.portrait.audio, "tiktok_dual_portrait_audio", error);
-            if (!portraitAudio)
+            portraitScene = std::make_unique<TikTokLayoutScene>();
+            landscapeScene = std::make_unique<TikTokLayoutScene>();
+            if (!portraitScene->Create(config.dualLayout.portrait, "portrait", error) ||
+                !landscapeScene->Create(config.dualLayout.landscape, "landscape", error))
                 return false;
-            landscapeAudio = CreateTikTokAudioEncoder(config.dualLayout.landscape.audio, "tiktok_dual_landscape_audio", error);
-            if (!landscapeAudio)
-                return false;
-        }
 
-        auto oldVideo = obs_output_get_video_encoder(primaryOutput);
-        obs_output_set_video_encoder(primaryOutput, portraitVideo);
-        if (oldVideo)
-            obs_encoder_release(oldVideo);
-        auto oldAudio = obs_output_get_audio_encoder(primaryOutput, 0);
-        obs_output_set_audio_encoder(primaryOutput, portraitAudio, 0);
-        if (oldAudio)
-            obs_encoder_release(oldAudio);
+            portraitVideo = CreateTikTokVideoEncoder(config.dualLayout.portrait,
+                "tiktok_dual_portrait_video", portraitScene->Video(), error);
+            if (!portraitVideo)
+                return false;
+            landscapeVideo = CreateTikTokVideoEncoder(config.dualLayout.landscape,
+                "tiktok_dual_landscape_video", landscapeScene->Video(), error);
+            if (!landscapeVideo)
+                return false;
+
+            if (config.dualLayout.sameAudio) {
+                sharedAudio = CreateTikTokAudioEncoder(config.dualLayout.sharedAudio, "tiktok_dual_shared_audio", error);
+                if (!sharedAudio)
+                    return false;
+                portraitAudio = sharedAudio;
+                landscapeAudio = sharedAudio;
+            } else {
+                portraitAudio = CreateTikTokAudioEncoder(config.dualLayout.portrait.audio, "tiktok_dual_portrait_audio", error);
+                if (!portraitAudio)
+                    return false;
+                landscapeAudio = CreateTikTokAudioEncoder(config.dualLayout.landscape.audio, "tiktok_dual_landscape_audio", error);
+                if (!landscapeAudio)
+                    return false;
+            }
+
+            auto oldVideo = obs_output_get_video_encoder(primaryOutput);
+            obs_output_set_video_encoder(primaryOutput, portraitVideo);
+            if (oldVideo)
+                obs_encoder_release(oldVideo);
+            auto oldAudio = obs_output_get_audio_encoder(primaryOutput, 0);
+            obs_output_set_audio_encoder(primaryOutput, portraitAudio, 0);
+            if (oldAudio)
+                obs_encoder_release(oldAudio);
+        }
 
         OBSDataAutoRelease outputSettings = obs_output_get_settings(primaryOutput);
         if (!outputSettings)
@@ -419,14 +449,15 @@ bool TikTokOutputSession::Start(const TikTokOutputConfig &config, obs_output *ou
     liveStudio_ = std::make_unique<TikTokLiveSession>();
 
     if (studioConfig.UsesDualLayout()) {
-        if (studioConfig.dualLayout.portrait.sceneUuid.empty() ||
-            studioConfig.dualLayout.landscape.sceneUuid.empty() ||
-            studioConfig.dualLayout.portrait.encoderId.empty() ||
-            studioConfig.dualLayout.landscape.encoderId.empty() ||
-            studioConfig.dualLayout.portrait.width < 64 || studioConfig.dualLayout.portrait.height < 64 ||
-            studioConfig.dualLayout.landscape.width < 64 || studioConfig.dualLayout.landscape.height < 64 ||
-            studioConfig.dualLayout.portrait.width >= studioConfig.dualLayout.portrait.height ||
-            studioConfig.dualLayout.landscape.width <= studioConfig.dualLayout.landscape.height) {
+        if (!studioConfig.dualLayout.reuseCanvasEncoders &&
+            (studioConfig.dualLayout.portrait.sceneUuid.empty() ||
+             studioConfig.dualLayout.landscape.sceneUuid.empty() ||
+             studioConfig.dualLayout.portrait.encoderId.empty() ||
+             studioConfig.dualLayout.landscape.encoderId.empty() ||
+             studioConfig.dualLayout.portrait.width < 64 || studioConfig.dualLayout.portrait.height < 64 ||
+             studioConfig.dualLayout.landscape.width < 64 || studioConfig.dualLayout.landscape.height < 64 ||
+             studioConfig.dualLayout.portrait.width >= studioConfig.dualLayout.portrait.height ||
+             studioConfig.dualLayout.landscape.width <= studioConfig.dualLayout.landscape.height)) {
             error_ = "Configure a valid portrait and landscape scene, resolution and video encoder.";
             liveStudio_.reset();
             return false;
