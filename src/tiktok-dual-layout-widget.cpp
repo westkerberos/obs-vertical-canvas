@@ -130,36 +130,52 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
     auto settingsLayout = new QVBoxLayout(settings_);
     settingsLayout->setContentsMargins(8, 10, 8, 8);
 
+    reuseCanvasEncoders_ = new QCheckBox(
+        "Reuse the existing Vertical Canvas and Main Canvas settings (recommended)", settings_);
+    reuseCanvasEncoders_->setObjectName("tiktokDualReuseCanvasEncoders");
+    reuseCanvasEncoders_->setChecked(true);
+    settingsLayout->addWidget(reuseCanvasEncoders_);
+
+    auto *reuseDescription = new QLabel(
+        "Portrait inherits the current Vertical Canvas output. Landscape reuses the OBS Main Canvas stream encoders. "
+        "Scenes, resolution, video/audio encoders and bitrate are inherited automatically.", settings_);
+    reuseDescription->setWordWrap(true);
+    settingsLayout->addWidget(reuseDescription);
+
+    manualSettings_ = new QWidget(settings_);
+    auto manualLayout = new QVBoxLayout(manualSettings_);
+    manualLayout->setContentsMargins(0, 0, 0, 0);
+
     auto videoRow = new QHBoxLayout;
-    portrait_ = CreateVideoFields(settings_, "portrait", true);
-    landscape_ = CreateVideoFields(settings_, "landscape", false);
+    portrait_ = CreateVideoFields(manualSettings_, "portrait", true);
+    landscape_ = CreateVideoFields(manualSettings_, "landscape", false);
     videoRow->addWidget(portrait_.group, 1);
     videoRow->addWidget(landscape_.group, 1);
-    settingsLayout->addLayout(videoRow);
+    manualLayout->addLayout(videoRow);
 
-    sameAudio_ = new QCheckBox(obs_module_text("Dual.SameAudio"), settings_);
+    sameAudio_ = new QCheckBox(obs_module_text("Dual.SameAudio"), manualSettings_);
     sameAudio_->setObjectName("tiktokDualSameAudio");
     sameAudio_->setChecked(true);
     settingsLayout->addWidget(sameAudio_);
 
-    auto sharedGroup = new QGroupBox(obs_module_text("Dual.SharedAudio"), settings_);
+    auto sharedGroup = new QGroupBox(obs_module_text("Dual.SharedAudio"), manualSettings_);
     auto sharedLayout = new QFormLayout(sharedGroup);
     sharedAudio_ = CreateAudioFields(sharedGroup, "shared");
     sharedLayout->addRow(obs_module_text("Dual.AudioEncoder"), sharedAudio_.encoder);
     sharedLayout->addRow(obs_module_text("Dual.AudioMixer"), sharedAudio_.track);
     sharedLayout->addRow(obs_module_text("Dual.BitrateKbps"), sharedAudio_.bitrate);
     sharedLayout->addRow(sharedAudio_.advanced);
-    settingsLayout->addWidget(sharedGroup);
+    manualLayout->addWidget(sharedGroup);
 
     auto independentAudioRow = new QHBoxLayout;
-    auto portraitAudioGroup = new QGroupBox(obs_module_text("Dual.PortraitAudio"), settings_);
+    auto portraitAudioGroup = new QGroupBox(obs_module_text("Dual.PortraitAudio"), manualSettings_);
     auto portraitAudioForm = new QFormLayout(portraitAudioGroup);
     portrait_.audio = CreateAudioFields(portraitAudioGroup, "portrait");
     portraitAudioForm->addRow(obs_module_text("Dual.AudioEncoder"), portrait_.audio.encoder);
     portraitAudioForm->addRow(obs_module_text("Dual.AudioMixer"), portrait_.audio.track);
     portraitAudioForm->addRow(obs_module_text("Dual.BitrateKbps"), portrait_.audio.bitrate);
     portraitAudioForm->addRow(portrait_.audio.advanced);
-    auto landscapeAudioGroup = new QGroupBox(obs_module_text("Dual.LandscapeAudio"), settings_);
+    auto landscapeAudioGroup = new QGroupBox(obs_module_text("Dual.LandscapeAudio"), manualSettings_);
     auto landscapeAudioForm = new QFormLayout(landscapeAudioGroup);
     landscape_.audio = CreateAudioFields(landscapeAudioGroup, "landscape");
     landscapeAudioForm->addRow(obs_module_text("Dual.AudioEncoder"), landscape_.audio.encoder);
@@ -168,10 +184,12 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
     landscapeAudioForm->addRow(landscape_.audio.advanced);
     independentAudioRow->addWidget(portraitAudioGroup, 1);
     independentAudioRow->addWidget(landscapeAudioGroup, 1);
-    settingsLayout->addLayout(independentAudioRow);
+    manualLayout->addLayout(independentAudioRow);
+    settingsLayout->addWidget(manualSettings_);
     root->addWidget(settings_);
 
     QObject::connect(enabled_, &QCheckBox::toggled, this, [this] { UpdateVisibility(); });
+    QObject::connect(reuseCanvasEncoders_, &QCheckBox::toggled, this, [this] { UpdateVisibility(); });
     QObject::connect(sameAudio_, &QCheckBox::toggled, this, [this] { UpdateVisibility(); });
     for (auto fields : {&portrait_, &landscape_}) {
         QObject::connect(fields->canvas, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, fields] {
@@ -314,8 +332,10 @@ void TikTokDualLayoutWidget::RefreshCatalog()
 void TikTokDualLayoutWidget::Load(const TikTokDualLayoutConfig &config)
 {
     QSignalBlocker enabledBlock(enabled_);
+    QSignalBlocker reuseBlock(reuseCanvasEncoders_);
     QSignalBlocker audioBlock(sameAudio_);
     enabled_->setChecked(config.enabled);
+    reuseCanvasEncoders_->setChecked(config.reuseCanvasEncoders);
     pendingSavedDual_ = config.enabled && !canDual_;
     sameAudio_->setChecked(config.sameAudio);
     LoadVideo(portrait_, config.portrait);
@@ -328,6 +348,7 @@ void TikTokDualLayoutWidget::Load(const TikTokDualLayoutConfig &config)
 void TikTokDualLayoutWidget::Save(TikTokDualLayoutConfig &config) const
 {
     config.enabled = Enabled();
+    config.reuseCanvasEncoders = reuseCanvasEncoders_->isChecked();
     config.sameAudio = sameAudio_->isChecked();
     config.independentAudioInitialized = !config.sameAudio;
     SaveVideo(portrait_, config.portrait);
@@ -348,6 +369,8 @@ bool TikTokDualLayoutWidget::Validate(QString *error) const
         if (error) *error = accessStatus_->text();
         return false;
     }
+    if (reuseCanvasEncoders_->isChecked())
+        return true;
     const auto checkVideo = [&](const VideoFields &fields, bool portrait) {
         if (fields.scene->currentData().toString().isEmpty()) {
             if (error) *error = QString(obs_module_text("Dual.Error.SceneRequired")).arg(obs_module_text(portrait ? "Dual.Portrait" : "Dual.Landscape"));
@@ -426,6 +449,7 @@ void TikTokDualLayoutWidget::SetMethod(const QString &method)
 void TikTokDualLayoutWidget::UpdateVisibility()
 {
     settings_->setVisible(Enabled());
+    manualSettings_->setVisible(!reuseCanvasEncoders_->isChecked());
     sharedAudio_.encoder->parentWidget()->setVisible(sameAudio_->isChecked());
     for (auto fields : {&portrait_, &landscape_})
         fields->audio.encoder->parentWidget()->setVisible(!sameAudio_->isChecked());
