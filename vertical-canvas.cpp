@@ -6795,6 +6795,7 @@ bool CanvasDock::PrepareTikTokOutput(std::vector<StreamServer>::iterator it)
 	if (dualJson.isObject()) {
 		const auto dual = dualJson.object();
 		config.dualLayout.enabled = dual.value("enabled").toBool(false);
+		config.dualLayout.reuseCanvasEncoders = dual.value("reuse_canvas_encoders").toBool(true);
 		config.dualLayout.sameAudio = dual.value("same_audio").toBool(true);
 		const auto readAudio = [](const QJsonObject &json, TikTokLayoutAudioConfig &audio) {
 			audio.encoderId = json.value("encoder_id").toString("ffmpeg_aac").toStdString();
