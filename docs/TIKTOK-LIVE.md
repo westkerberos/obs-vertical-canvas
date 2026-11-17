@@ -1,6 +1,6 @@
 # TikTok LIVE in WEST Gaming's Vertical Canvas fork
 
-This guide describes the TikTok integration in the WEST Gaming fork of Aitum Vertical Canvas. The old Multi-RTMP fork was used as a source for the TikTok integration port and is not a companion plugin, supported installation target or runtime dependency.
+This guide describes the TikTok integration in the WEST Gaming fork of Aitum Vertical Canvas. The integration was ported and adapted from the TikTok implementation in [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), a downstream fork of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). Native TikTok client/signing components also carry direct attribution to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs). WEST Gaming adapted the integration to the Vertical Canvas output lifecycle, OBS/Qt configuration, canvas/encoder ownership and Dual LIVE workflow. The maintained setup is Vertical Canvas plus the optional Aitum Multistream wizard bridge; no separate Multi-RTMP plugin is required or supported as part of this setup.
 
 > **Branch status (17 November 2026):** the integration is developed in [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), branch `feature/tiktok-native-output`. Until that PR is merged, the default `main` branch and the upstream Aitum downloads do not contain this fork's TikTok changes. There is no GitHub Release for this fork yet.
 
@@ -98,11 +98,11 @@ Use manual mode only when the inherited Vertical Canvas and Main Canvas configur
 
 ## Current verification status
 
-The Windows x64 build and packaging pass for the automatic encoder-reuse implementation completed successfully at commit `cb22d71497d2e025bfad686cab8079937f7f6387`: [GitHub Actions run #44142868039](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44142868039).
+The latest PR head `03c83c3a991265a2c8a445d3fc99c26708d53687` built and packaged successfully for Windows x64 in [GitHub Actions run #44159137647](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44159137647). The workflow artifact is `vertical-canvas-1.6.7-windows-x64-0fae1f8cb`. The automatic encoder-reuse runtime change was first compiled at `cb22d71497d2e025bfad686cab8079937f7f6387`; the current successful package is built from the later PR head.
 
-The repository owner confirmed an end-to-end working configuration in OBS on 17 November 2026, including the automatic Portrait/ Landscape encoder-reuse workflow. The current verification is a maintainer test on the tested Windows/OBS setup, not a published cross-platform compatibility matrix. QR login, other operating systems, extended reconnect soak tests and every appeal edge case should be verified separately before a general release.
+The repository owner confirmed an end-to-end working configuration in OBS 33.0.1 on 17 November 2026, including the automatic Portrait/Landscape encoder-reuse workflow. This is a maintainer test on the tested Windows/OBS setup, not a published cross-platform compatibility matrix. QR login, other operating systems, extended reconnect soak tests and every appeal edge case should be regression-tested before a general release.
 
-The workflow currently builds Windows x64. Code signing is skipped because signing secrets are not configured in this fork; the generated test package is unsigned. Ubuntu and macOS jobs are not enabled.
+The workflow currently builds Windows x64 only. Code signing is skipped because signing secrets are not configured in this fork; the generated test package is unsigned. Ubuntu and macOS jobs are not enabled.
 
 ## Reporting a problem
 
