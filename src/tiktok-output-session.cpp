@@ -261,8 +261,9 @@ struct TikTokOutputSession::DualFeedState {
             // Portrait is already configured by Vertical Canvas. Leave its
             // current output encoders untouched so its canvas settings are
             // inherited exactly as configured by the user.
-            if (!obs_output_get_video_encoder(primaryOutput)) {
-                *error = "Vertical Canvas has no portrait video encoder configured for this TikTok output.";
+            if (!obs_output_get_video_encoder(primaryOutput) ||
+                !obs_output_get_audio_encoder(primaryOutput, 0)) {
+                *error = "Vertical Canvas does not have its portrait video and audio encoders configured for this TikTok output.";
                 return false;
             }
 
@@ -273,6 +274,11 @@ struct TikTokOutputSession::DualFeedState {
             obs_output_t *mainOutput = obs_frontend_get_streaming_output();
             if (!mainOutput) {
                 *error = "OBS Main Canvas streaming output is unavailable. Start your horizontal stream first, then start TikTok Dual LIVE.";
+                return false;
+            }
+            if (!obs_output_active(mainOutput)) {
+                obs_output_release(mainOutput);
+                *error = "The OBS Main Canvas stream is not active. Start YouTube/Twitch from the Main Canvas before starting TikTok Dual LIVE.";
                 return false;
             }
             auto mainVideo = obs_output_get_video_encoder(mainOutput);
