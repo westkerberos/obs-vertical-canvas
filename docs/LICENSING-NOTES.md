@@ -23,16 +23,35 @@ The corrected package was inspected after [Windows workflow #44151842582](https:
 
 This verifies license-file inclusion in the tested Windows package. It does **not** resolve the GPL-2.0 / GPL-3.0-only compatibility question for the combined program.
 
-## Release blocker to resolve
+## Confirmed compatibility issue
 
-A GPL-3.0-only component incorporated into a project whose declared license is GPL-2.0 raises a license-compatibility question for the combined work. Do not assume the root LICENSE by itself covers the TikTok-derived files, and do not change the license identifier by guesswork.
+The relevant upstream license files were checked directly:
 
-Before publishing a release, the maintainer should:
+- [Aitum Vertical Canvas LICENSE](https://github.com/Aitum/obs-vertical-canvas/blob/main/LICENSE) is the GNU GPL, Version 2 (June 1991). The file does not grant use under later GPL versions.
+- [Smile-4-Me/tiktok-live-obs LICENSE](https://github.com/Smile-4-Me/tiktok-live-obs/blob/main/LICENSE) is the GNU GPL, Version 3. Its README identifies the project as **GPL-3.0-only**.
+- This WEST Vertical Canvas fork is based on Aitum's GPL-2 code and incorporates/adapts code attributed to the GPL-3.0-only TikTok project into the same plugin binary.
 
-1. Review the exact license notices and source files from the identified upstream revision.
-2. Confirm whether the original project or relevant copyright holders grant an additional permission or a different licensing option.
-3. Obtain appropriate legal advice if the compatibility position is unclear.
-4. Record the resolved project-wide and per-component licensing position.
-5. Preserve third-party notices and include the required corresponding license texts with source and binary distributions.
+The Free Software Foundation explains that GPL version 2 by itself is incompatible with GPL version 3: [GPL license compatibility](https://www.gnu.org/licenses/license-compatibility.html). The repository's current license texts do not provide a later-version grant or another compatibility exception.
 
-This note intentionally leaves the resolution open; no relicensing or copyright permission is asserted here.
+**Conclusion:** the combined Vertical Canvas plugin does not yet have a verified license path for distribution. Keeping both license files and attribution notices is necessary, but it does not make incompatible terms compatible. Do not solve this by simply replacing the root `LICENSE` with GPL-3.0: the inherited Aitum code is not ours to relicense.
+
+## What would resolve the blocker
+
+There are two viable routes to investigate:
+
+1. **Obtain written permission from the relevant copyright holders of the TikTok-native source** to use the adapted components under terms compatible with the Aitum GPL-2 code, or obtain an explicit exception that permits this combination. The permission must cover the code actually incorporated, not just a general endorsement of the project.
+2. **Replace the GPL-3.0-only-derived implementation with a clean independent implementation** whose licensing is compatible with the Aitum base. That requires a source-level review to ensure the GPL-3-derived code has actually been removed; changing names or refactoring copied code is not enough.
+
+Changing the Aitum base to GPL-3 would require appropriate relicensing rights from the upstream copyright holders and contributors. Do not assume those rights.
+
+## Distribution decision
+
+Until one of the routes above is documented:
+
+- Preserve all third-party notices and license texts.
+- Do not publish a stable combined binary release.
+- Do not label the combined Vertical Canvas integration as license-cleared/open-source merely because the repository is public.
+- Keep this issue visible in PR #1 and the release checklist.
+- Review any combined installer or ZIP containing both plugins after the Vertical Canvas issue is resolved.
+
+This is a source-based compatibility assessment, not legal advice. If permission cannot be obtained, get qualified legal review before distributing the combined work.
