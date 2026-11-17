@@ -32,13 +32,14 @@ For an in-tree OBS build, follow the OBS plugin integration pattern already used
 
 ## CI and packaging
 
-The latest Windows x64 build/package workflow passed for the current documented branch head:
+The current PR branch built and packaged successfully for Windows x64:
 
-- Workflow: [#44151842582](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44151842582)
-- Commit: `b03ff9715d3e928487364ee5109e8aea6f3e5684`
-- Result: Windows build succeeded; package succeeded; artifact upload succeeded.
-- Artifact: `vertical-canvas-1.6.7-windows-x64-f901cc322` (SHA-256 `3f1ee1b2b4c1eb781dcf35f30a4ebeb47febb4a7257e73398ff750dcf507f276`).
-- The tested runtime code commit for automatic Dual LIVE encoder reuse is `cb22d71497d2e025bfad686cab8079937f7f6387`; subsequent branch-head commits include documentation, provenance corrections and package license notices.
+- Workflow: [#44152864999](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44152864999)
+- Commit: `ce25bf928c83e078d61085bd4762756292380e29`
+- Artifact: `vertical-canvas-1.6.7-windows-x64-021276d44`
+- SHA-256: `8c084946517cfb6b32fd89f52b735e51a1568686decbaef7845724c21abfd6e9`
+- The standard Windows ZIP and ProgramData-layout ZIP were both inspected. Both contain `GPL-2.0.txt`, `qrcodegen.txt`, `tiktok-live-obs.txt` and `tiktok-live-obs-GPL-3.0.txt`.
+- The automatic encoder-reuse runtime change was compiled at commit `cb22d71497d2e025bfad686cab8079937f7f6387`; the later branch commits include documentation, attribution and license-distribution updates.
 - Signing: skipped because this fork does not have signing secrets configured.
 - Ubuntu/macOS: not built by the current fork workflow.
 
