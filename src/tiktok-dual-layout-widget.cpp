@@ -379,7 +379,7 @@ void TikTokDualLayoutWidget::UpdateVisibility()
         fields->audio.encoder->parentWidget()->setVisible(!sameAudio_->isChecked());
 }
 
-void TikTokDualLayoutWidget::LoadAudio(const AudioFields &fields, const TikTokLayoutAudioConfig &config)
+void TikTokDualLayoutWidget::LoadAudio(AudioFields &fields, const TikTokLayoutAudioConfig &config)
 {
     fields.encoderParams = config.encoderParams;
     const int index = fields.encoder->findData(QString::fromStdString(config.encoderId));
@@ -397,7 +397,7 @@ void TikTokDualLayoutWidget::SaveAudio(const AudioFields &fields, TikTokLayoutAu
     config.encoderParams = fields.encoderParams;
 }
 
-void TikTokDualLayoutWidget::LoadVideo(const VideoFields &fields, const TikTokLayoutVideoConfig &config)
+void TikTokDualLayoutWidget::LoadVideo(VideoFields &fields, const TikTokLayoutVideoConfig &config)
 {
     fields.encoderParams = config.encoderParams;
     const int canvas = fields.canvas->findData(QString::fromStdString(config.canvasUuid));
