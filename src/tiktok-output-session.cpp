@@ -23,10 +23,11 @@ class TikTokLayoutScene {
     obs_canvas_t *canvas_ = nullptr;
     obs_scene_t *wrapper_ = nullptr;
     obs_source_t *source_ = nullptr;
+    bool borrowedCanvas_ = false;
 public:
     ~TikTokLayoutScene()
     {
-        if (canvas_)
+        if (canvas_ && !borrowedCanvas_)
             obs_canvas_set_channel(canvas_, 0, nullptr);
         if (wrapper_) {
             obs_canvas_scene_remove(wrapper_);
@@ -35,7 +36,7 @@ public:
         if (source_)
             obs_source_release(source_);
         if (canvas_) {
-            if (!obs_canvas_removed(canvas_))
+            if (!borrowedCanvas_ && !obs_canvas_removed(canvas_))
                 obs_canvas_remove(canvas_);
             obs_canvas_release(canvas_);
         }
@@ -47,6 +48,41 @@ public:
         if (!source_ || !obs_source_is_scene(source_) || obs_source_removed(source_)) {
             *error = QString("The selected TikTok %1 scene no longer exists.").arg(QString::fromUtf8(label));
             return false;
+        }
+
+        if (!config.canvasUuid.empty()) {
+            borrowedCanvas_ = true;
+            canvas_ = obs_get_canvas_by_uuid(config.canvasUuid.c_str());
+            auto owner = obs_source_get_canvas(source_);
+            const bool matches = owner && owner == canvas_;
+            if (owner)
+                obs_canvas_release(owner);
+            if (!matches || !canvas_) {
+                *error = "The selected OBS canvas does not contain the chosen scene.";
+                return false;
+            }
+            if (!obs_canvas_has_video(canvas_)) {
+                obs_video_info restored{};
+                if (!obs_get_video_info(&restored)) {
+                    *error = "OBS video is unavailable.";
+                    return false;
+                }
+                restored.base_width = restored.output_width = static_cast<uint32_t>(config.width);
+                restored.base_height = restored.output_height = static_cast<uint32_t>(config.height);
+                if (!obs_canvas_reset_video(canvas_, &restored)) {
+                    *error = "Could not restore the selected OBS canvas video.";
+                    return false;
+                }
+            }
+            obs_video_info current{};
+            if (!obs_canvas_get_video_info(canvas_, &current) ||
+                current.output_width != static_cast<uint32_t>(config.width) ||
+                current.output_height != static_cast<uint32_t>(config.height)) {
+                *error = "The selected OBS canvas resolution differs from the TikTok layout resolution.";
+                return false;
+            }
+            obs_canvas_set_channel(canvas_, 0, source_);
+            return true;
         }
 
         obs_video_info info{};
