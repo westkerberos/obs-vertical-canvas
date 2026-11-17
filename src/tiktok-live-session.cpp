@@ -183,10 +183,19 @@ TikTokLiveSession::~TikTokLiveSession() { Stop(); }
 bool TikTokLiveSession::Start(const TikTokOutputConfig &config, obs_output_t *output,
     std::function<void(const QJsonObject &)> saveDevices)
 {
-    std::vector<obs_output_t*> outputs{output};
+    return Start(config, std::vector<obs_output_t *>{output}, std::move(saveDevices));
+}
+
+bool TikTokLiveSession::Start(const TikTokOutputConfig &config, const std::vector<obs_output_t *> &outputs,
+    std::function<void(const QJsonObject &)> saveDevices)
+{
     auto &s = *state_;
-    if (outputs.size() != 1 || !s.feeds.empty() || s.stopping) {
+    if (outputs.size() != (config.UsesDualLayout() ? 2u : 1u) || !s.feeds.empty() || s.stopping) {
         s.Fail("Invalid TikTok output session."); return false;
+    }
+    if (outputs.size() == 2 && outputs[0] == outputs[1]) {
+        s.Fail("Dual Layout requires two different output feeds.");
+        return false;
     }
     for (auto output : outputs) {
         auto encoder = output ? obs_output_get_video_encoder(output) : nullptr;
@@ -223,7 +232,7 @@ bool TikTokLiveSession::Start(const TikTokOutputConfig &config, obs_output_t *ou
             QString startError;
             s.live = create_tiktok_live(account, QString::fromStdString(config.title),
                 QString::fromStdString(config.topicId), QString::fromStdString(config.gameId), config.matureContent,
-                &startError, false, config.liveSettings);
+                &startError, config.UsesDualLayout(), config.liveSettings);
             if (!startError.isEmpty()) { s.Fail(startError); return; }
             if (!s.Reserve("room:" + s.live.room_id.toUtf8(), s.roomLease)) {
                 s.live.created_by_us = false;
@@ -355,5 +364,11 @@ void TikTokLiveSession::ConfirmStarted()
     }
 }
 void TikTokLiveSession::CancelPreparation() { state_->cancelled = true; state_->wake.notify_all(); }
-std::string TikTokLiveSession::Server() const { return state_->live.server.toStdString(); }
-std::string TikTokLiveSession::Key() const { return state_->live.key.toStdString(); }
+std::string TikTokLiveSession::Server(bool landscape) const
+{
+    return (landscape ? state_->live.dual_server : state_->live.server).toStdString();
+}
+std::string TikTokLiveSession::Key(bool landscape) const
+{
+    return (landscape ? state_->live.dual_key : state_->live.key).toStdString();
+}
