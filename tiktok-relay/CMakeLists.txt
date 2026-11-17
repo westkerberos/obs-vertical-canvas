@@ -17,7 +17,6 @@ else()
   target_compile_options(west-tiktok-relay PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-include(CTest)
 if(BUILD_TESTING)
   add_test(
     NAME west-tiktok-relay-control-protocol
