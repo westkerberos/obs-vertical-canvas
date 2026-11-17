@@ -37,6 +37,7 @@ private:
     struct VideoFields {
         QGroupBox *group = nullptr;
         QComboBox *scene = nullptr;
+        QComboBox *canvas = nullptr;
         QComboBox *encoder = nullptr;
         QSpinBox *width = nullptr;
         QSpinBox *height = nullptr;
