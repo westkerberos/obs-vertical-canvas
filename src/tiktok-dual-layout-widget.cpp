@@ -97,7 +97,7 @@ void PopulateCombo(QComboBox *combo, const QVector<TikTokDualChoice> &choices)
     }
     int index = combo->findData(selectedId);
     if (index < 0 && !selectedId.isEmpty()) {
-        combo->addItem(selectedId + " (missing)", selectedId);
+        combo->addItem(selectedId + " (" + obs_module_text("Dual.Missing") + ")", selectedId);
         index = combo->count() - 1;
     }
     if (index >= 0)
@@ -203,7 +203,7 @@ TikTokDualLayoutWidget::VideoFields TikTokDualLayoutWidget::CreateVideoFields(QW
     const QString &prefix, bool portrait)
 {
     VideoFields fields;
-    fields.group = new QGroupBox(portrait ? "Portrait feed" : "Landscape feed", parent);
+    fields.group = new QGroupBox(obs_module_text(portrait ? "Dual.PortraitFeed" : "Dual.LandscapeFeed"), parent);
     fields.group->setObjectName(prefix + "DualVideoSettings");
     auto form = new QFormLayout(fields.group);
     fields.canvas = new QComboBox(fields.group);
