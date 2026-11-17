@@ -78,7 +78,7 @@ Never run first-time Dual LIVE tests during a critical public broadcast.
 ## Release checklist
 
 - [ ] Merge PR #1 or clearly identify the exact supported feature branch/commit.
-- [ ] Resolve the third-party attribution/licensing review for TikTok-derived code before redistributing binaries.
+- [ ] Remove/replace every GPL-3.0-only-derived implementation in the GPL-2.0 Aitum-based plugin, then complete a source-level provenance and license audit before redistributing binaries.
 - [ ] Verify the standard installer and the ZIP on a clean OBS installation.
 - [ ] Decide whether Windows code signing will be configured.
 - [ ] Add macOS/Linux jobs only when the dependencies and runtime paths are implemented and tested.
