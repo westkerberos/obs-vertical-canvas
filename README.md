@@ -70,7 +70,7 @@ Dual LIVE requires an eligible TikTok account and supports LIVE Studio Desktop o
 
 There is currently no GitHub Release published for this fork. Do not mistake the upstream Aitum installer, Flatpak or website downloads for a WEST Gaming build: they do not automatically contain this fork's TikTok additions.
 
-For development, use the branch and exact commit identified in [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), or the corresponding GitHub Actions artifact linked from the successful workflow in [Build and testing](docs/BUILD-AND-TESTING.md). The latest documented Windows x64 package is `vertical-canvas-1.6.7-windows-x64-0fae1f8cb` from [workflow #44159137647](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44159137647). Do not install an unreviewed CI artifact into a critical production OBS profile.
+For development, use the branch and exact commit identified in [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), or the corresponding GitHub Actions artifact linked from the successful workflow in [Build and testing](docs/BUILD-AND-TESTING.md). That guide records the latest verified Windows x64 workflow and artifact. Do not install an unreviewed CI artifact into a critical production OBS profile.
 
 ## Build
 
