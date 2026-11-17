@@ -13,6 +13,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QSpinBox>
+#include <QPushButton>
 #include <QVBoxLayout>
 #include <QStandardItemModel>
 #include <QSignalBlocker>
