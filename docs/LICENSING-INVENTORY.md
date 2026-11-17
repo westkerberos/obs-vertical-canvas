@@ -85,3 +85,13 @@ A clean implementation is not established merely because files are rewritten. Th
 ## Maintainer verification of runtime behavior
 
 On 17 November 2026, the repository owner tested Landscape, Portrait and Dual LIVE for approximately 30 minutes in OBS 33.0.1 on Windows and reported all three modes working. The separate OBS Multi-RTMP plugin was disabled during this test. This confirms the current WEST implementation does not require that plugin to be enabled in OBS. It does not resolve the source-license compatibility issue and is not a cross-platform compatibility matrix.
+
+## Build-system integration
+
+The current `CMakeLists.txt` creates one plugin MODULE and adds the TikTok-native implementation sources to that same target through `TIKTOK_NATIVE_SOURCES` and `target_sources`. The files with GPL-3.0-only notices are therefore compiled into the same Vertical Canvas module as the Aitum-derived GPL-2.0 code; they are not separate programs or mere aggregation. The license incompatibility is consequently relevant to the current combined plugin.
+
+The source list compiles the native implementation units for domain routing, safety, frame signing, LIVE client, mobile device/profile, quota handling, SEI metadata, request signing, device registration, game tags, QR, session, topics and localization. Several GPL-3.0-only headers are included by those translation units even though headers are not listed as standalone CMake sources.
+
+## Related source outside `src/tiktok-native/`
+
+The rest of the TikTok UI/output integration contains both adapted files from the GPL-2.0 Loukious fork and new WEST/Aitum integration code. Files such as `src/tiktok-game-info.cpp`, `src/tiktok-game-info.h` and `src/tiktok-live-settings.h` are exact matches to the Loukious source tree; several other account/Streamlabs files are modified versions. These are not among the 22 files identified above as carrying a GPL-3.0-only notice, but the final audit must still preserve their Loukious/Aitum provenance and ensure no GPL-3.0-only implementation was copied into them.
