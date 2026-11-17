@@ -34,11 +34,11 @@ For an in-tree OBS build, follow the OBS plugin integration pattern already used
 
 The latest Windows x64 build/package workflow passed for the current documented branch head:
 
-- Workflow: [#44148907864](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44148907864)
-- Commit: `884e19f39e6bb17a031261983487dc4a3faca90d`
+- Workflow: [#44151842582](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44151842582)
+- Commit: `b03ff9715d3e928487364ee5109e8aea6f3e5684`
 - Result: Windows build succeeded; package succeeded; artifact upload succeeded.
-- Artifact: `vertical-canvas-1.6.7-windows-x64-4117ef013` (SHA-256 `438a024dfb539c5fb175c3f4ea64e97ce5375ab21584c6c730645a162afcf177`).
-- The tested runtime code commit for automatic Dual LIVE encoder reuse is `cb22d71497d2e025bfad686cab8079937f7f6387`; the later branch-head commits add documentation and third-party license notices.
+- Artifact: `vertical-canvas-1.6.7-windows-x64-f901cc322` (SHA-256 `3f1ee1b2b4c1eb781dcf35f30a4ebeb47febb4a7257e73398ff750dcf507f276`).
+- The tested runtime code commit for automatic Dual LIVE encoder reuse is `cb22d71497d2e025bfad686cab8079937f7f6387`; subsequent branch-head commits include documentation, provenance corrections and package license notices.
 - Signing: skipped because this fork does not have signing secrets configured.
 - Ubuntu/macOS: not built by the current fork workflow.
 
