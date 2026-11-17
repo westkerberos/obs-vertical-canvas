@@ -95,3 +95,26 @@ The source list compiles the native implementation units for domain routing, saf
 ## Related source outside `src/tiktok-native/`
 
 The rest of the TikTok UI/output integration contains both adapted files from the GPL-2.0 Loukious fork and new WEST/Aitum integration code. Files such as `src/tiktok-game-info.cpp`, `src/tiktok-game-info.h` and `src/tiktok-live-settings.h` are exact matches to the Loukious source tree; several other account/Streamlabs files are modified versions. These are not among the 22 files identified above as carrying a GPL-3.0-only notice, but the final audit must still preserve their Loukious/Aitum provenance and ensure no GPL-3.0-only implementation was copied into them.
+
+
+## Additional provenance blocker: source without a published license
+
+A separate source path is explicitly referenced by the current device-registration code:
+
+- `src/tiktok-native/tiktok_studio_device.hpp` says the desktop registration envelope is ported from `Loukious/TikTokStreamKeyGenerator`.
+- `src/tiktok-native/mobile_device.hpp` says the Android identity generator is a native port of `TiktokStreaming/Libs/mobile_device_gen.py`; the matching file exists in the public `Loukious/TikTokStreamKeyGenerator` repository.
+- The current implementation files are `src/tiktok-native/tiktok_studio_device.cpp`, `src/tiktok-native/mobile_device.cpp` and `src/tiktok-native/mobile_device.hpp`.
+
+The GitHub repository API reports no license for [Loukious/TikTokStreamKeyGenerator](https://github.com/Loukious/TikTokStreamKeyGenerator), and its recursive repository tree contains no LICENSE file. Public visibility is not a license grant. The current C++ file-level GPL-3.0-only header cannot grant rights to code ported from a source with no published license.
+
+**Decision:** do not carry those device-registration/identity implementations into a distributable build by changing their headers. Replace them with independent implementations based on documented protocol requirements, or disable the affected device-registration mode until a lawful implementation exists. No request for special permission is planned.
+
+`src/tiktok-native/mobile_profile.cpp/.hpp` also consume the profile/device data model. Their detailed relationship to the no-license Python source remains an audit item; do not treat them as cleared solely because they lack a GPL-3.0-only marker.
+
+## Updated scope
+
+The current confirmed replacement scope therefore includes:
+- 22 files carrying explicit GPL-3.0-only notices; and
+- the device-registration/identity code above, whose cited source repository has no published license.
+
+The other unmarked files still need a file-level provenance check. The absence of a GPL-3.0-only marker does not settle their status.
