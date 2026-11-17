@@ -1,5 +1,6 @@
 #include "tiktok-output-settings-dialog.h"
 #include "tiktok-safety.h"
+#include "account-info-widget.h"
 
 #include "streamlabs-desktop.h"
 #include "streamlabs-category-widget.h"
@@ -28,6 +29,7 @@
 #include <QPixmap>
 #include <QProgressDialog>
 #include <QScrollArea>
+#include <QSignalBlocker>
 #include <QProgressBar>
 #include <QDateTime>
 #include <QLocale>
@@ -495,7 +497,40 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     streamlabsForm->addRow(streamlabsMature);
     form->addRow(streamlabsGroup);
 
-    auto updateVisibility = [=] {
+    auto *accountInfo = new AccountInfoWidget(LookupAccountInfo, &dialog);
+    accountInfo->setObjectName("tiktokAccountInfo");
+    form->addRow(accountInfo);
+    accountInfo->SetDeviceProfileChangedCallback([&](const std::string &client, const QJsonObject &profile) {
+        profiles.insert(QString::fromStdString(client), profile);
+        if (client == "mobile") {
+            mobileProfile = profile;
+            const QSignalBlocker deviceBlock(mobileDeviceId);
+            const QSignalBlocker installBlock(mobileInstallId);
+            mobileDeviceId->setText(profile.value("device_id").toString());
+            mobileInstallId->setText(profile.value("install_id").toString());
+        }
+    });
+
+    auto updateAccountInfo = [&] {
+        TikTokOutputConfig config;
+        config.method = method->currentData().toString().toStdString();
+        config.client = config.method == "live-studio-mobile" ? "mobile" : "pc";
+        config.rapidApiKey = rapidApiKey->text().trimmed().toStdString();
+        config.cookieFilePath = cookiePath->text().trimmed().toStdString();
+        config.streamlabsAccessToken = streamlabsToken->text().trimmed().toStdString();
+        config.deviceProfiles = profiles;
+        if (config.client == "mobile") {
+            QJsonObject profile = profiles.value("mobile").toObject();
+            profile.insert("broadcast_type", mobileBroadcast->currentData().toString());
+            profile.insert("orientation", mobileOrientation->currentData().toString());
+            profile.insert("device_id", mobileDeviceId->text().trimmed());
+            profile.insert("install_id", mobileInstallId->text().trimmed());
+            config.deviceProfiles.insert("mobile", profile);
+        }
+        accountInfo->SetConfig(config);
+    };
+
+    auto updateVisibility = [&] {
         const auto selected = method->currentData().toString();
         const bool studioActive = selected == "live-studio" || selected == "live-studio-mobile";
         const bool mobileCamera = selected == "live-studio-mobile" && mobileBroadcast->currentData().toString() == "video";
@@ -504,11 +539,16 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
         streamlabsGroup->setVisible(selected == "streamlabs");
         topics->SetContext(studioActive, cookiePath->text(), mobileCamera);
         category->SetContext(selected == "streamlabs", streamlabsToken->text().trimmed().toStdString());
+        updateAccountInfo();
     };
     QObject::connect(method, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, updateVisibility);
     QObject::connect(cookiePath, &QLineEdit::textChanged, &dialog, updateVisibility);
     QObject::connect(mobileBroadcast, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, updateVisibility);
     QObject::connect(streamlabsToken, &QLineEdit::textChanged, &dialog, updateVisibility);
+    QObject::connect(rapidApiKey, &QLineEdit::textChanged, &dialog, updateVisibility);
+    QObject::connect(mobileDeviceId, &QLineEdit::textChanged, &dialog, updateVisibility);
+    QObject::connect(mobileInstallId, &QLineEdit::textChanged, &dialog, updateVisibility);
+    QObject::connect(mobileOrientation, QOverload<int>::of(&QComboBox::currentIndexChanged), &dialog, updateVisibility);
     QObject::connect(browseCookie, &QPushButton::clicked, &dialog, [&] {
         const auto path = QFileDialog::getOpenFileName(&dialog, "Select TikTok cookies", cookiePath->text(),
             "Cookie files (*.txt *.cookies);;All files (*.*)");
