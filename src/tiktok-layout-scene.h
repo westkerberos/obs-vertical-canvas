@@ -1,5 +1,6 @@
 #pragma once
 #include "tiktok-live-session.h"
+#include <obs.h>
 #include <QString>
 class QWidget;
 class TikTokLayoutScene {
