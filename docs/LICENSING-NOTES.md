@@ -19,16 +19,19 @@ The existing attribution and license files must stay in place while the source i
 
 ## Maintainer decision — 17 November 2026
 
-The chosen route is **not to request a special license exception or relicense permission from third-party authors**. Instead, the TikTok integration will be remediated technically:
+The maintainer does not want to request special license exceptions or third-party relicensing permissions. The preferred technical experiment is therefore a **separate TikTok relay process**, while preserving the tested OBS plugin branch.
 
-1. Identify every file and code section derived from a GPL-3.0-only source.
-2. Remove those GPL-3.0-only-derived portions from the GPL-2.0 Aitum-based plugin.
-3. Reimplement the required behavior independently, or use only an independently verified source whose license is compatible with the Aitum base.
-4. Preserve notices for any third-party code that remains, and add accurate source/change attribution for the replacement implementation.
-5. Audit the complete source tree and all linked dependencies again before declaring the combined plugin distributable.
-6. Keep the project under the inherited GPL-2.0 terms unless a separate, valid relicensing right is established for the Aitum-derived code.
+1. Keep the Aitum-derived Vertical Canvas plugin under its inherited GPL-2.0 terms.
+2. Move only code that is verified to be GPL-3.0-compatible into a separate GPL-3.0 executable, not into the OBS plugin module.
+3. Communicate through standard RTMP/FLV over loopback for media and a small documented start/stop/status protocol for control. No shared DLL, C++ ABI, OBS objects or shared-memory frames.
+4. Do not blindly move unmarked helper files into the GPL-3.0 relay. Their provenance is unresolved and some may be GPL-2.0 code from the Loukious fork; independently replace them where the relay needs equivalent behavior.
+5. Independently replace or disable device-registration/identity code whose source repository publishes no license grant.
+6. Keep all third-party notices and use separate license files, build targets and package manifests for the two programs.
+7. Review whether the actual process and distribution boundary is sufficient before bundling a public installer. Process separation is a stronger technical boundary, not a legal guarantee.
 
-A superficial rewrite, renaming files, changing comments, or copying the same implementation through another fork does not make a clean independent implementation. The replacement must not reproduce protected implementation code from the GPL-3.0-only source.
+If the relay cannot be separated without intimate internal coupling, the fallback is to independently reimplement the affected parts under GPL-2-compatible terms or offer a reduced MIT browser-session provider. Do not change the root LICENSE to disguise the current source mix.
+
+A superficial rewrite, renaming files, changing comments, or copying the same implementation through another fork does not make an independent implementation.
 
 ## Packaging and release status
 
