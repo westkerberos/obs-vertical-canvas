@@ -302,6 +302,95 @@ jobs:
       - name: Test TikTok Relay Control Protocol 🧪
         if: steps.build.outcome == 'success'
         run: |
+          $cachePath = "build_x64/CMakeCache.txt"
+          $qtEntry = Select-String -Path $cachePath -Pattern '^Qt6_DIR:PATH=(.+)
+      - name: Create Code Signing Certificate
+        if: success() && github.event_name != 'pull_request'
+        run: |
+            New-Item -ItemType directory -Path certificate
+            Set-Content -Path certificate\certificate.txt -Value '${{ secrets.WINDOWS_CSC_LINK }}'
+            certutil -decode certificate\certificate.txt certificate\certificate.pfx
+
+      - name: Code Sign 64
+        if: success() && github.event_name != 'pull_request'
+        continue-on-error: true
+        run: |
+          & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/signtool.exe' sign /fd SHA256 /f certificate\certificate.pfx /p '${{ secrets.WINDOWS_CSC_PASS }}' /t http://timestamp.comodoca.com/authenticode .\release\${{ needs.check-event.outputs.config }}\${{ steps.setup.outputs.pluginName }}\bin\64bit\${{ steps.setup.outputs.pluginName }}.dll
+
+      - name: Package Plugin 📀
+        id: package
+        if: steps.build.outcome == 'success'
+        uses: ./.github/actions/package-plugin
+        with:
+          target: x64
+          config: ${{ needs.check-event.outputs.config }}
+          package: ${{ fromJSON(needs.check-event.outputs.package) }}
+
+      - name: Code Sign Installer
+        if: success() && github.event_name != 'pull_request'
+        continue-on-error: true
+        run: |
+          & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/signtool.exe' sign /fd SHA256 /f certificate\certificate.pfx /p '${{ secrets.WINDOWS_CSC_PASS }}' /t http://timestamp.comodoca.com/authenticode ./release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer.exe
+
+      - name: Upload Artifacts 📡
+        if: steps.package.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/*.*
+ | Select-Object -First 1
+          if (-not $qtEntry) {
+            $qtEntry = Select-String -Path $cachePath -Pattern '^Qt6Core_DIR:PATH=(.+)
+      - name: Create Code Signing Certificate
+        if: success() && github.event_name != 'pull_request'
+        run: |
+            New-Item -ItemType directory -Path certificate
+            Set-Content -Path certificate\certificate.txt -Value '${{ secrets.WINDOWS_CSC_LINK }}'
+            certutil -decode certificate\certificate.txt certificate\certificate.pfx
+
+      - name: Code Sign 64
+        if: success() && github.event_name != 'pull_request'
+        continue-on-error: true
+        run: |
+          & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/signtool.exe' sign /fd SHA256 /f certificate\certificate.pfx /p '${{ secrets.WINDOWS_CSC_PASS }}' /t http://timestamp.comodoca.com/authenticode .\release\${{ needs.check-event.outputs.config }}\${{ steps.setup.outputs.pluginName }}\bin\64bit\${{ steps.setup.outputs.pluginName }}.dll
+
+      - name: Package Plugin 📀
+        id: package
+        if: steps.build.outcome == 'success'
+        uses: ./.github/actions/package-plugin
+        with:
+          target: x64
+          config: ${{ needs.check-event.outputs.config }}
+          package: ${{ fromJSON(needs.check-event.outputs.package) }}
+
+      - name: Code Sign Installer
+        if: success() && github.event_name != 'pull_request'
+        continue-on-error: true
+        run: |
+          & 'C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/signtool.exe' sign /fd SHA256 /f certificate\certificate.pfx /p '${{ secrets.WINDOWS_CSC_PASS }}' /t http://timestamp.comodoca.com/authenticode ./release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-Installer.exe
+
+      - name: Upload Artifacts 📡
+        if: steps.package.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/*.*
+ | Select-Object -First 1
+          }
+          if (-not $qtEntry) {
+            throw "Could not locate Qt6_DIR/Qt6Core_DIR in CMakeCache.txt"
+          }
+
+          $qtPackageDir = $qtEntry.Matches[0].Groups[1].Value
+          $qtCmakeDir = Split-Path $qtPackageDir -Parent
+          $qtLibDir = Split-Path $qtCmakeDir -Parent
+          $qtRootDir = Split-Path $qtLibDir -Parent
+          $qtBinDir = Join-Path $qtRootDir "bin"
+          if (-not (Test-Path $qtBinDir)) {
+            throw "Qt runtime directory not found: $qtBinDir"
+          }
+
+          $env:PATH = "$qtBinDir;$env:PATH"
           ctest --test-dir build_x64 --build-config ${{ needs.check-event.outputs.config }} --output-on-failure -R west-tiktok-relay-control-protocol
 
       - name: Create Code Signing Certificate
