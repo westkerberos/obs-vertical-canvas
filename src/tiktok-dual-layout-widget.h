@@ -67,4 +67,5 @@ private:
     bool canDual_ = false;
     bool cameraLive_ = true;
     bool nativeMethod_ = true;
+    bool pendingSavedDual_ = false;
 };
