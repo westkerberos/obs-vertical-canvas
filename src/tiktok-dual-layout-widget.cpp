@@ -156,7 +156,7 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
     sameAudio_ = new QCheckBox(obs_module_text("Dual.SameAudio"), manualSettings_);
     sameAudio_->setObjectName("tiktokDualSameAudio");
     sameAudio_->setChecked(true);
-    settingsLayout->addWidget(sameAudio_);
+    manualLayout->addWidget(sameAudio_);
 
     auto sharedGroup = new QGroupBox(obs_module_text("Dual.SharedAudio"), manualSettings_);
     auto sharedLayout = new QFormLayout(sharedGroup);
