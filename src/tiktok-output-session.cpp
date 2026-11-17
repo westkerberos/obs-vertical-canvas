@@ -5,6 +5,7 @@
 
 #include <QCoreApplication>
 #include <QEventLoop>
+#include <QJsonDocument>
 #include <QMetaObject>
 #include <QTimer>
 #include <obs-module.h>
