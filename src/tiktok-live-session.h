@@ -24,6 +24,7 @@ struct TikTokOutputConfig {
     std::string streamlabsAccessToken;
     std::string streamlabsCategory;
     bool streamlabsMatureContent = false;
+    bool monitorViolations = true;
 };
 
 class TikTokLiveSession : public QObject {
