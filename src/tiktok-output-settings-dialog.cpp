@@ -22,6 +22,7 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
+#include <QFile>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -663,17 +664,100 @@ bool ConfigureTikTokOutput(QWidget *parent, obs_data_t *settings, const QString 
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, [&] {
         const auto selected = method->currentData().toString();
         const bool studioActive = selected == "live-studio" || selected == "live-studio-mobile";
-        if (studioActive && topics->RequiresGame() && !topics->HasValidGame()) {
-            QMessageBox::warning(&dialog, "TikTok LIVE", "Select a game from the TikTok catalogue before saving this gaming topic.");
+        const bool mobileActive = selected == "live-studio-mobile";
+        auto rejectSettings = [&](const QString &message, QWidget *focus = nullptr) {
+            QMessageBox::warning(&dialog, "TikTok LIVE", message);
+            if (focus) {
+                focus->setFocus();
+                if (auto edit = qobject_cast<QLineEdit *>(focus))
+                    edit->selectAll();
+            }
+        };
+        const auto validNumericId = [](const QString &value) {
+            const auto id = value.trimmed();
+            if (id.isEmpty())
+                return false;
+            return std::all_of(id.cbegin(), id.cend(), [](QChar ch) { return ch.isDigit(); }) &&
+                std::any_of(id.cbegin(), id.cend(), [](QChar ch) { return ch != QLatin1Char('0'); });
+        };
+
+        if (selected == "streamlabs" && streamlabsToken->text().trimmed().isEmpty()) {
+            rejectSettings("Enter a Streamlabs access token or use Detect Token.", streamlabsToken);
             return;
         }
-        if (studioActive && dualLayout->Enabled()) {
-            QString validationError;
-            if (!dualLayout->Validate(&validationError)) {
-                QMessageBox::warning(&dialog, "TikTok Dual LIVE", validationError);
+
+        if (studioActive) {
+            if (rapidApiKey->text().trimmed().isEmpty()) {
+                rejectSettings("Enter the RapidAPI key used for TikTok account lookup and LIVE signing.", rapidApiKey);
                 return;
             }
+
+            QFile cookieFile(cookiePath->text().trimmed());
+            if (!cookieFile.exists() || !cookieFile.open(QIODevice::ReadOnly)) {
+                rejectSettings("Select a readable TikTok cookie file or sign in with the QR login.", cookiePath);
+                return;
+            }
+            if (cookieFile.size() == 0) {
+                rejectSettings("The TikTok cookie file is empty. Sign in again or select another cookie file.", cookiePath);
+                return;
+            }
+            cookieFile.close();
+
+            const QString topicId = topics->TopicId();
+            const auto &availableTopics = tiktok_studio_topics();
+            const bool validTopic = std::any_of(availableTopics.cbegin(), availableTopics.cend(),
+                [&](const TikTokStudioTopic &topic) { return topic.id == topicId; });
+            if (!validTopic) {
+                rejectSettings("Select a valid TikTok LIVE topic.", topics);
+                return;
+            }
+
+            if (topics->RequiresGame() && (!topics->HasValidGame() || !validNumericId(topics->GameId()))) {
+                rejectSettings("Select a valid game from the TikTok catalogue before saving this gaming topic.", topics);
+                return;
+            }
+
+            if (mobileActive) {
+                const QString broadcast = mobileBroadcast->currentData().toString();
+                const QString orientation = mobileOrientation->currentData().toString();
+                if (broadcast != "video" && broadcast != "screen_record") {
+                    rejectSettings("Choose Camera LIVE or Screen capture for the mobile broadcast type.", mobileBroadcast);
+                    return;
+                }
+                if (broadcast == "screen_record" && orientation != "1" && orientation != "2") {
+                    rejectSettings("Choose Portrait or Landscape for mobile screen capture.", mobileOrientation);
+                    return;
+                }
+                const QString deviceId = mobileDeviceId->text().trimmed();
+                const QString installId = mobileInstallId->text().trimmed();
+                if (deviceId.isEmpty() != installId.isEmpty() ||
+                    (!deviceId.isEmpty() && (!validNumericId(deviceId) || !validNumericId(installId)))) {
+                    rejectSettings("Android Device ID and Install ID must both be valid numeric IDs, or both be left blank for automatic registration.",
+                        deviceId.isEmpty() ? mobileInstallId : mobileDeviceId);
+                    return;
+                }
+            }
+
+            const QString disclosureValue = disclosure->currentData().toString();
+            const QStringList validDisclosureValues{"off", "own_brand", "third_party", "both"};
+            if (!validDisclosureValues.contains(disclosureValue)) {
+                rejectSettings("Choose a valid content disclosure option.", disclosure);
+                return;
+            }
+
+            if (dualLayout->Enabled()) {
+                if (mobileActive && mobileBroadcast->currentData().toString() != "video") {
+                    rejectSettings("Dual LIVE requires Mobile Camera LIVE, not Screen capture.", mobileBroadcast);
+                    return;
+                }
+                QString validationError;
+                if (!dualLayout->Validate(&validationError)) {
+                    rejectSettings(validationError, dualLayout);
+                    return;
+                }
+            }
         }
+
         dialog.accept();
     });
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
