@@ -10,11 +10,15 @@ project, including request signing, frame signing, SEI metadata, desktop and
 mobile device/session handling, LIVE room lifecycle, topic/game metadata,
 QR login and LIVE safety support.
 
-The TikTok integration was ported and adapted for OBS/Vertical Canvas from
-the implementation in Loukious/obs-multi-rtmp, a downstream fork of
+Only the TikTok authentication portion was borrowed and adapted from the
+implementation in Loukious/obs-multi-rtmp, a downstream fork of
 sorayuki/obs-multi-rtmp:
 https://github.com/Loukious/obs-multi-rtmp
 https://github.com/sorayuki/obs-multi-rtmp
+
+The broader Multi-RTMP plugin is not included as a runtime dependency. The
+native TikTok client/runtime components are attributed separately above to
+Smile-4-Me/tiktok-live-obs.
 
 WEST Gaming adaptations in this repository integrate the TikTok connection
 and output lifecycle with OBS/Qt and Vertical Canvas, including canvas and
