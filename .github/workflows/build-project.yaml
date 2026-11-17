@@ -299,6 +299,11 @@ jobs:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
 
+      - name: Test TikTok Relay Control Protocol 🧪
+        if: steps.build.outcome == 'success'
+        run: |
+          ctest --test-dir build_x64 --build-config ${{ needs.check-event.outputs.config }} --output-on-failure -R west-tiktok-relay-control-protocol
+
       - name: Create Code Signing Certificate
         if: success() && github.event_name != 'pull_request'
         run: |
