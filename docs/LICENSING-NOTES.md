@@ -69,7 +69,9 @@ Public access to source code does not grant redistribution or derivative-work ri
 
 ## Current release blockers
 
-1. **GPL compatibility:** 22 native integration files carry GPL-3.0-only notices, but they are compiled into the same Vertical Canvas module as Aitum-derived GPL-2.0 code.
-2. **No published license:** desktop/mobile device identity code cites a public repository with no license grant.
+1. **GPL compatibility:** at least 24 integration files are identified as derived from GPL-3.0-only projects: 22 native files with explicit SPDX notices, plus the OBS packet/session adapter and Streamlabs token-discovery file. They are compiled into the same Vertical Canvas module as Aitum-derived GPL-2.0 code.
+2. **No published license:** desktop/mobile device identity code cites a public repository with no LICENSE file or GitHub license metadata.
 
-Both findings are recorded in [the detailed source inventory](LICENSING-INVENTORY.md). Neither is fixed by adding more license text to the ZIP.
+A potentially useful MIT-licensed web-session alternative has also been documented in [compatible TikTok alternatives](COMPATIBLE-TIKTOK-ALTERNATIVES.md). It is not a drop-in replacement: the inspected version is Linux-only and does not implement the current Dual LIVE or LIVE Studio flows.
+
+All findings and source revision IDs are recorded in the [detailed source inventory](LICENSING-INVENTORY.md) and [independent replacement plan](TIKTOK-REIMPLEMENTATION-PLAN.md). Neither blocker is fixed by adding more license text to the ZIP.
