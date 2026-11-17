@@ -320,7 +320,11 @@ bool TikTokDualLayoutWidget::Validate(QString *error) const
         if (fields.encoder->currentData().toString().isEmpty() || fields.bitrate->value() < 32 ||
             fields.bitrate->value() > 320 || fields.track->currentData().toInt() < 0 ||
             fields.track->currentData().toInt() >= MAX_AUDIO_MIXES) {
-            if (error) *error = QString(obs_module_text("Dual.Error.AudioSettings")).arg(obs_module_text(QString::fromUtf8(name).toUtf8().constData()));
+            if (error) {
+            const char *layoutKey = strcmp(name, "shared") == 0 ? "Dual.SharedAudio" :
+                strcmp(name, "portrait") == 0 ? "Dual.Portrait" : "Dual.Landscape";
+            *error = QString(obs_module_text("Dual.Error.AudioSettings")).arg(obs_module_text(layoutKey));
+        }
             return false;
         }
         return true;
