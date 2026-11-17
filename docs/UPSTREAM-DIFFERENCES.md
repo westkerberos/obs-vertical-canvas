@@ -83,7 +83,7 @@ This is a deliberate ownership boundary:
 
 The repository is a fork of [Aitum/obs-vertical-canvas](https://github.com/Aitum/obs-vertical-canvas). The feature branch is not yet merged into the WEST Gaming `main` branch.
 
-As of 17 November 2026, the current TikTok PR contains **85 changed files, 10,632 additions and 31 deletions** relative to the fork's `main`. The PR diff is the best concise view of the proposed change set. The branch comparison against Aitum's moving `main` includes inherited fork history and one upstream commit not present in the feature branch; its ahead/behind count should not be read as a count of WEST-authored TikTok commits.
+As of 17 November 2026, the current TikTok PR contains **85 changed files, 10,646 additions and 31 deletions** relative to the fork's `main`. The PR diff is the best concise view of the proposed change set. The branch comparison against Aitum's moving `main` includes inherited fork history and one upstream commit not present in the feature branch; its ahead/behind count should not be read as a count of WEST-authored TikTok commits.
 
 The practical source-level additions are the native TikTok client/session/signing/safety modules, connection and account widgets, Streamlabs helpers, dual-layout controls/output session, localization, build dependencies and the companion Multistream configuration bridge. The existing canvas/scene plugin remains the upstream foundation.
 
