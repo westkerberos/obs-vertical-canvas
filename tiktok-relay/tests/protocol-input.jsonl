@@ -1,0 +1,6 @@
+{"command":"hello"}
+{"command":"capabilities"}
+{"command":"status"}
+{"command":"start_live"}
+{"command":"stop_live"}
+{"command":"unknown"}
