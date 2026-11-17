@@ -123,17 +123,29 @@ public:
     video_t *Video() const { return canvas_ ? obs_canvas_get_video(canvas_) : nullptr; }
 };
 
-static obs_data_t *EncoderSettings(const QJsonObject &params, int bitrate)
+static obs_data_t *EncoderSettings(const std::string &encoderId,
+    const QJsonObject &params, int bitrate, bool video)
 {
-    obs_data_t *settings = obs_data_create();
+    obs_data_t *settings = obs_encoder_defaults(encoderId.c_str());
+    if (!settings)
+        settings = obs_data_create();
     if (!settings)
         return nullptr;
-    if (bitrate > 0)
-        obs_data_set_int(settings, "bitrate", bitrate);
+
+    if (video) {
+        obs_data_set_int(settings, "keyint_sec", 2);
+        obs_data_set_string(settings, "rate_control", "CBR");
+    }
+
     const auto encoded = QJsonDocument(params).toJson(QJsonDocument::Compact);
     OBSDataAutoRelease supplied = obs_data_create_from_json(encoded.constData());
     if (supplied)
         obs_data_apply(settings, supplied);
+
+    // The explicit bitrate control in the layout takes precedence over the
+    // saved advanced property blob.
+    if (bitrate > 0)
+        obs_data_set_int(settings, "bitrate", bitrate);
     return settings;
 }
 
@@ -144,7 +156,7 @@ static obs_encoder_t *CreateTikTokVideoEncoder(const TikTokLayoutVideoConfig &co
         *error = "Choose a video encoder for each TikTok layout.";
         return nullptr;
     }
-    OBSDataAutoRelease settings = EncoderSettings(config.encoderParams, config.bitrate);
+    OBSDataAutoRelease settings = EncoderSettings(config.encoderId, config.encoderParams, config.bitrate, true);
     auto encoder = obs_video_encoder_create(config.encoderId.c_str(), name, settings, nullptr);
     if (!encoder) {
         *error = QString("Could not create the TikTok video encoder '%1'.")
@@ -165,7 +177,12 @@ static obs_encoder_t *CreateTikTokAudioEncoder(const TikTokLayoutAudioConfig &co
         *error = "TikTok audio encoder settings are invalid.";
         return nullptr;
     }
-    OBSDataAutoRelease settings = EncoderSettings(config.encoderParams, config.bitrate);
+    const char *codec = obs_get_encoder_codec(config.encoderId.c_str());
+    if (!codec || strcmp(codec, "aac") != 0) {
+        *error = "TikTok audio layouts require an AAC encoder.";
+        return nullptr;
+    }
+    OBSDataAutoRelease settings = EncoderSettings(config.encoderId, config.encoderParams, config.bitrate, false);
     auto encoder = obs_audio_encoder_create(config.encoderId.c_str(), name, settings,
         static_cast<size_t>(config.mixer), nullptr);
     if (!encoder) {
@@ -278,7 +295,9 @@ struct TikTokOutputSession::DualFeedState {
         if (oldAudio)
             obs_encoder_release(oldAudio);
 
-        OBSDataAutoRelease outputSettings = obs_data_create();
+        OBSDataAutoRelease outputSettings = obs_output_get_settings(primaryOutput);
+        if (!outputSettings)
+            outputSettings = obs_data_create();
         landscapeOutput = obs_output_create("rtmp_output", "TikTok landscape feed", outputSettings, nullptr);
         landscapeService = obs_service_create("rtmp_custom", "TikTok landscape feed service", nullptr, nullptr);
         if (!landscapeOutput || !landscapeService) {
