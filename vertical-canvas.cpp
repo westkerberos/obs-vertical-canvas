@@ -768,6 +768,7 @@ void obs_module_post_load(void)
 
 void obs_module_unload(void)
 {
+	ShutdownTikTokSafety();
 	if (vendor && obs_get_module("obs-websocket")) {
 		obs_websocket_vendor_unregister_request(vendor, "version");
 		obs_websocket_vendor_unregister_request(vendor, "switch_scene");
@@ -6781,6 +6782,8 @@ bool CanvasDock::PrepareTikTokOutput(std::vector<StreamServer>::iterator it)
 	config.streamlabsAccessToken = obs_data_get_string(it->settings, "streamlabs_access_token");
 	config.streamlabsCategory = obs_data_get_string(it->settings, "streamlabs_category");
 	config.streamlabsMatureContent = obs_data_get_bool(it->settings, "streamlabs_mature_content");
+	config.monitorViolations = !obs_data_has_user_value(it->settings, "tiktok_monitor_violations") ||
+		obs_data_get_bool(it->settings, "tiktok_monitor_violations");
 	const char *profiles = obs_data_get_string(it->settings, "tiktok_device_profiles");
 	const auto profileJson = QJsonDocument::fromJson(QByteArray(profiles ? profiles : ""));
 	if (profileJson.isObject()) {
@@ -9110,6 +9113,7 @@ static void PreserveTikTokOutputSettings(obs_data_t *previous, obs_data_t *incom
 		"tiktok_allow_gifts",
 		"tiktok_allow_comments",
 		"tiktok_mature_content",
+		"tiktok_monitor_violations",
 		"streamlabs_mature_content",
 	};
 	for (const char *key : boolKeys) {
