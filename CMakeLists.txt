@@ -166,6 +166,9 @@ else()
 	set_target_properties_obs(${PROJECT_NAME} PROPERTIES FOLDER "plugins/aitum" PREFIX "")
 endif()
 
+# Register CTest from the top-level build so the process-boundary smoke test is discoverable.
+include(CTest)
+
 # Independent process prototype. It has its own GPL-3.0-only subproject license
 # and deliberately does not link against libobs or this plugin target.
 add_subdirectory(tiktok-relay)
