@@ -1,6 +1,8 @@
-{"command":"hello"}
-{"command":"capabilities"}
-{"command":"status"}
-{"command":"start_live"}
-{"command":"stop_live"}
-{"command":"unknown"}
+{"protocol_version":1,"request_id":"hello-1","command":"hello"}
+{"protocol_version":1,"request_id":"caps-1","command":"capabilities"}
+{"protocol_version":1,"request_id":"status-1","command":"status"}
+{"protocol_version":1,"request_id":"start-1","command":"start_live"}
+{"protocol_version":1,"request_id":"stop-1","command":"stop_live"}
+{"protocol_version":99,"request_id":"version-1","command":"hello"}
+{"protocol_version":1,"request_id":"unknown-1","command":"unknown"}
+{"protocol_version":1,"command":"hello","request_id":""}
