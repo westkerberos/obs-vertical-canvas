@@ -98,7 +98,7 @@ Use manual mode only when the inherited Vertical Canvas and Main Canvas configur
 
 ## Current verification status
 
-The latest verified PR build compiled and packaged successfully for Windows x64 in [GitHub Actions run #44162348342](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44162348342). The workflow artifact is `vertical-canvas-1.6.7-windows-x64-ec2ec5c53`. The automatic encoder-reuse runtime change was first compiled at `cb22d71497d2e025bfad686cab8079937f7f6387`; the later commits update documentation and third-party notices.
+The latest verified PR build compiled and packaged successfully for Windows x64 in [GitHub Actions run #44163406280](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44163406280). The workflow artifact is `vertical-canvas-1.6.7-windows-x64-017a3e5eb`. The automatic encoder-reuse runtime change was first compiled at `cb22d71497d2e025bfad686cab8079937f7f6387`; the later commits update documentation and third-party notices.
 
 The repository owner confirmed an end-to-end working configuration in OBS 33.0.1 on 17 November 2026, including the automatic Portrait/Landscape encoder-reuse workflow. This is a maintainer test on the tested Windows/OBS setup, not a published cross-platform compatibility matrix. QR login, other operating systems, extended reconnect soak tests and every appeal edge case should be regression-tested before a general release.
 
