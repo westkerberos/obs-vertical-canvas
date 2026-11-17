@@ -9,7 +9,7 @@
 
 class TikTokOutputSession {
 public:
-    TikTokOutputSession() = default;
+    TikTokOutputSession();
     ~TikTokOutputSession();
     bool Start(const TikTokOutputConfig &config, obs_output *output,
         std::function<void(const QJsonObject &)> saveDevices);
