@@ -61,7 +61,7 @@ WEST Gaming subsequently added a default automatic reuse mode:
 - The Main Canvas stream must already be active for automatic mode.
 - Manual layout configuration remains available as an advanced override.
 
-This is specific to the WEST Gaming Vertical Canvas implementation. The earlier Multi-RTMP source was only a donor for the TikTok integration port; it is not maintained as a separate WEST Gaming product or supported runtime.
+This is specific to the WEST Gaming Vertical Canvas implementation. Only the TikTok authentication portion was borrowed/adapted from the Multi-RTMP implementation; the broader OBS Multi-RTMP plugin is neither bundled nor required at runtime. The native TikTok client/runtime components have separate attribution to Smile-4-Me/tiktok-live-obs.
 
 ### Aitum Multistream bridge
 
