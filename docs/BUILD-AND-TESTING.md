@@ -55,7 +55,7 @@ A successful build proves that the configured Windows x64 workflow compiled and 
 - Linux/macOS runtime compatibility.
 - TikTok will accept a LIVE or appeal request.
 
-The repository owner confirmed the new integration in a real OBS/TikTok environment, including the automatic Dual LIVE encoder-reuse mode, on 17 November 2026. Treat that as a maintainer test, not as a broad hardware/platform compatibility matrix.
+The repository owner completed an approximately 30-minute end-to-end maintainer test on 17 November 2026 in OBS 33.0.1 on Windows. The test covered Landscape output, Portrait output and Dual LIVE. The separate OBS Multi-RTMP plugin was disabled in OBS throughout; the WEST integration continued to work, confirming that Multi-RTMP is not a runtime dependency. The user reported all three modes working correctly. Treat this as a successful maintainer smoke test on one tested setup, not as a broad hardware/platform compatibility matrix or an extended soak test.
 
 ## Runtime test checklist for a new release
 
