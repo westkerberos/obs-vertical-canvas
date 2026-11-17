@@ -119,6 +119,10 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/tiktok-safety.cpp
 	src/tiktok-safety.h
 	src/tiktok-output-settings-dialog.h
+	src/account-info.cpp
+	src/account-info.h
+	src/account-info-widget.cpp
+	src/account-info-widget.h
 	src/streamlabs-api.cpp
 	src/streamlabs-api.h
 	src/streamlabs-info.cpp
