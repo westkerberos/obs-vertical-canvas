@@ -1,4 +1,6 @@
 #include "tiktok-dual-layout-widget.h"
+#include "tiktok-layout-scene.h"
+#include "tiktok-encoder-properties-dialog.h"
 
 #include <obs-module.h>
 #include <obs.h>
@@ -145,6 +147,7 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
     sharedLayout->addRow(obs_module_text("Dual.AudioEncoder"), sharedAudio_.encoder);
     sharedLayout->addRow(obs_module_text("Dual.AudioMixer"), sharedAudio_.track);
     sharedLayout->addRow(obs_module_text("Dual.BitrateKbps"), sharedAudio_.bitrate);
+    sharedLayout->addRow(sharedAudio_.advanced);
     settingsLayout->addWidget(sharedGroup);
 
     auto independentAudioRow = new QHBoxLayout;
@@ -154,12 +157,14 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
     portraitAudioForm->addRow(obs_module_text("Dual.AudioEncoder"), portrait_.audio.encoder);
     portraitAudioForm->addRow(obs_module_text("Dual.AudioMixer"), portrait_.audio.track);
     portraitAudioForm->addRow(obs_module_text("Dual.BitrateKbps"), portrait_.audio.bitrate);
+    portraitAudioForm->addRow(portrait_.audio.advanced);
     auto landscapeAudioGroup = new QGroupBox(obs_module_text("Dual.LandscapeAudio"), settings_);
     auto landscapeAudioForm = new QFormLayout(landscapeAudioGroup);
     landscape_.audio = CreateAudioFields(landscapeAudioGroup, "landscape");
     landscapeAudioForm->addRow(obs_module_text("Dual.AudioEncoder"), landscape_.audio.encoder);
     landscapeAudioForm->addRow(obs_module_text("Dual.AudioMixer"), landscape_.audio.track);
     landscapeAudioForm->addRow(obs_module_text("Dual.BitrateKbps"), landscape_.audio.bitrate);
+    landscapeAudioForm->addRow(landscape_.audio.advanced);
     independentAudioRow->addWidget(portraitAudioGroup, 1);
     independentAudioRow->addWidget(landscapeAudioGroup, 1);
     settingsLayout->addLayout(independentAudioRow);
@@ -196,6 +201,25 @@ TikTokDualLayoutWidget::AudioFields TikTokDualLayoutWidget::CreateAudioFields(QW
     for (int i = 0; i < MAX_AUDIO_MIXES; ++i)
         fields.track->addItem(QString::number(i + 1), i);
     fields.bitrate = MakeNumber(parent, prefix + "DualAudioBitrate", 32, 320, 160);
+    fields.advanced = new QPushButton(obs_module_text("Dual.AdvancedEncoder"), parent);
+    fields.advanced->setObjectName(prefix + "DualAudioAdvanced");
+    fields.advanced->setAutoDefault(false);
+    QObject::connect(fields.advanced, &QPushButton::clicked, this, [this, prefix] {
+        AudioFields *audio = prefix == "shared" ? &sharedAudio_ :
+            prefix == "portrait" ? &portrait_.audio : &landscape_.audio;
+        auto params = audio->encoderParams;
+        int bitrate = audio->bitrate->value();
+        if (EditTikTokEncoderSettings(audio->encoder->currentData().toString().toStdString(),
+            params, bitrate, true, this)) {
+            audio->encoderParams = params;
+            audio->bitrate->setValue(bitrate);
+        }
+    });
+    QObject::connect(fields.encoder, &QComboBox::activated, this, [this, prefix] {
+        AudioFields *audio = prefix == "shared" ? &sharedAudio_ :
+            prefix == "portrait" ? &portrait_.audio : &landscape_.audio;
+        audio->encoderParams = QJsonObject();
+    });
     return fields;
 }
 
@@ -228,6 +252,33 @@ TikTokDualLayoutWidget::VideoFields TikTokDualLayoutWidget::CreateVideoFields(QW
     form->addRow(obs_module_text("Dual.VideoBitrate"), fields.bitrate);
     form->addRow(obs_module_text("Dual.FPSDivisor"), fields.fpsDivisor);
     form->addRow(obs_module_text("Dual.Framing"), fields.framing);
+    fields.preview = new QPushButton(obs_module_text("Dual.Preview"), fields.group);
+    fields.preview->setObjectName(prefix + "DualPreview");
+    fields.preview->setAutoDefault(false);
+    fields.advanced = new QPushButton(obs_module_text("Dual.AdvancedEncoder"), fields.group);
+    fields.advanced->setObjectName(prefix + "DualVideoAdvanced");
+    fields.advanced->setAutoDefault(false);
+    form->addRow(fields.preview);
+    form->addRow(fields.advanced);
+    QObject::connect(fields.preview, &QPushButton::clicked, this, [this, prefix] {
+        const auto &video = prefix == "portrait" ? portrait_ : landscape_;
+        TikTokLayoutVideoConfig config;
+        SaveVideo(video, config);
+        ShowTikTokLayoutPreview(config, this);
+    });
+    QObject::connect(fields.advanced, &QPushButton::clicked, this, [this, prefix] {
+        auto &video = prefix == "portrait" ? portrait_ : landscape_;
+        auto params = video.encoderParams;
+        int bitrate = video.bitrate->value();
+        if (EditTikTokEncoderSettings(video.encoder->currentData().toString().toStdString(),
+            params, bitrate, false, this)) {
+            video.encoderParams = params;
+            video.bitrate->setValue(bitrate);
+        }
+    });
+    QObject::connect(fields.encoder, &QComboBox::activated, this, [this, prefix] {
+        (prefix == "portrait" ? portrait_ : landscape_).encoderParams = QJsonObject();
+    });
     return fields;
 }
 

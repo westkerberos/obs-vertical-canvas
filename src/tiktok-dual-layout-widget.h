@@ -10,6 +10,7 @@ class QComboBox;
 class QGroupBox;
 class QLabel;
 class QSpinBox;
+class QPushButton;
 
 struct TikTokDualChoice {
     QString id;
@@ -44,13 +45,15 @@ private:
         QSpinBox *bitrate = nullptr;
         QSpinBox *fpsDivisor = nullptr;
         QComboBox *framing = nullptr;
+        QPushButton *preview = nullptr;
+        QPushButton *advanced = nullptr;
         QJsonObject encoderParams;
         AudioFields audio;
     };
 
     void RefreshCatalog();
     void UpdateVisibility();
-    static AudioFields CreateAudioFields(QWidget *parent, const QString &prefix);
+    AudioFields CreateAudioFields(QWidget *parent, const QString &prefix);
     static void LoadAudio(AudioFields &fields, const TikTokLayoutAudioConfig &config);
     static void SaveAudio(const AudioFields &fields, TikTokLayoutAudioConfig &config);
     VideoFields CreateVideoFields(QWidget *parent, const QString &prefix, bool portrait);

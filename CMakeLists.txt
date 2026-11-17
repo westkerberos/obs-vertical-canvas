@@ -125,6 +125,10 @@ target_sources(${PROJECT_NAME} PRIVATE
 	src/account-info-widget.h
 	src/tiktok-dual-layout-widget.cpp
 	src/tiktok-dual-layout-widget.h
+	src/tiktok-layout-scene.cpp
+	src/tiktok-layout-scene.h
+	src/tiktok-encoder-properties-dialog.cpp
+	src/tiktok-encoder-properties-dialog.h
 	src/streamlabs-api.cpp
 	src/streamlabs-api.h
 	src/streamlabs-info.cpp
