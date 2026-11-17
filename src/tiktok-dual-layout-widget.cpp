@@ -112,7 +112,7 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(8);
 
-    enabled_ = new QCheckBox("Enable Dual LIVE (portrait + landscape)", this);
+    enabled_ = new QCheckBox(obs_module_text("Dual.Enable"), this);
     enabled_->setObjectName("tiktokDualLayoutEnabled");
     root->addWidget(enabled_);
 
@@ -122,7 +122,7 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
     accessStatus_->setTextFormat(Qt::PlainText);
     root->addWidget(accessStatus_);
 
-    settings_ = new QGroupBox("Dual LIVE configuration", this);
+    settings_ = new QGroupBox(obs_module_text("Dual.Configuration"), this);
     settings_->setObjectName("tiktokDualLayoutSettings");
     auto settingsLayout = new QVBoxLayout(settings_);
     settingsLayout->setContentsMargins(8, 10, 8, 8);
@@ -134,32 +134,32 @@ TikTokDualLayoutWidget::TikTokDualLayoutWidget(QWidget *parent)
     videoRow->addWidget(landscape_.group, 1);
     settingsLayout->addLayout(videoRow);
 
-    sameAudio_ = new QCheckBox("Use the same audio feed for both layouts", settings_);
+    sameAudio_ = new QCheckBox(obs_module_text("Dual.SameAudio"), settings_);
     sameAudio_->setObjectName("tiktokDualSameAudio");
     sameAudio_->setChecked(true);
     settingsLayout->addWidget(sameAudio_);
 
-    auto sharedGroup = new QGroupBox("Shared audio", settings_);
+    auto sharedGroup = new QGroupBox(obs_module_text("Dual.SharedAudio"), settings_);
     auto sharedLayout = new QFormLayout(sharedGroup);
     sharedAudio_ = CreateAudioFields(sharedGroup, "shared");
-    sharedLayout->addRow("Audio encoder", sharedAudio_.encoder);
-    sharedLayout->addRow("Mixer", sharedAudio_.track);
-    sharedLayout->addRow("Bitrate (kbps)", sharedAudio_.bitrate);
+    sharedLayout->addRow(obs_module_text("Dual.AudioEncoder"), sharedAudio_.encoder);
+    sharedLayout->addRow(obs_module_text("Dual.AudioMixer"), sharedAudio_.track);
+    sharedLayout->addRow(obs_module_text("Dual.BitrateKbps"), sharedAudio_.bitrate);
     settingsLayout->addWidget(sharedGroup);
 
     auto independentAudioRow = new QHBoxLayout;
-    auto portraitAudioGroup = new QGroupBox("Portrait audio", settings_);
+    auto portraitAudioGroup = new QGroupBox(obs_module_text("Dual.PortraitAudio"), settings_);
     auto portraitAudioForm = new QFormLayout(portraitAudioGroup);
     portrait_.audio = CreateAudioFields(portraitAudioGroup, "portrait");
-    portraitAudioForm->addRow("Audio encoder", portrait_.audio.encoder);
-    portraitAudioForm->addRow("Mixer", portrait_.audio.track);
-    portraitAudioForm->addRow("Bitrate (kbps)", portrait_.audio.bitrate);
-    auto landscapeAudioGroup = new QGroupBox("Landscape audio", settings_);
+    portraitAudioForm->addRow(obs_module_text("Dual.AudioEncoder"), portrait_.audio.encoder);
+    portraitAudioForm->addRow(obs_module_text("Dual.AudioMixer"), portrait_.audio.track);
+    portraitAudioForm->addRow(obs_module_text("Dual.BitrateKbps"), portrait_.audio.bitrate);
+    auto landscapeAudioGroup = new QGroupBox(obs_module_text("Dual.LandscapeAudio"), settings_);
     auto landscapeAudioForm = new QFormLayout(landscapeAudioGroup);
     landscape_.audio = CreateAudioFields(landscapeAudioGroup, "landscape");
-    landscapeAudioForm->addRow("Audio encoder", landscape_.audio.encoder);
-    landscapeAudioForm->addRow("Mixer", landscape_.audio.track);
-    landscapeAudioForm->addRow("Bitrate (kbps)", landscape_.audio.bitrate);
+    landscapeAudioForm->addRow(obs_module_text("Dual.AudioEncoder"), landscape_.audio.encoder);
+    landscapeAudioForm->addRow(obs_module_text("Dual.AudioMixer"), landscape_.audio.track);
+    landscapeAudioForm->addRow(obs_module_text("Dual.BitrateKbps"), landscape_.audio.bitrate);
     independentAudioRow->addWidget(portraitAudioGroup, 1);
     independentAudioRow->addWidget(landscapeAudioGroup, 1);
     settingsLayout->addLayout(independentAudioRow);
@@ -218,16 +218,16 @@ TikTokDualLayoutWidget::VideoFields TikTokDualLayoutWidget::CreateVideoFields(QW
     fields.fpsDivisor = MakeNumber(fields.group, prefix + "DualFPSDivisor", 1, 6, 1);
     fields.framing = new QComboBox(fields.group);
     fields.framing->setObjectName(prefix + "DualFraming");
-    fields.framing->addItem("Fit", false);
-    fields.framing->addItem("Crop to fill", true);
-    form->addRow("OBS canvas (optional)", fields.canvas);
-    form->addRow("OBS scene", fields.scene);
-    form->addRow("Video encoder", fields.encoder);
-    form->addRow("Width", fields.width);
-    form->addRow("Height", fields.height);
-    form->addRow("Video bitrate (kbps)", fields.bitrate);
-    form->addRow("Frame-rate divisor", fields.fpsDivisor);
-    form->addRow("Framing", fields.framing);
+    fields.framing->addItem(obs_module_text("Dual.Fit"), false);
+    fields.framing->addItem(obs_module_text("Dual.Crop"), true);
+    form->addRow(obs_module_text("Primary.Canvas"), fields.canvas);
+    form->addRow(obs_module_text("Scene"), fields.scene);
+    form->addRow(obs_module_text("Encoder"), fields.encoder);
+    form->addRow(obs_module_text("Dual.Width"), fields.width);
+    form->addRow(obs_module_text("Dual.Height"), fields.height);
+    form->addRow(obs_module_text("Dual.VideoBitrate"), fields.bitrate);
+    form->addRow(obs_module_text("Dual.FPSDivisor"), fields.fpsDivisor);
+    form->addRow(obs_module_text("Dual.Framing"), fields.framing);
     return fields;
 }
 
@@ -241,7 +241,7 @@ void TikTokDualLayoutWidget::RefreshCatalog()
         if (!currentCanvas.isEmpty())
             fields->canvas->setCurrentIndex(fields->canvas->findData(currentCanvas));
         else {
-            fields->canvas->insertItem(0, "Create a dedicated canvas", QString());
+            fields->canvas->insertItem(0, obs_module_text("Primary.NewCanvas"), QString());
             fields->canvas->setCurrentIndex(0);
         }
         QVector<TikTokDualChoice> scenes;
@@ -298,21 +298,20 @@ bool TikTokDualLayoutWidget::Validate(QString *error) const
     }
     const auto checkVideo = [&](const VideoFields &fields, bool portrait) {
         if (fields.scene->currentData().toString().isEmpty()) {
-            if (error) *error = QString("Choose an OBS scene for the %1 feed.").arg(portrait ? "portrait" : "landscape");
+            if (error) *error = QString(obs_module_text("Dual.Error.SceneRequired")).arg(obs_module_text(portrait ? "Dual.Portrait" : "Dual.Landscape"));
             return false;
         }
         if (fields.encoder->currentData().toString().isEmpty()) {
-            if (error) *error = QString("Choose a video encoder for the %1 feed.").arg(portrait ? "portrait" : "landscape");
+            if (error) *error = QString(obs_module_text("Dual.Error.EncoderRequired")).arg(obs_module_text(portrait ? "Dual.Portrait" : "Dual.Landscape"));
             return false;
         }
         const int width = fields.width->value(), height = fields.height->value();
         if (width % 2 || height % 2 || (portrait ? width >= height : width <= height)) {
-            if (error) *error = QString("The %1 resolution has the wrong orientation or is not divisible by two.")
-                .arg(portrait ? "portrait" : "landscape");
+            if (error) *error = QString(obs_module_text("Dual.Error.Resolution")).arg(obs_module_text(portrait ? "Dual.Portrait" : "Dual.Landscape"));
             return false;
         }
         if (fields.bitrate->value() < 100 || fields.fpsDivisor->value() < 1 || fields.fpsDivisor->value() > 6) {
-            if (error) *error = QString("The %1 encoder settings are invalid.").arg(portrait ? "portrait" : "landscape");
+            if (error) *error = QString(obs_module_text("Dual.Error.VideoSettings")).arg(obs_module_text(portrait ? "Dual.Portrait" : "Dual.Landscape"));
             return false;
         }
         return true;
@@ -321,7 +320,7 @@ bool TikTokDualLayoutWidget::Validate(QString *error) const
         if (fields.encoder->currentData().toString().isEmpty() || fields.bitrate->value() < 32 ||
             fields.bitrate->value() > 320 || fields.track->currentData().toInt() < 0 ||
             fields.track->currentData().toInt() >= MAX_AUDIO_MIXES) {
-            if (error) *error = QString("The %1 audio settings are invalid.").arg(name);
+            if (error) *error = QString(obs_module_text("Dual.Error.AudioSettings")).arg(obs_module_text(QString::fromUtf8(name).toUtf8().constData()));
             return false;
         }
         return true;
@@ -348,15 +347,15 @@ void TikTokDualLayoutWidget::SetAccess(std::optional<bool> available, bool camer
     if (!allowed && !pendingSavedDual_)
         enabled_->setChecked(false);
     if (!cameraLive_)
-        accessStatus_->setText("Dual LIVE requires the TikTok mobile camera broadcast mode.");
+        accessStatus_->setText(obs_module_text("Dual.Error.CameraOnly"));
     else if (!available.has_value())
-        accessStatus_->setText("Dual LIVE eligibility has not been confirmed for this account.");
+        accessStatus_->setText(obs_module_text("Dual.AccessUnknown"));
     else if (!*available)
-        accessStatus_->setText("TikTok has not enabled Dual LIVE for this account.");
+        accessStatus_->setText(obs_module_text("Dual.AccessLocked"));
     else if (!nativeMethod_)
-        accessStatus_->setText("Dual LIVE is available only for TikTok LIVE Studio connections.");
+        accessStatus_->setText(obs_module_text("Dual.NativeOnly"));
     else
-        accessStatus_->setText("This account is eligible for a portrait and landscape Dual LIVE.");
+        accessStatus_->setText(obs_module_text("Dual.AccessAvailable"));
 }
 
 void TikTokDualLayoutWidget::SetMethod(const QString &method)
