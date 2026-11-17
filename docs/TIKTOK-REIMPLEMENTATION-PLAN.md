@@ -4,9 +4,11 @@ Status: planning baseline completed; replacement code not started.
 
 ## Objective
 
-Preserve the current WEST Gaming user experience while removing source files explicitly marked GPL-3.0-only from the single GPL-2.0 Aitum-derived Vertical Canvas module. The intended output remains a GPL-2.0-compatible project. This is a source replacement, not a relabeling exercise.
+Preserve as much of the tested WEST Gaming user experience as possible without combining Aitum-derived GPL-2.0 code and GPL-3.0-only implementation in one distributed module, and without redistributing code from repositories that publish no license grant.
 
-The current implementation must remain untouched on `feature/tiktok-native-output` while replacements are developed on `licensing-remediation`. Do not merge, release or claim license clearance during this work.
+The new preferred experiment is a **separate TikTok relay process**: keep the OBS Vertical Canvas plugin under inherited GPL-2.0 terms, and move the GPL-3.0-only TikTok runtime into a separate GPL-3.0 executable that communicates with OBS only through standard RTMP/FLV over localhost and a minimal documented control protocol. This architecture is described in [LICENSING-ARCHITECTURE-OPTIONS.md](LICENSING-ARCHITECTURE-OPTIONS.md). It is a candidate for legal review, not a guarantee that the programs are separate works.
+
+The no-license device-registration code must still be replaced independently or disabled. If the process boundary cannot be implemented and reviewed, fall back to an independent GPL-2.0-compatible reimplementation or a reduced MIT browser-session provider. The current tested implementation must remain untouched on `feature/tiktok-native-output`; do not merge, release or claim license clearance during this work.
 
 ## Source boundary
 
