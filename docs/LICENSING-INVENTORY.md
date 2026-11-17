@@ -134,3 +134,16 @@ These files do not have a root-level `SPDX-License-Identifier: GPL-3.0-only` mar
 The device-registration source path described above remains separate from the GPL-3.0-only count. The current desktop and Android identity code cites `Loukious/TikTokStreamKeyGenerator`, whose inspected repository head has no LICENSE file and no GitHub license metadata. A public source repository without a license grant must not be treated as redistributable.
 
 The source root license for `Loukious/StreamLabsTikTokStreamKeyGenerator` is GPL-3.0. Its `LICENSE.txt` was compared byte-for-byte with `data/licenses/tiktok-live-obs-GPL-3.0.txt` and the text is identical, so the repository can carry one copy of the canonical GPL-3.0 text while keeping a separate source notice. That notice has been added as `data/licenses/streamlabs-tiktok-generator.txt`. The final Windows package still needs to be rebuilt and inspected to verify the new notice is present in both ZIP and installer layouts.
+
+
+## Dependency boundary between marked and unmarked files
+
+The GPL-3.0-marked core is not a self-contained folder. For example:
+
+- `live_client.cpp` includes the unmarked `mobile_profile.hpp`, `mobile_device.hpp`, `request_cancellation.hpp`, `http_fixture.hpp`, `http_retry.hpp`, `domain_routing.hpp` and `api_error.hpp`, as well as the no-license desktop/mobile registration modules.
+- `tiktok_request_signer.cpp` includes unmarked `request_cancellation.hpp`, `http_fixture.hpp`, `http_retry.hpp`, `rapidapi_quota.hpp` and `api_error.hpp`.
+- `frame_signing.cpp` includes unmarked `api_error.hpp`, `http_fixture.hpp` and `rapidapi_quota.hpp`.
+
+These unmarked files are exact matches to the Loukious GPL-2.0 fork. None of their same-named counterparts was found in the inspected Smile-4-Me source tree, except `localization.cpp`, which is a different implementation from Smile's `src/localization.cpp`. For the process-split design, treat the unmarked files conservatively as Loukious/GPL-2.0-side code until individually proven otherwise. Do not compile them into a GPL-3.0 relay. Reimplement the relay's required utility behavior independently, or keep compatible logic on the GPL-2.0 side behind the documented process protocol.
+
+This include graph is why moving all of `src/tiktok-native/` into another executable without partitioning its imports would not resolve the license problem.
