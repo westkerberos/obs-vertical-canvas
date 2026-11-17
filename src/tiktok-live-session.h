@@ -11,6 +11,34 @@
 
 struct obs_output;
 
+struct TikTokLayoutAudioConfig {
+    std::string encoderId = "ffmpeg_aac";
+    int mixer = 0;
+    int bitrate = 160;
+    QJsonObject encoderParams;
+};
+struct TikTokLayoutVideoConfig {
+    std::string sceneUuid, sceneName, encoderId;
+    int width = 1080, height = 1920, bitrate = 6000;
+    bool crop = false;
+    TikTokLayoutAudioConfig audio;
+    int fpsDivisor = 1;
+    QJsonObject encoderParams;
+    std::string canvasUuid;
+};
+struct TikTokDualLayoutConfig {
+    bool enabled = false;
+    bool sameAudio = true;
+    bool independentAudioInitialized = false;
+    TikTokLayoutAudioConfig sharedAudio;
+    TikTokLayoutVideoConfig portrait;
+    TikTokLayoutVideoConfig landscape = [] {
+        TikTokLayoutVideoConfig value;
+        value.width = 1920; value.height = 1080;
+        return value;
+    }();
+};
+
 struct TikTokOutputConfig {
     std::string method = "live-studio";
     std::string rapidApiKey;
@@ -26,32 +54,9 @@ struct TikTokOutputConfig {
     std::string streamlabsCategory;
     bool streamlabsMatureContent = false;
     bool monitorViolations = true;
-    struct LayoutAudio {
-        std::string encoderId = "ffmpeg_aac";
-        int mixer = 0;
-        int bitrate = 160;
-        QJsonObject encoderParams;
-    };
-    struct LayoutVideo {
-        std::string sceneUuid, sceneName, encoderId;
-        int width = 1080, height = 1920, bitrate = 6000;
-        bool crop = false;
-        LayoutAudio audio;
-        int fpsDivisor = 1;
-        QJsonObject encoderParams;
-        std::string canvasUuid;
-    };
-    struct DualLayout {
-        bool enabled = false;
-        bool sameAudio = true;
-        bool independentAudioInitialized = false;
-        LayoutAudio sharedAudio;
-        LayoutVideo portrait;
-        LayoutVideo landscape = LayoutVideo{"", "", "", 1920, 1080};
-    } dualLayout;
+    TikTokDualLayoutConfig dualLayout;
     bool UsesDualLayout() const { return dualLayout.enabled; }
 };
-
 class TikTokLiveSession : public QObject {
 public:
     TikTokLiveSession();
