@@ -4,7 +4,7 @@
 
 These instructions apply to the WEST Gaming branch `feature/tiktok-native-output`, not automatically to Aitum's upstream default branch.
 
-The current integration PR is [#1](https://github.com/westkerberos/obs-vertical-canvas/pull/1). The current PR head, including the implementation, verification notes and documentation/attribution updates, is `1312b4ba1d1fc05cd69ec54afa5d7379f578fa7e`.
+The current integration PR is [#1](https://github.com/westkerberos/obs-vertical-canvas/pull/1). The implementation and its current documentation are maintained on `feature/tiktok-native-output`; see the live [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1) for the current branch head.
 
 ## Dependencies visible in the build configuration
 
