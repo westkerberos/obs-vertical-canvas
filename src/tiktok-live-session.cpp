@@ -248,22 +248,25 @@ bool TikTokLiveSession::Start(const TikTokOutputConfig &config, obs_output_t *ou
             }
         }, &s.cancelled);
     } catch (const std::exception &error) { s.Fail("TikTok session preparation failed: " + QString::fromUtf8(error.what())); }
+    QJsonObject resolvedDevices = devices;
     if (account.has_device() || (account.mobile && !account.device_profile.isEmpty())) {
-        QJsonObject saved = devices;
         QJsonObject updated = account.device_profile;
         updated.insert("device_id", account.device_id);
         updated.insert("install_id", account.install_id);
         if (!account.mobile) updated.insert("live_studio_version", account.live_studio_version);
-        saved.insert(QString::fromStdString(config.client), updated);
-        if (saveDevices) saveDevices(saved);
+        resolvedDevices.insert(QString::fromStdString(config.client), updated);
+        if (saveDevices) saveDevices(resolvedDevices);
     }
     if (s.cancelled) {
         std::lock_guard lock(s.errorMutex);
         s.error = "TikTok connection cancelled."; s.failed = true;
     }
     if (s.failed) { Stop(); return false; }
-    if (config.monitorViolations)
-        s.safetyContext = MakeTikTokSafetyContext(config);
+    if (config.monitorViolations) {
+        auto safetyConfig = config;
+        safetyConfig.deviceProfiles = resolvedDevices;
+        s.safetyContext = MakeTikTokSafetyContext(safetyConfig);
+    }
     for (const auto& feed : s.feeds) obs_output_add_packet_callback(feed->output, State::Packet, feed.get());
     s.monitor.start(250);
     s.heartbeat = std::thread([&s] {
