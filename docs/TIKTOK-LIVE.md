@@ -1,6 +1,6 @@
 # TikTok LIVE in WEST Gaming's Vertical Canvas fork
 
-This guide describes the TikTok integration in the WEST Gaming fork of Aitum Vertical Canvas. It does **not** describe the separate `obs-multi-rtmp` implementation. See [the project relationship guide](https://github.com/westkerberos/obs-multi-rtmp/blob/master/docs/PROJECT-RELATIONSHIPS.md) for the differences.
+This guide describes the TikTok integration in the WEST Gaming fork of Aitum Vertical Canvas. The old Multi-RTMP fork was used as a source for the TikTok integration port and is not a companion plugin, supported installation target or runtime dependency.
 
 > **Branch status (17 November 2026):** the integration is developed in [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), branch `feature/tiktok-native-output`. Until that PR is merged, the default `main` branch and the upstream Aitum downloads do not contain this fork's TikTok changes. There is no GitHub Release for this fork yet.
 
