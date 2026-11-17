@@ -51,10 +51,10 @@ private:
     void RefreshCatalog();
     void UpdateVisibility();
     static AudioFields CreateAudioFields(QWidget *parent, const QString &prefix);
-    static void LoadAudio(const AudioFields &fields, const TikTokLayoutAudioConfig &config);
+    static void LoadAudio(AudioFields &fields, const TikTokLayoutAudioConfig &config);
     static void SaveAudio(const AudioFields &fields, TikTokLayoutAudioConfig &config);
     VideoFields CreateVideoFields(QWidget *parent, const QString &prefix, bool portrait);
-    static void LoadVideo(const VideoFields &fields, const TikTokLayoutVideoConfig &config);
+    static void LoadVideo(VideoFields &fields, const TikTokLayoutVideoConfig &config);
     static void SaveVideo(const VideoFields &fields, TikTokLayoutVideoConfig &config);
 
     QCheckBox *enabled_ = nullptr;
