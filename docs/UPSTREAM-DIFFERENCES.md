@@ -81,17 +81,17 @@ This is a deliberate ownership boundary:
 
 ## TikTok integration source and attribution
 
-The Vertical Canvas TikTok integration was developed by porting and adapting the TikTok implementation from [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), a downstream fork of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). The earlier WEST Gaming Multi-RTMP fork was a temporary source snapshot used during that port; it is not an independently maintained WEST Gaming product and is not needed by end users.
+The TikTok integration was ported and adapted from the TikTok implementation in [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), a downstream fork of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). The native TikTok client/signing components also carry a direct upstream attribution to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs), including its stated GPL-3.0-only license. The exact notices and license texts are retained in `data/licenses/`.
 
-The native TikTok client/signing components also carry a direct upstream attribution to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs), including its stated GPL-3.0-only license. The required notices and license texts are retained in `data/licenses/`.
+WEST Gaming's changes in this repository are the OBS/Qt integration, connection/settings UI, Vertical Canvas output lifecycle, account and device interface, safety/appeal interface, canvas and encoder ownership, automatic Portrait/Main Canvas encoder reuse, advanced Dual LIVE override, and the configuration bridge used by the companion Aitum Multistream fork.
 
-The WEST Gaming work in this repository is the adaptation to Vertical Canvas: output lifecycle integration, canvas/encoder ownership, the automatic Portrait/Main Canvas encoder-reuse mode, its advanced manual override, and the companion Aitum Multistream configuration bridge. This wording distinguishes the upstream contribution from the integration and adaptation performed in this fork.
+There is no separate Multi-RTMP plugin in the maintained product architecture. End users install the WEST Gaming Vertical Canvas fork and, when they want the configuration wizard in the Multistream dock, the matching WEST Gaming Aitum Multistream bridge. The upstream Multi-RTMP repositories are source provenance, not required runtime dependencies or supported install targets.
 
 ## How to read the upstream comparison
 
-The repository is a fork of [Aitum/obs-vertical-canvas](https://github.com/Aitum/obs-vertical-canvas). The feature branch is not yet merged into the WEST Gaming `main` branch.
+The repository is a fork of [Aitum/obs-vertical-canvas](https://github.com/Aitum/obs-vertical-canvas). The feature branch is not yet merged into the WEST Gaming `main` branch. Its current head `03c83c3a991265a2c8a445d3fc99c26708d53687` passed the Windows x64 CI/package workflow [#44159137647](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44159137647).
 
-As of 17 November 2026, the current TikTok PR contains **86 changed files, 10,995 additions and 31 deletions** relative to the fork's `main`. The PR diff is the best concise view of the proposed change set. The branch comparison against Aitum's moving `main` includes inherited fork history and one upstream commit not present in the feature branch; its ahead/behind count should not be read as a count of WEST-authored TikTok commits.
+As of 17 November 2026, [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1) contains **86 changed files, 11,020 additions and 31 deletions** relative to this fork's `main`. These are PR-level totals, not a claim that every changed line is newly authored by WEST Gaming: the branch retains upstream Aitum code and includes third-party adaptations. The PR's changed-file list and the source-provenance/licensing sections are the appropriate references for attribution.
 
 The practical source-level additions are the native TikTok client/session/signing/safety modules, connection and account widgets, Streamlabs helpers, dual-layout controls/output session, localization, build dependencies and the companion Multistream configuration bridge. The existing canvas/scene plugin remains the upstream foundation.
 
