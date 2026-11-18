@@ -303,8 +303,11 @@ jobs:
         if: steps.build.outcome == 'success'
         run: |
           $cachePath = "build_x64/CMakeCache.txt"
+          if (-not (Test-Path $cachePath)) {
+            throw "CMake cache not found: $cachePath"
+          }
+
           $qtEntry = Select-String -Path $cachePath -Pattern '^Qt6_DIR:PATH=(.+)
-      - name: Create Code Signing Certificate
         if: success() && github.event_name != 'pull_request'
         run: |
             New-Item -ItemType directory -Path certificate
@@ -341,7 +344,6 @@ jobs:
  | Select-Object -First 1
           if (-not $qtEntry) {
             $qtEntry = Select-String -Path $cachePath -Pattern '^Qt6Core_DIR:PATH=(.+)
-      - name: Create Code Signing Certificate
         if: success() && github.event_name != 'pull_request'
         run: |
             New-Item -ItemType directory -Path certificate
@@ -392,6 +394,9 @@ jobs:
 
           $env:PATH = "$qtBinDir;$env:PATH"
           ctest --test-dir build_x64 --build-config ${{ needs.check-event.outputs.config }} --output-on-failure -R west-tiktok-relay-control-protocol
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
 
       - name: Create Code Signing Certificate
         if: success() && github.event_name != 'pull_request'
