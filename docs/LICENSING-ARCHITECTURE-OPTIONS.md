@@ -53,17 +53,19 @@ A process split does not mean we can blindly move the current source directory i
 - The GPL-3.0-labelled desktop registration module also identifies a source with no published license. The Android device modules cite the same unlicensed source family. Those registration/identity algorithms must be independently replaced or disabled; a GPL-3.0 file header does not cure an upstream source with no license grant.
 - Generic helpers such as retry, cancellation, quota, HTTP fixtures, routing and profile data must be independently reimplemented inside the relay if they cannot be shown to be GPL-3-compatible. Their current unmarked files should not be copied into the relay until this audit is complete.
 
-### First media-transport implementation candidate: FFmpeg
+### First media-transport implementation candidate: MediaMTX + FFmpeg
 
-For the first prototype, use FFmpeg's C API from inside the separate relay process rather than add a new RTMP server or a second runtime:
+Direct FFmpeg listener mode was tested in a local Linux CLI experiment and rejected as the product's RTMP server: when a publisher used the wrong stream path, FFmpeg warned but still accepted and demuxed media. A random stream path is not authentication.
 
-- FFmpeg's RTMP protocol documents a `listen` mode for incoming streams and exposes the `rtmp_listen` AVOption.
-- The relay can accept one ordinary local RTMP/FLV feed per layout, demux encoded H.264/HEVC/AAC packets, apply the existing GPL-3.0 signing/SEI logic within the relay, then publish to the TikTok RTMP ingest endpoint.
-- Dual LIVE uses two local listeners and two remote outputs, both bound to one TikTok LIVE session.
-- The Windows OBS dependency package we inspected actually builds FFmpeg 7.1.1 with `--enable-gpl`, `--enable-version3`, `--enable-libx264` and shared libraries. That is not an LGPL-only build. It is a possible dependency for the separate GPL-3.0 relay, subject to bundling the complete source, applicable GPL-3.0 text, x264 and other third-party notices, configure flags, transitive DLLs and build scripts. It must never be linked into the Aitum-derived GPL-2.0 OBS plugin.
-- The detailed finding and outstanding package checks are recorded in [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md).
+The next prototype therefore uses:
 
-Official references and the proof-of-concept gates are recorded in [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md). This is a selected candidate, not a completed integration. Windows loopback binding, packet representation, timestamp preservation, H.264/HEVC signing and the two-feed failure policy still need working tests.
+- **MediaMTX v1.21.4 (MIT)** as a separate local RTMP ingest server. Its internal authentication supports per-user `publish` and `read` permissions scoped to exact stream paths, and its documentation supports RTMP username/password query parameters.
+- **FFmpeg C API** inside the separate GPL-3.0 relay as the authenticated RTMP reader and packet-processing layer. It reads the local feeds from MediaMTX, applies the TikTok signing/SEI logic in the helper process, and forwards the transformed packets to TikTok.
+- Per-LIVE random paths and distinct publisher/reader credentials for Portrait and Landscape. MediaMTX must bind to `127.0.0.1` only, replace its default permissive `user: any` authentication entries, and disable unused Control API, metrics, pprof, playback, HLS, WebRTC and SRT listeners.
+- The helper must use `authInternalUsers` directly and must not use deprecated `readUser`, `readPass`, `publishUser` or `publishPass` configuration fields. The selected v1.21.4 release is newer than the RTMP parser, Control API CSRF and legacy playback-auth fixes recorded in the transport decision document.
+- The MediaMTX MIT copyright/license notice must be preserved in the package. FFmpeg remains inside the separate GPL-3.0 relay; its exact build flags, DLLs, corresponding source, x264 and other third-party notices still require a complete package review. FFmpeg must never be linked into the Aitum-derived GPL-2.0 OBS module.
+
+This is a documented candidate, not a verified integration. MediaMTX v1.21.4 has not yet been run in this environment; wrong-credential rejection, OBS 33.0.1 Windows publishing, the FFmpeg C API reader, packet/SEI compatibility, dual-feed operation and relay recovery remain proof-of-concept gates. The detailed configuration and security findings are recorded in [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md).
 
 ### Why this boundary may help
 
