@@ -53,6 +53,17 @@ A process split does not mean we can blindly move the current source directory i
 - The GPL-3.0-labelled desktop registration module also identifies a source with no published license. The Android device modules cite the same unlicensed source family. Those registration/identity algorithms must be independently replaced or disabled; a GPL-3.0 file header does not cure an upstream source with no license grant.
 - Generic helpers such as retry, cancellation, quota, HTTP fixtures, routing and profile data must be independently reimplemented inside the relay if they cannot be shown to be GPL-3-compatible. Their current unmarked files should not be copied into the relay until this audit is complete.
 
+### First media-transport implementation candidate: FFmpeg
+
+For the first prototype, use FFmpeg's C API from inside the separate relay process rather than add a new RTMP server or a second runtime:
+
+- FFmpeg's RTMP protocol documents a `listen` mode for incoming streams and exposes the `rtmp_listen` AVOption.
+- The relay can accept one ordinary local RTMP/FLV feed per layout, demux encoded H.264/HEVC/AAC packets, apply the existing GPL-3.0 signing/SEI logic within the relay, then publish to the TikTok RTMP ingest endpoint.
+- Dual LIVE uses two local listeners and two remote outputs, both bound to one TikTok LIVE session.
+- The intended build is a dedicated LGPL FFmpeg build with GPL, version-3 and nonfree components disabled. FFmpeg's default LGPL-2.1-or-later terms are compatible with the relay's GPL-3.0 terms according to the GNU compatibility table. Preserve FFmpeg notices and satisfy the LGPL obligations for the chosen linking and packaging model.
+
+Official references and the proof-of-concept gates are recorded in [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md). This is a selected candidate, not a completed integration. Windows loopback binding, packet representation, timestamp preservation, H.264/HEVC signing and the two-feed failure policy still need working tests.
+
 ### Why this boundary may help
 
 The GNU GPL FAQ says the distinction between separate programs and one combined work depends on both the communication mechanism and the semantics. It identifies pipes, sockets and command-line arguments as mechanisms normally used between separate programs, while warning that exchanging complex internal data structures may still indicate one larger work. See [GNU GPL FAQ — aggregate vs combined work](https://www.gnu.org/licenses/gpl-faq.html#MereAggregation) and [GNU GPL FAQ — plugins](https://www.gnu.org/licenses/gpl-faq.html#GPLPlugins).
