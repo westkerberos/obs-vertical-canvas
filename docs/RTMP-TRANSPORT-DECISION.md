@@ -1,6 +1,6 @@
 # RTMP media transport decision — TikTok Relay
 
-Status: selected for a technical proof of concept; not implemented or runtime-validated yet.
+Status: FFmpeg RTMP protocol CLI smoke-tested on Linux; C API integration and secure publisher authentication are not implemented or runtime-validated.
 
 ## Decision
 
@@ -89,6 +89,51 @@ This is a source-based engineering assessment, not legal advice. The final combi
 - **gomedia:** its Go implementation provides RTMP client/server support under MIT, but integrating it with the existing C++ TikTok runtime would require either a language/runtime bridge or a substantial C++ port. Keep it as a fallback if the FFmpeg listener experiment fails.
 - **MediaMTX:** it is a useful cross-platform media router, but the current documented routing/hook model does not establish the frame-mutation callback needed for TikTok's packet signing and SEI transformation.
 
+## Local FFmpeg CLI experiment — 18 November 2026
+
+A smoke experiment was run in an isolated Debian Linux environment using FFmpeg 7.1.5 (GPL-enabled build). This was a protocol experiment only; it was not the OBS Windows build and did not compile or exercise the C++ relay.
+
+### What passed
+
+- FFmpeg `-listen 1` opened an RTMP listener from a URL using the explicit host `127.0.0.1`.
+- `ss -ltnp` showed the socket bound to `127.0.0.1:<port>`, not `0.0.0.0:<port>`.
+- A second FFmpeg process published a short synthetic stream containing H.264 video and AAC audio to the listener.
+- The listener demuxed the stream and reported the expected H.264/AAC streams and dimensions.
+
+This confirms the FFmpeg RTMP protocol can support a local RTMP publisher/receiver experiment. It does **not** confirm the C API integration, packet transformation, remote TikTok forwarding, Windows dependency resolution or Dual LIVE.
+
+### Security result: stream-path mismatch is not authentication
+
+A second test configured the listener with the expected path `/live/expected-token`, then published to `/live/wrong-token` on the same port.
+
+FFmpeg logged:
+
+```text
+Unexpected stream wrong-token, expecting expected-token
+```
+
+However, the listener still accepted the connection and demuxed the incoming media. The command completed successfully. Therefore the RTMP application/stream-name mismatch warning is **not a strict rejection** and the path token alone cannot be treated as authentication.
+
+Consequences:
+
+- Do not claim that a random RTMP path is an authenticated local credential.
+- A random high port and random path can reduce accidental collisions and casual discovery, but they do not provide a strong access-control boundary by themselves.
+- Before using FFmpeg's listener mode in the product, either add a transport layer that strictly authenticates the publishing connection before media is passed to the relay, or select a local RTMP server with verified publisher authentication.
+- Keep the listener bound to loopback. Do not expose it to the LAN or public interfaces.
+- Test the chosen authentication behavior with a deliberately incorrect username/password/path and assert that no media packets reach the relay. A warning in the log is not sufficient.
+
+A MediaMTX-style authenticated local RTMP ingest is a candidate to compare against a custom strict RTMP handshake. It would add another dependency/process, so it should be evaluated only if it provides enforceable publisher authentication and can preserve the media packets needed by the signer.
+
+## Revised next engineering gate
+
+The FFmpeg C API listener must not be integrated into the OBS workflow until the local publisher-authentication issue has an enforceable solution. The next spike should:
+
+1. Compare FFmpeg's direct listener against an authenticated local RTMP server such as MediaMTX.
+2. Verify the server binds only to loopback and rejects a publisher with incorrect credentials.
+3. Verify a valid OBS-style RTMP publisher yields H.264/HEVC and AAC packets with usable timestamps/extradata.
+4. Confirm the packet transformer can process the FFmpeg-demuxed representation without breaking H.264/HEVC configuration, SEI placement or A/V timing.
+5. Re-run the same checks on Windows using the exact OBS dependency package and its documented hashes.
+
 ## Current implementation status
 
-The existing `tiktok-relay` target is still only a JSON-lines control-protocol stub. It does not link FFmpeg, accept RTMP, sign frames, connect to TikTok or implement Dual LIVE. This document selects a candidate for the next engineering spike; it is not evidence that the media path works.
+The existing `tiktok-relay` target is still only a JSON-lines control-protocol stub. It does not link FFmpeg, accept RTMP, sign frames, connect to TikTok or implement Dual LIVE. The Linux CLI experiment above validates only basic RTMP listen/publish behavior and exposes an authentication weakness. It is not evidence that the media path is integrated or ready for use.
