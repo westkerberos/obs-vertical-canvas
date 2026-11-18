@@ -37,8 +37,8 @@ Use a deliberately small contract:
 - Control channel: JSON request/response messages over stdin/stdout pipes (or an authenticated loopback control socket if pipe supervision proves unreliable).
 - Candidate commands: `hello`, `capabilities`, `account_status`, `dual_live_eligibility`, `get_topics`, `get_games`, `start_live`, `stop_live`, `get_status`, `get_safety_status`.
 - A successful `start_live` returns only local RTMP feed URLs/keys, a session correlation ID, and the feed roles required by OBS. Do not return remote TikTok ingest URLs/keys to the plugin.
-- Media: ordinary RTMP/FLV over loopback. The selected proof-of-concept is FFmpeg libavformat RTMP listen/input plus RTMP output inside the relay process; see [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md). One listener/feed for Portrait; a second listener/feed for Landscape during Dual LIVE.
-- Bind listeners to 127.0.0.1 only. Generate unpredictable local stream keys. Never expose the listener to the LAN.
+- Media: ordinary RTMP/FLV over loopback. The selected proof-of-concept is MediaMTX v1.21.4 as an authenticated local RTMP ingest server, with FFmpeg libavformat as the reader/packet-processing client inside the relay; see [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md). One authenticated path/feed for Portrait; a second for Landscape during Dual LIVE.
+- Bind the MediaMTX RTMP listener to 127.0.0.1 only. Generate per-session publisher/reader credentials and unpredictable feed paths. Use exact path-scoped publish/read permissions, remove all default anonymous `user: any` entries, and never expose the listener to the LAN.
 - Do not send OBS scene objects, encoder objects, raw OBS packets as private structs, callback pointers, shared memory or custom in-process ABI across the boundary.
 - Pass cookies, RapidAPI keys, Streamlabs tokens and other credentials only through the local control channel. Never place them in command-line arguments, status text, persistent helper logs or crash reports.
 - Helper shutdown and reconnect operations must be idempotent. Stopping one Dual LIVE feed must follow an explicitly documented pair-failure policy.
