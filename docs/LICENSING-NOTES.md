@@ -17,7 +17,7 @@ WEST Gaming cannot change the license of code it did not author or receive relic
 
 The existing attribution and license files must stay in place while the source is being audited. They document provenance; they do not grant additional permissions.
 
-## Maintainer decision — 17 November 2026
+## Maintainer decision — 18 November 2026
 
 The maintainer does not want to request special license exceptions or third-party relicensing permissions. The preferred technical experiment is therefore a **separate TikTok relay process**, while preserving the tested OBS plugin branch.
 
