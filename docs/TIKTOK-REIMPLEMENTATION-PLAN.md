@@ -93,3 +93,42 @@ The project remains not cleared for public binary distribution until:
 - the process boundary and bundled distribution have received appropriate legal review.
 
 This plan does not provide legal advice. Preserve the currently tested feature branch unchanged until the relay prototype and tests are ready.
+
+
+## OBS / TikTok source-coupling audit — 18 November 2026
+
+The current integration cannot be made license-separated by moving `src/tiktok-native/` wholesale into the relay. The existing OBS adapter, settings UI and native client are coupled across source files.
+
+### Confirmed coupling in the current source
+
+- `src/tiktok-live-session.cpp` (375 lines) has an explicit GPL-3.0-only attribution. It includes `obs-module.h`, `obs-frontend-api.h` and `util/bmem.h`, defines an OBS `encoder_packet` callback that mutates encoded video packets, obtains codec/dimensions from OBS encoders, and creates Qt dialogs parented to the OBS main window. It cannot be moved unchanged into a separate process because the relay cannot own OBS pointers, packet callbacks or UI parented to the OBS window.
+- `src/tiktok-output-session.cpp` (585 lines) coordinates OBS output objects and frontend APIs. Its OBS-facing responsibilities need an independent GPL-2-compatible adapter; its network/session responsibilities must not leak OBS types into the relay contract.
+- `src/tiktok-output-settings-dialog.cpp` (803 lines) owns the TikTok settings wizard but calls native client, QR login, topic, quota and device-profile functions directly. The dialog can remain in the GPL-2 plugin only after it is cleanly reimplemented around the JSON control protocol, or the configuration UI must move into a separate helper GUI.
+- `src/tiktok-safety.cpp` owns both a Qt/OBS-facing safety interface and calls the native client directly. Split the user interface from the helper-owned monitoring/appeal service.
+- `src/tiktok-topic-widget.cpp` calls native topic/game functions directly. Replace these calls with relay requests and display the returned topic/game IDs.
+- `src/streamlabs-desktop.cpp` is itself attributed as adapted from external projects. Its local token-discovery behavior must be independently implemented or disabled; a manually supplied Streamlabs token can remain a separate capability only after auditing the associated code.
+
+### Required source boundary
+
+The implementation should be divided by responsibility, not by the current folder names:
+
+**Vertical Canvas plugin — inherited GPL-2.0**
+
+- OBS output creation, scene/canvas/encoder access and output lifecycle.
+- New, independently authored OBS-to-MediaMTX publisher adapter.
+- Cleanly reimplemented settings/configuration UI that exchanges only versioned JSON requests with the helper.
+- UI rendering for account status, topics/games, safety state and Dual LIVE controls using helper responses.
+- No TikTok-native GPL-3.0-only code, no copied unlicensed device-registration code, and no shared C++ classes or structures with the relay.
+
+**WEST TikTok Relay — separate GPL-3.0 process**
+
+- TikTok account/session network operations, signing, LIVE lifecycle, topic/game lookup and safety/appeal service, but only after every source and dependency has compatible documented terms.
+- MediaMTX process/configuration supervision and FFmpeg RTMP reader/packet transformation.
+- Relay-owned cookies, TikTok credentials, remote ingest endpoints and session state.
+- JSON control protocol only; no OBS headers, `obs_output_t*`, `encoder_packet`, callbacks, OBS scene/encoder objects or QWidget parented to OBS.
+
+### Consequence for implementation scope
+
+The separation is a substantial refactor, not a small build-system change. The most important first implementation milestone is a **clean GPL-2 OBS output adapter that publishes one encoded feed to the authenticated local MediaMTX path**, with the relay still returning a clear `not_implemented` status for TikTok runtime. Once that media boundary is tested, migrate the TikTok service operations into the relay in small independently testable steps.
+
+Do not move a source file into the helper merely because it has a GPL-3.0-only marker. First inspect its complete dependency graph. Likewise, do not remove an SPDX marker or retain a file in the GPL-2 plugin merely because it does not have one. Provenance and license terms are determined by the code's actual origin and permissions, not by directory placement or edited comments.
