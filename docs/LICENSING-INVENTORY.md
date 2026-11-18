@@ -84,7 +84,7 @@ A clean implementation is not established merely because files are rewritten. Th
 
 ## Maintainer verification of runtime behavior
 
-On 17 November 2026, the repository owner tested Landscape, Portrait and Dual LIVE for approximately 30 minutes in OBS 33.0.1 on Windows and reported all three modes working. The separate OBS Multi-RTMP plugin was disabled during this test. This confirms the current WEST implementation does not require that plugin to be enabled in OBS. It does not resolve the source-license compatibility issue and is not a cross-platform compatibility matrix.
+On 18 November 2026, the repository owner tested Landscape, Portrait and Dual LIVE for approximately 30 minutes in OBS 33.0.1 on Windows and reported all three modes working. The separate OBS Multi-RTMP plugin was disabled during this test. This confirms the current WEST implementation does not require that plugin to be enabled in OBS. It does not resolve the source-license compatibility issue and is not a cross-platform compatibility matrix.
 
 ## Build-system integration
 
