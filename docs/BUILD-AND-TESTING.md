@@ -32,7 +32,7 @@ For an in-tree OBS build, follow the OBS plugin integration pattern already used
 
 ## CI and packaging
 
-The latest PR head built and packaged successfully for Windows x64:
+The latest successful Windows x64 package workflow for this branch ran at commit `ffe70d868e703524cb9d7bf48e9ddc6b8cdb4899`. The branch head now contains later documentation-only commits; the compiled C++ source is unchanged:
 
 - Workflow: [#44380938198](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44380938198)
 - Commit: `ffe70d868e703524cb9d7bf48e9ddc6b8cdb4899`
