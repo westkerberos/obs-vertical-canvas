@@ -29,6 +29,8 @@ The maintainer does not want to request special license exceptions or third-part
 6. Keep all third-party notices and use separate license files, build targets and package manifests for the two programs.
 7. Review whether the actual process and distribution boundary is sufficient before bundling a public installer. Process separation is a stronger technical boundary, not a legal guarantee.
 
+The local media transport candidate is now [MediaMTX v1.21.4 (MIT) plus FFmpeg inside the helper](RTMP-TRANSPORT-DECISION.md). Direct FFmpeg RTMP listen mode was rejected after a wrong-path publisher was still accepted. MediaMTX's documented path-scoped `authInternalUsers` publish/read permissions provide a stronger candidate; however, its binary has not yet been run in this environment, and wrong-credential rejection plus OBS 33.0.1 Windows publishing remain unverified. The transport decision records the required secure configuration, version/security floor and proof-of-concept gates.
+
 If the relay cannot be separated without intimate internal coupling, the fallback is to independently reimplement the affected parts under GPL-2-compatible terms or offer a reduced MIT browser-session provider. Do not change the root LICENSE to disguise the current source mix.
 
 A superficial rewrite, renaming files, changing comments, or copying the same implementation through another fork does not make an independent implementation.
