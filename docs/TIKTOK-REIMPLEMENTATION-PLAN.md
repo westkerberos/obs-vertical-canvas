@@ -1,12 +1,12 @@
 # TikTok relay implementation plan
 
-Status: architecture and provenance planning only. No relay process or C++ runtime refactor has been implemented.
+Status: the separate executable has a tested JSON-lines control-protocol stub. No RTMP/FLV media path or TikTok runtime refactor has been implemented.
 
 ## Objective
 
 Preserve as much of the tested WEST Gaming integration as possible without compiling GPL-3.0-only code into the GPL-2.0 Aitum-derived OBS plugin, and without redistributing code from an unlicensed source repository.
 
-Preferred experiment: a separate **WEST TikTok Relay** executable. The existing OBS plugin remains a separate GPL-2.0 program; the helper is a separate GPL-3.0 program. They communicate through RTMP/FLV over localhost for media and a small documented JSON control protocol over pipes for lifecycle/status. See [LICENSING-ARCHITECTURE-OPTIONS.md](LICENSING-ARCHITECTURE-OPTIONS.md).
+Preferred experiment: a separate **WEST TikTok Relay** executable. The existing OBS plugin remains a separate GPL-2.0 program; the helper is a separate GPL-3.0 program. They communicate through RTMP/FLV over localhost for media and a small documented JSON control protocol over pipes for lifecycle/status. See [LICENSING-ARCHITECTURE-OPTIONS.md](LICENSING-ARCHITECTURE-OPTIONS.md) and the [RTMP transport decision](RTMP-TRANSPORT-DECISION.md).
 
 This is only an engineering candidate. Whether the actual programs remain separate works depends on their implementation and communication semantics; no legal clearance is asserted.
 
@@ -37,7 +37,7 @@ Use a deliberately small contract:
 - Control channel: JSON request/response messages over stdin/stdout pipes (or an authenticated loopback control socket if pipe supervision proves unreliable).
 - Candidate commands: `hello`, `capabilities`, `account_status`, `dual_live_eligibility`, `get_topics`, `get_games`, `start_live`, `stop_live`, `get_status`, `get_safety_status`.
 - A successful `start_live` returns only local RTMP feed URLs/keys, a session correlation ID, and the feed roles required by OBS. Do not return remote TikTok ingest URLs/keys to the plugin.
-- Media: ordinary RTMP/FLV over loopback. One path for Portrait; a second path for Landscape during Dual LIVE.
+- Media: ordinary RTMP/FLV over loopback. The selected proof-of-concept is FFmpeg libavformat RTMP listen/input plus RTMP output inside the relay process; see [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md). One listener/feed for Portrait; a second listener/feed for Landscape during Dual LIVE.
 - Bind listeners to 127.0.0.1 only. Generate unpredictable local stream keys. Never expose the listener to the LAN.
 - Do not send OBS scene objects, encoder objects, raw OBS packets as private structs, callback pointers, shared memory or custom in-process ABI across the boundary.
 - Pass cookies, RapidAPI keys, Streamlabs tokens and other credentials only through the local control channel. Never place them in command-line arguments, status text, persistent helper logs or crash reports.
