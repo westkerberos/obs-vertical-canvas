@@ -60,7 +60,8 @@ For the first prototype, use FFmpeg's C API from inside the separate relay proce
 - FFmpeg's RTMP protocol documents a `listen` mode for incoming streams and exposes the `rtmp_listen` AVOption.
 - The relay can accept one ordinary local RTMP/FLV feed per layout, demux encoded H.264/HEVC/AAC packets, apply the existing GPL-3.0 signing/SEI logic within the relay, then publish to the TikTok RTMP ingest endpoint.
 - Dual LIVE uses two local listeners and two remote outputs, both bound to one TikTok LIVE session.
-- The intended build is a dedicated LGPL FFmpeg build with GPL, version-3 and nonfree components disabled. FFmpeg's default LGPL-2.1-or-later terms are compatible with the relay's GPL-3.0 terms according to the GNU compatibility table. Preserve FFmpeg notices and satisfy the LGPL obligations for the chosen linking and packaging model.
+- The Windows OBS dependency package we inspected actually builds FFmpeg 7.1.1 with `--enable-gpl`, `--enable-version3`, `--enable-libx264` and shared libraries. That is not an LGPL-only build. It is a possible dependency for the separate GPL-3.0 relay, subject to bundling the complete source, applicable GPL-3.0 text, x264 and other third-party notices, configure flags, transitive DLLs and build scripts. It must never be linked into the Aitum-derived GPL-2.0 OBS plugin.
+- The detailed finding and outstanding package checks are recorded in [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md).
 
 Official references and the proof-of-concept gates are recorded in [RTMP-TRANSPORT-DECISION.md](RTMP-TRANSPORT-DECISION.md). This is a selected candidate, not a completed integration. Windows loopback binding, packet representation, timestamp preservation, H.264/HEVC signing and the two-feed failure policy still need working tests.
 
