@@ -6,7 +6,9 @@ Status: selected for a technical proof of concept; not implemented or runtime-va
 
 Use the FFmpeg libraries through their C API **inside the separate WEST TikTok Relay process** for the first media-transport prototype.
 
-Do not link FFmpeg or GPL-3.0 TikTok runtime code into the Aitum-derived OBS plugin. The Vertical Canvas plugin remains the OBS-facing GPL-2.0 component. The standalone TikTok Relay remains a separate GPL-3.0 program, controlled by a small JSON-lines protocol and receiving media over ordinary RTMP/FLV on loopback.
+The intended Windows build will use the FFmpeg 7.1.1 dependency already built by OBS's `obs-deps` release, not an arbitrary system FFmpeg. We inspected the official `obsproject/obs-deps` Windows recipe at tag `2025-05-23`: it configures FFmpeg with `--enable-gpl`, `--enable-version3`, `--enable-libx264` and `--enable-shared`. This is therefore a GPL-enabled FFmpeg build with version-3 support, **not an LGPL-only build**. It can be evaluated inside the separate GPL-3.0 relay, but only with all included FFmpeg and dependency notices/source obligations handled correctly.
+
+Do not link FFmpeg or GPL-3.0 TikTok runtime code into the Aitum-derived OBS plugin. The Vertical Canvas plugin remains the OBS-facing GPL-2.0 component. The standalone TikTok Relay remains a separate GPL-3.0 program, controlled by a small JSON-lines protocol and receiving media over ordinary RTMP/FLV on loopback. The process boundary is an engineering architecture to be reviewed, not a legal guarantee that both programs are separate works.
 
 ## Why FFmpeg is the first candidate
 
@@ -55,7 +57,7 @@ Only enable the minimum components needed for RTMP/FLV demuxing/muxing, H.264/HE
 
 The relay must preserve FFmpeg copyright/license notices and comply with LGPL redistribution requirements for the exact dynamic/static linking model selected. The corresponding FFmpeg source and build configuration must be made available with the release.
 
-This is a source-based engineering decision, not a legal opinion. The final binary/package still needs a licensing review.
+This is a source-based engineering decision, not a legal opinion. The final binary/package still needs a licensing review. The package must not be presented as LGPL-only.
 
 ## Required proof-of-concept checks
 
