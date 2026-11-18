@@ -45,19 +45,22 @@ This avoids introducing a second RTMP implementation or a new Go runtime/toolcha
 
 ## Licensing and build constraints
 
-FFmpeg's default license is LGPL 2.1-or-later. Optional GPL components are enabled only when explicitly selected at build time. The GNU compatibility table identifies LGPL 2.1-or-later as compatible with GPL 3, so an independently distributed GPL-3.0 relay can use an appropriately licensed FFmpeg build while satisfying the FFmpeg license obligations.
+The FFmpeg dependency recipe actually used by OBS Windows builds is not LGPL-only. The inspected [obsproject/obs-deps Windows recipe at tag 2025-05-23](https://github.com/obsproject/obs-deps/blob/2025-05-23/deps.ffmpeg/99-ffmpeg.ps1) builds FFmpeg 7.1.1 with `--enable-gpl`, `--enable-version3`, `--enable-libx264` and `--enable-shared`. It also enables additional libraries including Opus, Vorbis, VPx, RIST and SRT.
 
-For the first distributable build, prefer a dedicated FFmpeg build with:
+That GPL-enabled, version-3 build is a candidate only inside the **separate GPL-3.0 relay**. It must never be linked into the Aitum-derived GPL-2.0 OBS module. Whether the helper executable and OBS plugin remain separate works when distributed together requires legal review; the process boundary is not a legal safe harbor.
 
-- `--disable-gpl`
-- `--disable-version3`
-- `--disable-nonfree`
+For distribution, we must:
 
-Only enable the minimum components needed for RTMP/FLV demuxing/muxing, H.264/HEVC/AAC packet handling and network I/O. Do not assume that an arbitrary prebuilt FFmpeg binary has these options; record its exact configure flags and license manifest.
+- Record the exact FFmpeg commit, configure flags and OBS dependency archive hash.
+- Include the applicable FFmpeg GPL-3.0 license text. The `obs-deps/licenses/FFmpeg` folder we inspected contains `COPYING.GPLv2` and `MAINTAINERS`; do not assume that folder alone satisfies the version-3 license notice requirement.
+- Preserve the x264 notice/source and every other third-party license for libraries built into the FFmpeg package.
+- Provide the corresponding FFmpeg source, dependency sources, patches and build scripts required by the chosen GPL distribution model.
+- Bundle the FFmpeg DLLs needed by the helper and their transitive dependencies. Do not assume a child process can resolve DLLs merely because OBS has loaded them.
+- Verify a clean Windows installation contains all runtime DLLs and license notices before publishing an installer or ZIP.
 
-The relay must preserve FFmpeg copyright/license notices and comply with LGPL redistribution requirements for the exact dynamic/static linking model selected. The corresponding FFmpeg source and build configuration must be made available with the release.
+A dedicated minimal LGPL-only FFmpeg build could be investigated later, but it is not what the current OBS dependency package provides.
 
-This is a source-based engineering decision, not a legal opinion. The final binary/package still needs a licensing review. The package must not be presented as LGPL-only.
+This is a source-based engineering assessment, not legal advice. The final combined source and binary distribution still needs a qualified licensing review.
 
 ## Required proof-of-concept checks
 
