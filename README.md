@@ -1,102 +1,39 @@
-# WEST Gaming — Aitum Vertical Canvas for OBS Studio
+# WEST Gaming Vertical Canvas for OBS Studio
 
-A WEST Gaming-maintained fork of [Aitum Vertical Canvas](https://github.com/Aitum/obs-vertical-canvas), built on the upstream native multi-canvas plugin and extended with TikTok LIVE output support.
+A WEST Gaming-maintained fork of [Aitum Vertical Canvas](https://github.com/Aitum/obs-vertical-canvas) for OBS Studio. The project focuses on native multi-canvas streaming and an experimental TikTok LIVE integration with Portrait, Landscape and Dual LIVE workflows.
 
-This repository is the WEST Gaming-maintained Vertical Canvas fork. It owns the TikTok destination, connection UI and runtime. The matching [Aitum Multistream fork](https://github.com/westkerberos/obs-aitum-multistream) is an optional wizard/dock bridge; it does not implement TikTok connectivity.
+**Status: experimental development — no stable WEST Gaming release is published.**
 
-> **Development status — 17 November 2026:** the TikTok integration is on [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), branch `feature/tiktok-native-output`. The default `main` branch does not contain these additions until the PR is merged. The TikTok integration has unresolved source-clearance issues: at least 24 files are identified as derived from GPL-3.0-only sources and are compiled into the GPL-2.0 Aitum-derived plugin, while device-registration code also cites a separate public source repository with no published license. See the [licensing review](docs/LICENSING-NOTES.md) and [file-level source inventory](docs/LICENSING-INVENTORY.md). Do not redistribute a combined binary until both issues are resolved. There is no GitHub Release for this fork yet. The current Windows x64 workflow produces test artifacts, not a stable public release.
+The TikTok integration is being developed in [Pull Request #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), branch `feature/tiktok-native-output`. That branch has passed a Windows x64 build and a maintainer smoke test in OBS 33.0.1 on 18 November 2026. The maintainer tested Portrait, Landscape and Dual LIVE for approximately 30 minutes, with the separate OBS Multi-RTMP plugin disabled. This is one Windows setup, not a broad compatibility matrix.
 
-## Who should use this fork
+## What the TikTok development branch contains
 
-Use this project when you already use **Aitum Vertical Canvas** and want TikTok as an output managed by the vertical canvas workflow, especially when you want Portrait to reuse your existing Vertical Canvas encoders and Landscape to reuse the active OBS Main Canvas encoders.
+- TikTok LIVE destinations managed by Vertical Canvas.
+- Custom RTMP, TikTok LIVE Studio Desktop/Mobile and Streamlabs connection paths.
+- Portrait and Landscape output, plus a Dual LIVE mode that reuses Vertical Canvas and OBS Main Canvas encoders.
+- Account setup, LIVE metadata and safety-related UI.
 
-This fork does not provide TikTok as a standalone OBS Main Canvas streaming provider. It integrates TikTok with Vertical Canvas. To add and start the destination from the Aitum Multistream dock, install this plugin together with the matching [obs-aitum-multistream](https://github.com/westkerberos/obs-aitum-multistream) bridge.
+The matching [WEST Gaming Aitum Multistream fork](https://github.com/westkerberos/obs-aitum-multistream) adds an optional configuration-wizard bridge. It is not a second TikTok runtime and the original OBS Multi-RTMP plugin is not required to be enabled.
 
-## What this fork adds
+## Important: do not treat the development branch as a release
 
-The upstream Vertical Canvas canvas/scene workflow remains the foundation. WEST Gaming adds TikTok connection and output management inside the Vertical Canvas output lifecycle:
+The current feature branch still contains third-party TikTok code with unresolved source-license compatibility and provenance questions. In particular, the audit found GPL-3.0-only-derived code compiled into the Aitum-derived GPL-2.0 OBS module, and a device-registration path whose cited source has no published license. The branch also contains an experimental relay protocol stub; that stub does **not** implement the TikTok session, RTMP transport, signing or Dual LIVE runtime.
 
-- **Connection methods:** Custom RTMP, TikTok LIVE Studio Desktop, TikTok LIVE Studio Mobile and Streamlabs Desktop.
-- **TikTok account setup:** cookie import, QR login, account refresh, mobile device registration and saved device profiles.
-- **LIVE configuration:** title, topic, searchable game selection, gifts/comments, content disclosure and mature-content settings.
-- **Account feedback:** Streamlabs status/category information, TikTok account identity, Dual LIVE eligibility and RapidAPI quota feedback.
-- **LIVE safety:** optional violation monitoring, manual violation/appeal lookup and account-verified appeal submission where TikTok exposes the required action.
-- **Dual LIVE:** portrait and landscape feeds from one TikTok LIVE session, with coordinated startup/shutdown.
-- **Default Dual LIVE encoder reuse:** Portrait inherits the existing Vertical Canvas output encoders; Landscape inherits the OBS Main Canvas streaming encoders. No manual per-layout encoder setup is required in this mode.
-- **Advanced Dual LIVE override:** optional separate scenes, canvas dimensions, video/audio encoders, bitrate, frame-rate divisor, Fit/Crop, preview and encoder properties.
-- **Aitum Multistream bridge:** the matching WEST Gaming Aitum Multistream fork can open the TikTok configuration dialog for a Vertical Canvas destination without duplicating the TikTok runtime.
+Do not redistribute its combined binary or advertise it as license-cleared. No stable installer or GitHub Release is available yet. The project will only be promoted to a release after the code boundary/remediation, source audit, packaging and runtime regression tests are complete.
 
-The implementation and user workflow are documented in [TikTok LIVE](docs/TIKTOK-LIVE.md). See [Upstream differences](docs/UPSTREAM-DIFFERENCES.md) for what is inherited and what this fork adds.
+## Development links
 
-## What this fork does not do
-
-- It does not replace OBS's ordinary Main Canvas streaming service or turn TikTok into a standalone Main Canvas provider.
-- It does not require a separate Multi-RTMP plugin. The maintained product pair is this Vertical Canvas runtime plus the optional Aitum Multistream configuration bridge.
-- It does not move TikTok session/signing/safety logic into Multistream or create a second copy of that runtime.
-- Automatic Dual LIVE does not clone every horizontal scene/source into a new vertical composition. It reuses the already configured Vertical Canvas output for Portrait and the active Main Canvas stream encoders for Landscape. Scene composition remains configured through OBS and Vertical Canvas.
-- It does not guarantee account eligibility, LIVE approval, endpoint availability or policy outcomes controlled by TikTok.
-
-## Dual LIVE: recommended configuration
-
-The checkbox **Reuse the existing Vertical Canvas and Main Canvas settings (recommended)** is enabled by default.
-
-| Feed | Encoder source |
-| --- | --- |
-| Portrait | The video/audio encoders already assigned to the TikTok destination in Vertical Canvas. |
-| Landscape | The video/audio encoders attached to OBS's primary Main Canvas streaming output. |
-
-Start the normal horizontal Main Canvas stream (for example, YouTube or Twitch) **before** starting TikTok Dual LIVE. This gives the landscape feed the real active horizontal encoders and settings. The plugin does not create a second set of manual encoders in this default mode or modify the Main Canvas encoder configuration.
-
-Dual LIVE requires an eligible TikTok account and supports LIVE Studio Desktop or Mobile **Camera LIVE**. Streamlabs, Custom RTMP and Mobile screen capture do not use this paired-feed mode. Turn off the reuse checkbox only when you intentionally want the advanced manual layout editor.
-
-## Documentation
-
-- [TikTok LIVE setup and Dual LIVE guide](docs/TIKTOK-LIVE.md)
-- [What changed from upstream Aitum Vertical Canvas](docs/UPSTREAM-DIFFERENCES.md)
-- [Build, CI and runtime testing status](docs/BUILD-AND-TESTING.md)
-- [Third-party licensing review notes](docs/LICENSING-NOTES.md)
-- [Upstream translations guide](TRANSLATIONS.md)
-
-## Requirements and current limitations
-
-- OBS Studio with native canvas support. The owner has tested this integration in a Windows OBS 33.0.1 environment; this is not yet a published minimum-version or cross-platform support matrix.
-- TikTok LIVE Studio/Mobile requires a RapidAPI signing key and an authenticated TikTok cookie session. Streamlabs requires its own access token. Custom RTMP requires a user-supplied endpoint and key.
-- Dual LIVE additionally requires TikTok account eligibility and an active OBS Main Canvas streaming output when automatic encoder reuse is selected.
-- The current fork workflow builds **Windows x64 only**. Linux and macOS jobs are not enabled.
-- Test packages are unsigned while signing secrets are unavailable.
-- TikTok account eligibility, endpoint availability, policy decisions and LIVE/appeal outcomes remain controlled by TikTok.
-
-## Install and release status
-
-There is currently no GitHub Release published for this fork. Do not mistake the upstream Aitum installer, Flatpak or website downloads for a WEST Gaming build: they do not automatically contain this fork's TikTok additions.
-
-For development, use the branch and exact commit identified in [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), or the corresponding GitHub Actions artifact linked from the successful workflow in [Build and testing](docs/BUILD-AND-TESTING.md). That guide records the latest verified Windows x64 workflow and artifact. Do not install an unreviewed CI artifact into a critical production OBS profile.
+- [TikTok LIVE setup and feature description](https://github.com/westkerberos/obs-vertical-canvas/blob/feature/tiktok-native-output/docs/TIKTOK-LIVE.md)
+- [Build and testing status](https://github.com/westkerberos/obs-vertical-canvas/blob/feature/tiktok-native-output/docs/BUILD-AND-TESTING.md)
+- [File-level source and license inventory](https://github.com/westkerberos/obs-vertical-canvas/blob/feature/tiktok-native-output/docs/LICENSING-INVENTORY.md)
+- [Licensing architecture options](https://github.com/westkerberos/obs-vertical-canvas/blob/feature/tiktok-native-output/docs/LICENSING-ARCHITECTURE-OPTIONS.md)
+- [TikTok relay implementation plan](https://github.com/westkerberos/obs-vertical-canvas/blob/feature/tiktok-native-output/docs/TIKTOK-REIMPLEMENTATION-PLAN.md)
+- [Upstream Aitum Vertical Canvas](https://github.com/Aitum/obs-vertical-canvas)
 
 ## Build
 
-The standalone CMake target links against OBS libobs and obs-frontend-api, Qt 6 Core/Widgets and libcurl. The TikTok additions also use qrcodegencpp and the platform cryptographic library. The project is C++20.
+The upstream plugin uses CMake and the OBS Studio plugin development environment. Build instructions for the experimental TikTok branch are maintained in its [build and testing guide](https://github.com/westkerberos/obs-vertical-canvas/blob/feature/tiktok-native-output/docs/BUILD-AND-TESTING.md).
 
-With the required OBS development packages available:
+## Search terms
 
-```sh
-cmake -S . -B build -DBUILD_OUT_OF_TREE=ON
-cmake --build build --config Release
-```
-
-For CI status, packaging details, and what has and has not been runtime-tested, see [Build and testing](docs/BUILD-AND-TESTING.md).
-
-## Attribution and licensing
-
-This is a fork of Aitum's GPL-licensed Vertical Canvas project. The separate OBS Multi-RTMP plugin is **not** a runtime dependency and does not need to be enabled in OBS. However, the source audit shows that the TikTok-specific code we adapted from [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), itself downstream of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp), is broader than an authentication helper: all 38 files in `src/tiktok-native/` exactly match the corresponding files at Loukious commit `1a57e1ec410695b0d46414787dc8e8a7fb87f72b`. Twenty-two carry explicit GPL-3.0-only notices. Two more integration files explicitly identify adaptation from GPL-3.0-only projects. The device-registration path also refers to `Loukious/TikTokStreamKeyGenerator`, whose public repository has no published license. Direct source attributions and the license texts remain in [data/licenses](data/licenses/).
-
-**Maintainer action before publishing a release:** preserve the inherited Aitum GPL-2.0 terms, independently replace or remove all incompatible/unlicensed code, and audit the complete source tree. Do not replace the root LICENSE to mask third-party terms. See [the file-level inventory](docs/LICENSING-INVENTORY.md), [the separate-process architecture options](docs/LICENSING-ARCHITECTURE-OPTIONS.md), [the relay implementation plan](docs/TIKTOK-REIMPLEMENTATION-PLAN.md), the [RTMP transport decision](docs/RTMP-TRANSPORT-DECISION.md), and [compatible alternatives researched](docs/COMPATIBLE-TIKTOK-ALTERNATIVES.md).
-
-## Licensing and replacement status
-
-The source audit and implementation experiments are tracked in [Licensing notes](docs/LICENSING-NOTES.md), [the file-level inventory](docs/LICENSING-INVENTORY.md), [the architecture options](docs/LICENSING-ARCHITECTURE-OPTIONS.md), [the relay implementation plan](docs/TIKTOK-REIMPLEMENTATION-PLAN.md), the [RTMP transport proof-of-concept decision](docs/RTMP-TRANSPORT-DECISION.md), and [compatible TikTok alternatives](docs/COMPATIBLE-TIKTOK-ALTERNATIVES.md). The current integrated build is not cleared for public binary distribution. The user's successful 30-minute Landscape/Portrait/Dual LIVE test is recorded in [Build and testing](docs/BUILD-AND-TESTING.md); that runtime test does not resolve source licensing.
-
-## Support and issue reports
-
-This is the WEST Gaming fork. Do not send fork-specific bugs to Aitum's upstream support channels as though the upstream build contains these changes. When opening an issue, include the exact commit/build, OBS version, connection method and a redacted OBS log excerpt.
-
-Never upload TikTok cookies, RapidAPI keys, Streamlabs tokens, account identifiers or an unredacted OBS profile.
+OBS Studio plugin, Aitum Vertical Canvas, vertical canvas, TikTok LIVE, TikTok streaming, OBS TikTok output, Dual LIVE, portrait streaming, landscape streaming, RTMP, WEST Gaming.
