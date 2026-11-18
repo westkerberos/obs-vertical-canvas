@@ -4,7 +4,7 @@ A WEST Gaming-maintained fork of [Aitum Vertical Canvas](https://github.com/Aitu
 
 This repository is the WEST Gaming-maintained Vertical Canvas fork. It owns the TikTok destination, connection UI and runtime. The matching [Aitum Multistream fork](https://github.com/westkerberos/obs-aitum-multistream) is an optional wizard/dock bridge; it does not implement TikTok connectivity.
 
-> **Development status — 17 November 2026:** the TikTok integration is on [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), branch `feature/tiktok-native-output`. The default `main` branch does not contain these additions until the PR is merged. The TikTok integration has unresolved source-clearance issues: at least 24 files are identified as derived from GPL-3.0-only sources and are compiled into the GPL-2.0 Aitum-derived plugin, while device-registration code also cites a separate public source repository with no published license. See the [licensing review](docs/LICENSING-NOTES.md) and [file-level source inventory](docs/LICENSING-INVENTORY.md). Do not redistribute a combined binary until both issues are resolved. There is no GitHub Release for this fork yet. The current Windows x64 workflow produces test artifacts, not a stable public release.
+> **Development status — 18 November 2026:** the tested TikTok integration remains on [PR #1](https://github.com/westkerberos/obs-vertical-canvas/pull/1), branch `feature/tiktok-native-output`. The default `main` branch does not contain these additions until the PR is merged. The integrated source still has unresolved license/provenance blockers: at least 24 files are identified as derived from GPL-3.0-only sources and are compiled into the GPL-2.0 Aitum-derived plugin, while device-registration code also cites a separate public source repository with no published license. Do not distribute a combined binary. A separate [licensing-remediation branch](https://github.com/westkerberos/obs-vertical-canvas/tree/licensing-remediation) tracks the process-boundary experiment; its relay remains a protocol stub, and the MediaMTX transport candidate has not yet passed a runtime test. See the [licensing review](docs/LICENSING-NOTES.md) and [file-level source inventory](docs/LICENSING-INVENTORY.md). There is no GitHub Release for this fork yet.
 
 ## Who should use this fork
 
@@ -55,6 +55,10 @@ Dual LIVE requires an eligible TikTok account and supports LIVE Studio Desktop o
 - [What changed from upstream Aitum Vertical Canvas](docs/UPSTREAM-DIFFERENCES.md)
 - [Build, CI and runtime testing status](docs/BUILD-AND-TESTING.md)
 - [Third-party licensing review notes](docs/LICENSING-NOTES.md)
+- [Licensing architecture options](docs/LICENSING-ARCHITECTURE-OPTIONS.md)
+- [Relay implementation plan](docs/TIKTOK-REIMPLEMENTATION-PLAN.md)
+- [RTMP transport and security proof-of-concept](docs/RTMP-TRANSPORT-DECISION.md)
+- [File-level licensing inventory](docs/LICENSING-INVENTORY.md)
 - [Upstream translations guide](TRANSLATIONS.md)
 
 ## Requirements and current limitations
