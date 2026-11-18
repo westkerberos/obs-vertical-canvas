@@ -20,9 +20,9 @@ Each input line is one JSON object and each output line is one JSON response. Ev
 
 ## Process boundary being prototyped
 
-The target is a standalone executable with no libobs dependency. The intended architecture is:
+The target is a standalone executable with no libobs dependency. The selected media-transport experiment is FFmpeg's C API (`libavformat`) in RTMP listen/input mode, then RTMP output after the relay applies the TikTok packet transformation. This dependency is not linked or configured yet; see [the RTMP transport decision](../docs/RTMP-TRANSPORT-DECISION.md). The intended architecture is:
 - JSON control messages over stdin/stdout pipes.
-- Standard RTMP/FLV media over loopback once the media listener is implemented.
+- Standard RTMP/FLV media over loopback once the media listener is implemented; planned as two separate listeners for Dual LIVE.
 - No shared OBS C++ types, OBS objects, shared-memory video buffers or linked runtime libraries between the two programs.
 
 This boundary is a technical design candidate, not a legal guarantee. See [the architecture decision](../docs/LICENSING-ARCHITECTURE-OPTIONS.md) and [the implementation plan](../docs/TIKTOK-REIMPLEMENTATION-PLAN.md).
