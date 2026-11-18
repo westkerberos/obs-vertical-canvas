@@ -34,16 +34,17 @@ For an in-tree OBS build, follow the OBS plugin integration pattern already used
 
 The latest PR head built and packaged successfully for Windows x64:
 
-- Workflow: [#44164402230](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44164402230)
-- Commit: `1312b4ba1d1fc05cd69ec54afa5d7379f578fa7e`
-- Artifact: `vertical-canvas-1.6.7-windows-x64-188ed878a`
+- Workflow: [#44380938198](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/44380938198)
+- Commit: `ffe70d868e703524cb9d7bf48e9ddc6b8cdb4899`
+- Artifact: `vertical-canvas-1.6.7-windows-x64-9ed69d799`
+- Artifact SHA-256: `3e6a1c8026b418b651ee5c469ea0087eb51c7b60f9f6bb11792f549be8345f28`
 - Windows build job: success.
 - GitHub event-data validation: success.
 - Ubuntu/macOS build jobs: skipped by this fork's workflow.
 - Formatting jobs: skipped by the workflow configuration.
 - Signing: skipped because this fork does not have signing secrets configured.
 
-The artifact is a CI test package, not a GitHub Release or a supported automatic-update channel. Previous Windows ZIP inspections verified that the package carried the GPL-2.0, QR-code and TikTok third-party notice/license files. Re-inspect the current artifact before any public binary distribution.
+The artifact is a CI test package, not a GitHub Release or a supported automatic-update channel. The run compiled and packaged the Windows x64 plugin and passed the `west-tiktok-relay-control-protocol` smoke test. That test exercises JSON-lines protocol validation only. The helper still reports `rtmp_ingest=false`, `tiktok_session=false`, `request_signing=false` and `dual_live=false`; it does not carry media, connect to TikTok or implement signing. The existing Vertical Canvas module still compiles the TikTok-native source files listed in `TIKTOK_NATIVE_SOURCES`. Therefore this successful build does **not** establish a license-cleared process boundary or authorize a public binary release. Inspect the current artifact's license files and dependency contents before any future distribution.
 
 There is no GitHub Release published for this fork yet. GitHub Actions artifacts are temporary build outputs, not a stable release channel.
 
