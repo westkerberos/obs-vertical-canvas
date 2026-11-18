@@ -97,7 +97,7 @@ The practical source-level additions are the native TikTok client/session/signin
 
 ## Compatibility and release status
 
-The TikTok work is on the feature branch and open PR noted above. The default `main` branch does not contain it until the PR is merged. The repository had no GitHub Release at the time this document was updated (17 November 2026).
+The TikTok work is on the feature branch and open PR noted above. The default `main` branch does not contain it until the PR is merged. The repository had no GitHub Release at the time this document was updated (18 November 2026).
 
 The current CI workflow builds Windows x64. Linux/macOS jobs are not enabled in this fork, and Windows signing is skipped when signing secrets are unavailable. Do not advertise a broader operating-system support matrix without adding and testing those builds.
 
