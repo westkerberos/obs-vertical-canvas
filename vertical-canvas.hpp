@@ -65,6 +65,7 @@ class CanvasScenesDock;
 class CanvasSourcesDock;
 class CanvasTransitionsDock;
 class OBSProjector;
+class TikTokOutputSession;
 
 class StreamServer {
 public:
@@ -76,6 +77,10 @@ public:
 	std::string stream_server;
 	bool enabled = true;
 	bool stopping = false;
+	std::shared_ptr<TikTokOutputSession> tiktokSession;
+	std::string active_server;
+	std::string active_key;
+	std::string runtime_error;
 };
 
 class CanvasDock : public QFrame {
@@ -333,6 +338,7 @@ private:
 	void TryRemux(QString path);
 	void StartStreamOutput(std::vector<StreamServer>::iterator it);
 	void CreateStreamOutput(std::vector<StreamServer>::iterator it);
+	bool PrepareTikTokOutput(std::vector<StreamServer>::iterator it);
 
 	void StreamButtonMultiMenu(QMenu *menu);
 
