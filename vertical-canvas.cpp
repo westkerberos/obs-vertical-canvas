@@ -6222,9 +6222,10 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder()
 		// is owned by this Vertical output; no duplicate encoder is created.
 		struct EbcEncoderSearch {
 			video_t *canvas_video;
+			const char *canvas_name;
 			obs_encoder_t *encoder;
 		};
-		EbcEncoderSearch ebc_search{obs_canvas_get_video(canvas), nullptr};
+		EbcEncoderSearch ebc_search{obs_canvas_get_video(canvas), obs_canvas_get_name(canvas), nullptr};
 		obs_enum_outputs(
 			[](void *opaque, obs_output_t *output) {
 				auto *search = static_cast<EbcEncoderSearch *>(opaque);
@@ -6247,7 +6248,7 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder()
 						blog(LOG_INFO,
 						     "[Aitum Vertical] Reusing Twitch EBC encoder '%s' (%ux%u) for canvas '%s'",
 						     obs_encoder_get_name(encoder), obs_encoder_get_width(encoder),
-						     obs_encoder_get_height(encoder), obs_canvas_get_name(canvas));
+						     obs_encoder_get_height(encoder), search->canvas_name ? search->canvas_name : "(unnamed)");
 						return false;
 					}
 				}
