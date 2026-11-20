@@ -6428,7 +6428,7 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 	if (!video_encoder && useRecordEncoder && replayOutput) {
 		auto re = obs_output_get_video_encoder(replayOutput);
 		if (re && strcmp(enc_id, obs_encoder_get_id(re)) == 0) {
-			video_encoder = re;
+			video_encoder = obs_encoder_get_ref(re);
 		}
 	}
 	if (!video_encoder) {
