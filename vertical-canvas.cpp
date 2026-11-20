@@ -61,6 +61,12 @@ static bool IsTwitchEbcVerticalEncoderSelected(obs_data_t *settings)
 {
 	if (!settings)
 		return false;
+
+	// Keep compatibility with profiles saved by the previous checkbox-based UI.
+	if (obs_data_has_user_value(settings, "use_twitch_ebc_encoder") &&
+	    obs_data_get_bool(settings, "use_twitch_ebc_encoder"))
+		return true;
+
 	const char *selected_encoder = obs_data_get_string(settings, "video_encoder");
 	return selected_encoder && strcmp(selected_encoder, TWITCH_EBC_VERTICAL_ENCODER) == 0;
 }
