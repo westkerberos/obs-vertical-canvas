@@ -1758,16 +1758,8 @@ CanvasDock::~CanvasDock()
 			it->service = nullptr;
 			outputsToStop.push_back(it->output);
 		} else {
-			auto old_enc = obs_output_get_video_encoder(it->output);
 			obs_service_release(it->service);
-			for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
-				auto old_audio_enc = obs_output_get_audio_encoder(it->output, i);
-				if (old_audio_enc) {
-					obs_encoder_release(old_audio_enc);
-				}
-			}
 			obs_output_release(it->output);
-			obs_encoder_release(old_enc);
 		}
 		obs_data_release(it->settings);
 	}
@@ -1803,14 +1795,6 @@ CanvasDock::~CanvasDock()
 		for (auto output : outputsToStop) {
 			if (obs_output_active(output)) {
 				continue;
-			}
-			auto old_enc = obs_output_get_video_encoder(output);
-			obs_encoder_release(old_enc);
-			for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
-				auto old_audio_enc = obs_output_get_audio_encoder(output, i);
-				if (old_audio_enc) {
-					obs_encoder_release(old_audio_enc);
-				}
 			}
 			obs_output_release(output);
 			outputsToStop.remove(output);
@@ -6648,12 +6632,9 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 					     it->name.c_str());
 				auto old_enc = obs_output_get_video_encoder(it->output);
 				auto new_enc = GetStreamVideoEncoder();
-				if (old_enc != new_enc) {
+				if (old_enc != new_enc)
 					obs_output_set_video_encoder(it->output, new_enc);
-					obs_encoder_release(old_enc);
-				} else {
-					obs_encoder_release(new_enc);
-				}
+				obs_encoder_release(new_enc);
 			} else {
 				obs_data_t *s = nullptr;
 			auto ves = obs_data_get_obj(it->settings, "video_encoder_settings");
@@ -6703,12 +6684,9 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 					os_dlclose(handle);
 				}
 				auto old_enc = obs_output_get_video_encoder(it->output);
-				if (old_enc != venc) {
+				if (old_enc != venc)
 					obs_output_set_video_encoder(it->output, venc);
-					obs_encoder_release(old_enc);
-				} else {
-					obs_encoder_release(venc);
-				}
+				obs_encoder_release(venc);
 			}
 		}
 		auto aenc_name = obs_data_get_string(it->settings, "audio_encoder");
@@ -6716,12 +6694,9 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 			//use main encoder
 			auto old_enc = obs_output_get_audio_encoder(it->output, 0);
 			auto new_enc = GetStreamAudioEncoder();
-			if (old_enc != new_enc) {
+			if (old_enc != new_enc)
 				obs_output_set_audio_encoder(it->output, new_enc, 0);
-				obs_encoder_release(old_enc);
-			} else {
-				obs_encoder_release(new_enc);
-			}
+			obs_encoder_release(new_enc);
 		} else {
 			obs_data_t *s = nullptr;
 			auto aes = obs_data_get_obj(it->settings, "audio_encoder_settings");
@@ -6737,27 +6712,22 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 			obs_data_release(s);
 			obs_encoder_set_audio(aenc, obs_get_audio());
 			obs_output_set_audio_encoder(it->output, aenc, 0);
+			obs_encoder_release(aenc);
 		}
 	} else {
 		blog(LOG_INFO, "[Vertical Canvas] Start output '%s'", it->name.c_str());
 		if (!reused_twitch_ebc_encoder) {
 			auto old_enc = obs_output_get_video_encoder(it->output);
 			auto new_enc = GetStreamVideoEncoder();
-			if (old_enc != new_enc) {
+			if (old_enc != new_enc)
 				obs_output_set_video_encoder(it->output, new_enc);
-				obs_encoder_release(old_enc);
-			} else {
-				obs_encoder_release(new_enc);
-			}
+			obs_encoder_release(new_enc);
 		}
 		auto old_audio_enc = obs_output_get_audio_encoder(it->output, 0);
 		auto new_audio_enc = GetStreamAudioEncoder();
-		if (old_audio_enc != new_audio_enc) {
+		if (old_audio_enc != new_audio_enc)
 			obs_output_set_audio_encoder(it->output, new_audio_enc, 0);
-			obs_encoder_release(old_audio_enc);
-		} else {
-			obs_encoder_release(new_audio_enc);
-		}
+		obs_encoder_release(new_audio_enc);
 	}
 	it->stopping = false;
 	if (!obs_output_start(it->output)) {
@@ -6825,11 +6795,7 @@ void CanvasDock::CreateStreamOutput(std::vector<StreamServer>::iterator it)
 			if (obs_output_active(it->output)) {
 				obs_output_stop(it->output);
 			}
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			auto old_audio_enc = obs_output_get_audio_encoder(it->output, 0);
 			obs_output_release(it->output);
-			obs_encoder_release(old_enc);
-			obs_encoder_release(old_audio_enc);
 		}
 		std::string name = "vertical_canvas_stream";
 		if (!it->name.empty()) {
@@ -6995,14 +6961,10 @@ void CanvasDock::StartStream()
 		// Twitch EBC is not available or the destination opted out.
 		if (!video_encoder)
 			video_encoder = GetStreamVideoEncoder();
-		else
-			video_encoder = obs_encoder_get_ref(video_encoder);
-		auto old_encoder = obs_output_get_video_encoder(output);
-		if (old_encoder != video_encoder) {
-			obs_output_set_video_encoder(output, video_encoder);
-			obs_encoder_release(old_encoder);
-		} else {
-			obs_encoder_release(video_encoder);
+		if (video_encoder) {
+			auto old_encoder = obs_output_get_video_encoder(output);
+			if (old_encoder != video_encoder)
+				obs_output_set_video_encoder(output, video_encoder);
 		}
 	};
 	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
@@ -7079,24 +7041,18 @@ void CanvasDock::StartStream()
 				if (handle) {
 					os_dlclose(handle);
 				}
-				auto old_enc = obs_output_get_video_encoder(it->output);
 				obs_output_set_video_encoder(it->output, venc);
-				obs_encoder_release(old_enc);
+				obs_encoder_release(venc);
 			}
 			auto aenc_name = obs_data_get_string(it->settings, "audio_encoder");
 			if (!aenc_name || aenc_name[0] == '\0') {
 				//use main encoder
-				if (!audio_encoder) {
+				if (!audio_encoder)
 					audio_encoder = GetStreamAudioEncoder();
-				} else {
-					audio_encoder = obs_encoder_get_ref(audio_encoder);
-				}
-				auto old_enc = obs_output_get_audio_encoder(it->output, 0);
-				if (old_enc != audio_encoder) {
-					obs_output_set_audio_encoder(it->output, audio_encoder, 0);
-					obs_encoder_release(old_enc);
-				} else {
-					obs_encoder_release(audio_encoder);
+				if (audio_encoder) {
+					auto old_enc = obs_output_get_audio_encoder(it->output, 0);
+					if (old_enc != audio_encoder)
+						obs_output_set_audio_encoder(it->output, audio_encoder, 0);
 				}
 			} else {
 				obs_data_t *aes_apply = nullptr;
@@ -7112,28 +7068,27 @@ void CanvasDock::StartStream()
 								     obs_data_get_int(it->settings, "audio_track"), nullptr);
 				obs_data_release(aes_apply);
 				obs_encoder_set_audio(aenc, obs_get_audio());
-				auto old_enc = obs_output_get_audio_encoder(it->output, 0);
 				obs_output_set_audio_encoder(it->output, aenc, 0);
-				obs_encoder_release(old_enc);
+				obs_encoder_release(aenc);
 			}
 		} else {
 			blog(LOG_INFO, "[Vertical Canvas] Start output '%s'", it->name.c_str());
 			if (!try_set_twitch_ebc_encoder_for_output(it->output, it->settings))
 				set_video_encoder_for_output(it->output);
-			if (!audio_encoder) {
+			if (!audio_encoder)
 				audio_encoder = GetStreamAudioEncoder();
-			} else {
-				audio_encoder = obs_encoder_get_ref(audio_encoder);
-			}
-			auto old_enc = obs_output_get_audio_encoder(it->output, 0);
-			if (old_enc != audio_encoder) {
-				obs_output_set_audio_encoder(it->output, audio_encoder, 0);
-				obs_encoder_release(old_enc);
-			} else {
-				obs_encoder_release(audio_encoder);
+			if (audio_encoder) {
+				auto old_enc = obs_output_get_audio_encoder(it->output, 0);
+				if (old_enc != audio_encoder)
+					obs_output_set_audio_encoder(it->output, audio_encoder, 0);
 			}
 		}
 	}
+
+	if (video_encoder)
+		obs_encoder_release(video_encoder);
+	if (audio_encoder)
+		obs_encoder_release(audio_encoder);
 
 	SendVendorEvent("streaming_starting");
 
@@ -9137,12 +9092,8 @@ bool CanvasDock::LoadStreamOutputs(obs_data_array_t *outputs)
 			if (obs_output_active(it->output)) {
 				obs_output_stop(it->output);
 			}
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			auto old_audio_enc = obs_output_get_audio_encoder(it->output, 0);
 			obs_output_release(it->output);
 			obs_service_release(it->service);
-			obs_encoder_release(old_enc);
-			obs_encoder_release(old_audio_enc);
 			obs_data_release(it->settings);
 			it = streamOutputs.erase(it);
 		} else {
