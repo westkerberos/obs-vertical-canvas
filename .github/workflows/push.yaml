@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - main
+      - 'feature/twitch-ebc-encoder-reuse'
       - 'release/**'
     tags:
       - '*'
