@@ -15,6 +15,12 @@ The TikTok integration is being developed in [Pull Request #1](https://github.co
 
 The matching [WEST Gaming Aitum Multistream fork](https://github.com/westkerberos/obs-aitum-multistream) adds an optional configuration-wizard bridge. It is not a second TikTok runtime and the original OBS Multi-RTMP plugin is not required to be enabled.
 
+## Twitch Enhanced Broadcasting encoder reuse
+
+The combined development branch also supports the WEST Gaming Aitum Multistream Twitch Enhanced Broadcasting path. Vertical destinations can opt to reuse the negotiated portrait EBC encoder; when the EBC track is unavailable, Vertical Canvas falls back to an independent vertical encoder. Recording and replay keep their separate encoder paths.
+
+The TikTok-native session lifecycle remains enabled for both individual output starts and Start All, including dynamic TikTok ingest details and optional Dual LIVE.
+
 ## Important: do not treat the development branch as a release
 
 The current feature branch still contains third-party TikTok code with unresolved source-license compatibility and provenance questions. In particular, the audit found GPL-3.0-only-derived code compiled into the Aitum-derived GPL-2.0 OBS module, and a device-registration path whose cited source has no published license. The branch also contains an experimental relay protocol stub; that stub does **not** implement the TikTok session, RTMP transport, signing or Dual LIVE runtime.
