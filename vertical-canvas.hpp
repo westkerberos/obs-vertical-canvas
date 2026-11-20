@@ -406,7 +406,7 @@ private slots:
 	void StopVirtualCam();
 	void SetRecordAudioEncoders(obs_output_t *output);
 	obs_encoder_t *GetRecordVideoEncoder();
-	obs_encoder_t *GetStreamVideoEncoder(bool allow_twitch_ebc = false);
+	obs_encoder_t *GetStreamVideoEncoder(bool allow_ebc_encoder_reuse = false);
 	obs_encoder_t *GetStreamAudioEncoder();
 	void ShowNoReplayOutputError();
 	void StartRecord();
