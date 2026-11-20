@@ -6235,20 +6235,22 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 				const bool id_match = output_id && strcmp(output_id, "rtmp_output") == 0;
 				const bool name_match = output_name &&
 							strncmp(output_name, ebc_output_prefix, sizeof(ebc_output_prefix) - 1) == 0;
-				if (id_match || name_match) {
-					blog(LOG_INFO,
-					     "[Aitum Vertical] Inspecting possible Twitch EBC output '%s' (id=%s, id_match=%s, name_match=%s, active=%s)",
-					     output_name ? output_name : "(unnamed)", output_id ? output_id : "(no id)",
-					     id_match ? "true" : "false", name_match ? "true" : "false",
-					     obs_output_active(output) ? "true" : "false");
-				}
-				if (!id_match || !name_match)
-					return true;
-
-				search->matching_outputs++;
 				const bool output_active = obs_output_active(output);
+				if (!name_match) {
+					if (output_active)
+						blog(LOG_INFO, "[Aitum Vertical] Active OBS output during EBC search: '%s' (id=%s)",
+						     output_name ? output_name : "(unnamed)", output_id ? output_id : "(no id)");
+					return true;
+				}
+
+				// The Aitum EBC output name is our stable identifier. Log the
+				// OBS output id for diagnostics, but don't let it prevent a match.
+				blog(LOG_INFO,
+				     "[Aitum Vertical] Inspecting Twitch EBC output '%s' (id=%s, id_match=%s, active=%s)",
+				     output_name, output_id ? output_id : "(no id)",
+				     id_match ? "true" : "false", output_active ? "true" : "false");
 				blog(LOG_INFO, "[Aitum Vertical] Found Twitch EBC output '%s' (id=%s, active=%s)",
-				     output_name, output_id, output_active ? "true" : "false");
+				     output_name, output_id ? output_id : "(no id)", output_active ? "true" : "false");
 				if (!output_active)
 					return true;
 
