@@ -6920,7 +6920,7 @@ void CanvasDock::StartStream()
 			auto venc_name = obs_data_get_string(it->settings, "video_encoder");
 			if (!venc_name || venc_name[0] == '\0') {
 				//use main encoder
-			set_video_encoder_for_output(it->output, IsTwitchIngestServer(it->stream_server));
+				set_video_encoder_for_output(it->output, IsTwitchIngestServer(it->stream_server));
 			} else {
 				obs_data_t *ves_apply = nullptr;
 				auto ves = obs_data_get_obj(it->settings, "video_encoder_settings");
@@ -7014,7 +7014,7 @@ void CanvasDock::StartStream()
 			} else {
 				audio_encoder = obs_encoder_get_ref(audio_encoder);
 			}
-			old_enc = obs_output_get_audio_encoder(it->output, 0);
+			auto old_enc = obs_output_get_audio_encoder(it->output, 0);
 			if (old_enc != audio_encoder) {
 				obs_output_set_audio_encoder(it->output, audio_encoder, 0);
 				obs_encoder_release(old_enc);
