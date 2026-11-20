@@ -6190,6 +6190,52 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_twitch_ebc)
 	config_t *config = obs_frontend_get_profile_config();
 	const char *mode = config_get_string(config, "Output", "Mode");
 
+	// Only the Twitch destination may reuse a Twitch-negotiated encoder.
+	// TikTok and every other vertical destination retain their existing encoder path.
+	if (allow_twitch_ebc) {
+		// Aitum Multistream's Twitch Enhanced Broadcasting output is a regular OBS output.
+		// Locate its already-negotiated encoder by the output's stable internal name and
+		// match the encoder's input video to this canvas. The returned encoder reference
+		// is owned by this Vertical output; no duplicate encoder is created.
+		struct EbcEncoderSearch {
+			video_t *canvas_video;
+			const char *canvas_name;
+			obs_encoder_t *encoder;
+		};
+		EbcEncoderSearch ebc_search{obs_canvas_get_video(canvas), obs_canvas_get_name(canvas), nullptr};
+		obs_enum_outputs(
+			[](void *opaque, obs_output_t *output) {
+				auto *search = static_cast<EbcEncoderSearch *>(opaque);
+				if (!search->canvas_video || !obs_output_active(output))
+					return true;
+
+				const char *output_id = obs_output_get_id(output);
+				const char *output_name = obs_output_get_name(output);
+				static constexpr char ebc_output_prefix[] = "aitum_multi_ebc_output_";
+				if (!output_id || strcmp(output_id, "rtmp_output") != 0 || !output_name ||
+				    strncmp(output_name, ebc_output_prefix, sizeof(ebc_output_prefix) - 1) != 0)
+					return true;
+
+				for (size_t index = 0; index < MAX_OUTPUT_VIDEO_ENCODERS; ++index) {
+					// obs_output_get_video_encoder2 returns a borrowed pointer.
+					obs_encoder_t *encoder = obs_output_get_video_encoder2(output, index);
+					if (encoder && obs_encoder_active(encoder) &&
+					    obs_encoder_video(encoder) == search->canvas_video) {
+						search->encoder = obs_encoder_get_ref(encoder);
+						blog(LOG_INFO,
+						     "[Aitum Vertical] Reusing Twitch EBC encoder '%s' (%ux%u) for canvas '%s'",
+						     obs_encoder_get_name(encoder), obs_encoder_get_width(encoder),
+						     obs_encoder_get_height(encoder), search->canvas_name ? search->canvas_name : "(unnamed)");
+						return false;
+					}
+				}
+				return true;
+			},
+			&ebc_search);
+		if (ebc_search.encoder)
+			return ebc_search.encoder;
+	}
+
 	if (stream_advanced_settings) {
 		video_settings = stream_encoder_settings;
 		obs_data_addref(video_settings);
@@ -6223,51 +6269,7 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_twitch_ebc)
 				}
 			}
 		}
-		// Only the Twitch destination may reuse a Twitch-negotiated encoder.
-		// TikTok and every other vertical destination retain their existing encoder path.
-		if (allow_twitch_ebc) {
-			// Aitum Multistream's Twitch Enhanced Broadcasting output is a regular OBS output.
-			// Locate its already-negotiated encoder by the output's stable internal name and
-			// match the encoder's input video to this canvas. The returned encoder reference
-			// is owned by this Vertical output; no duplicate encoder is created.
-			struct EbcEncoderSearch {
-				video_t *canvas_video;
-				const char *canvas_name;
-				obs_encoder_t *encoder;
-			};
-			EbcEncoderSearch ebc_search{obs_canvas_get_video(canvas), obs_canvas_get_name(canvas), nullptr};
-			obs_enum_outputs(
-				[](void *opaque, obs_output_t *output) {
-					auto *search = static_cast<EbcEncoderSearch *>(opaque);
-					if (!search->canvas_video || !obs_output_active(output))
-						return true;
-	
-					const char *output_id = obs_output_get_id(output);
-					const char *output_name = obs_output_get_name(output);
-					static constexpr char ebc_output_prefix[] = "aitum_multi_ebc_output_";
-					if (!output_id || strcmp(output_id, "rtmp_output") != 0 || !output_name ||
-					    strncmp(output_name, ebc_output_prefix, sizeof(ebc_output_prefix) - 1) != 0)
-						return true;
-	
-					for (size_t index = 0; index < MAX_OUTPUT_VIDEO_ENCODERS; ++index) {
-						// obs_output_get_video_encoder2 returns a borrowed pointer.
-						obs_encoder_t *encoder = obs_output_get_video_encoder2(output, index);
-						if (encoder && obs_encoder_active(encoder) &&
-						    obs_encoder_video(encoder) == search->canvas_video) {
-							search->encoder = obs_encoder_get_ref(encoder);
-							blog(LOG_INFO,
-							     "[Aitum Vertical] Reusing Twitch EBC encoder '%s' (%ux%u) for canvas '%s'",
-							     obs_encoder_get_name(encoder), obs_encoder_get_width(encoder),
-							     obs_encoder_get_height(encoder), search->canvas_name ? search->canvas_name : "(unnamed)");
-							return false;
-						}
-					}
-					return true;
-				},
-				&ebc_search);
-			if (ebc_search.encoder)
-				return ebc_search.encoder;
-		}
+
 
 		if (strcmp(mode, "Advanced") == 0) {
 			video_settings = GetDataFromJsonFile("streamEncoder.json");
