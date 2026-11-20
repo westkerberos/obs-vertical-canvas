@@ -6216,6 +6216,23 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder()
 				}
 			}
 		}
+		// The native OBS EBC path exposes its canvas encoders through the main streaming output.
+		// Our EBC output lives in Aitum Multistream, so query its public OBS proc-handler bridge
+		// before falling back to creating a separate encoder for this canvas.
+		calldata_t ebc_params = {0};
+		calldata_set_ptr(&ebc_params, "canvas_video", obs_canvas_get_video(canvas));
+		proc_handler_t *proc = obs_get_proc_handler();
+		if (proc && proc_handler_call(proc, "aitum_multistream_get_twitch_ebc_encoder", &ebc_params)) {
+			auto ebc_encoder = static_cast<obs_encoder_t *>(calldata_ptr(&ebc_params, "encoder"));
+			if (ebc_encoder) {
+				blog(LOG_INFO, "[Aitum Vertical] Reusing Twitch Enhanced Broadcasting encoder for canvas '%s'",
+				     obs_canvas_get_name(canvas));
+				calldata_free(&ebc_params);
+				return ebc_encoder; // Returned with a reference by Aitum Multistream.
+			}
+		}
+		calldata_free(&ebc_params);
+
 		if (strcmp(mode, "Advanced") == 0) {
 			video_settings = GetDataFromJsonFile("streamEncoder.json");
 			enc_id = config_get_string(config, "AdvOut", "Encoder");
