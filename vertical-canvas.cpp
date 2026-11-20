@@ -6690,13 +6690,13 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 				obs_encoder_release(new_enc);
 			}
 		}
-		auto old_enc = obs_output_get_audio_encoder(it->output, 0);
-		new_enc = GetStreamAudioEncoder();
-		if (old_enc != new_enc) {
-			obs_output_set_audio_encoder(it->output, new_enc, 0);
-			obs_encoder_release(old_enc);
+		auto old_audio_enc = obs_output_get_audio_encoder(it->output, 0);
+		auto new_audio_enc = GetStreamAudioEncoder();
+		if (old_audio_enc != new_audio_enc) {
+			obs_output_set_audio_encoder(it->output, new_audio_enc, 0);
+			obs_encoder_release(old_audio_enc);
 		} else {
-			obs_encoder_release(new_enc);
+			obs_encoder_release(new_audio_enc);
 		}
 	}
 	it->stopping = false;
