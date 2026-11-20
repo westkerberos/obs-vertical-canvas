@@ -21,6 +21,8 @@ The combined development branch also supports the WEST Gaming Aitum Multistream 
 
 The TikTok-native session lifecycle remains enabled for both individual output starts and Start All, including dynamic TikTok ingest details and optional Dual LIVE.
 
+The combined development branch also contains explicit C++20 lambda captures and Qt-safe QJsonArray iteration for strict Linux/macOS compiler configurations.
+
 ## Important: do not treat the development branch as a release
 
 The current feature branch still contains third-party TikTok code with unresolved source-license compatibility and provenance questions. In particular, the audit found GPL-3.0-only-derived code compiled into the Aitum-derived GPL-2.0 OBS module, and a device-registration path whose cited source has no published license. The branch also contains an experimental relay protocol stub; that stub does **not** implement the TikTok session, RTMP transport, signing or Dual LIVE runtime.
