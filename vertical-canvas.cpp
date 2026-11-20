@@ -6400,11 +6400,21 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 	}
 
 	obs_encoder_t *se = nullptr;
+	static constexpr char ebc_encoder_prefix[] = "aitum_twitch_ebc_video_";
 	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
-		se = obs_output_get_video_encoder(it->output);
-		if (se) {
-			break;
+		auto candidate = obs_output_get_video_encoder(it->output);
+		if (!candidate)
+			continue;
+
+		const char *candidate_name = obs_encoder_get_name(candidate);
+		if (candidate_name &&
+		    strncmp(candidate_name, ebc_encoder_prefix, sizeof(ebc_encoder_prefix) - 1) == 0) {
+			// A destination explicitly using the independent vertical encoder
+			// must never inherit or reconfigure a Twitch EBC grouped track.
+			continue;
 		}
+		se = candidate;
+		break;
 	}
 	if (se && strcmp(enc_id, obs_encoder_get_id(se)) == 0) {
 		video_encoder = obs_encoder_get_ref(se);
