@@ -55,6 +55,15 @@ OBS_MODULE_USE_DEFAULT_LOCALE("vertical-canvas", "en-US")
 
 #define CANVAS_NAME "Aitum Vertical"
 
+static bool ShouldReuseTwitchEbcEncoder(obs_data_t *settings)
+{
+	// Existing vertical outputs default to the shared Twitch EBC encoder.
+	// The explicit false value is the opt-out for destinations that need a
+	// separate video profile.
+	return !settings || !obs_data_has_user_value(settings, "use_twitch_ebc_encoder") ||
+	       obs_data_get_bool(settings, "use_twitch_ebc_encoder");
+}
+
 inline std::list<CanvasDock *> canvas_docks;
 
 void clear_canvas_docks()
@@ -6195,8 +6204,9 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 			video_t *canvas_video;
 			const char *canvas_name;
 			obs_encoder_t *encoder;
+			uint64_t pixels;
 		};
-		EbcEncoderSearch ebc_search{obs_canvas_get_video(canvas), obs_canvas_get_name(canvas), nullptr};
+		EbcEncoderSearch ebc_search{obs_canvas_get_video(canvas), obs_canvas_get_name(canvas), nullptr, 0};
 		obs_enum_outputs(
 			[](void *opaque, obs_output_t *output) {
 				auto *search = static_cast<EbcEncoderSearch *>(opaque);
@@ -6213,21 +6223,36 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 				for (size_t index = 0; index < MAX_OUTPUT_VIDEO_ENCODERS; ++index) {
 					// obs_output_get_video_encoder2 returns a borrowed pointer.
 					obs_encoder_t *encoder = obs_output_get_video_encoder2(output, index);
-					if (encoder && obs_encoder_active(encoder) &&
-					    obs_encoder_video(encoder) == search->canvas_video) {
+					if (!encoder || !obs_encoder_active(encoder) ||
+					    obs_encoder_video(encoder) != search->canvas_video)
+						continue;
+
+					const uint64_t pixels = (uint64_t)obs_encoder_get_width(encoder) *
+								obs_encoder_get_height(encoder);
+					// Twitch can negotiate multiple renditions for the same
+					// canvas. Always reuse the highest-resolution vertical one.
+					if (pixels > search->pixels) {
+						if (search->encoder)
+							obs_encoder_release(search->encoder);
 						search->encoder = obs_encoder_get_ref(encoder);
-						blog(LOG_INFO,
-						     "[Aitum Vertical] Reusing Twitch EBC encoder '%s' (%ux%u) for canvas '%s'",
-						     obs_encoder_get_name(encoder), obs_encoder_get_width(encoder),
-						     obs_encoder_get_height(encoder), search->canvas_name ? search->canvas_name : "(unnamed)");
-						return false;
+						search->pixels = pixels;
 					}
 				}
 				return true;
 			},
 			&ebc_search);
-		if (ebc_search.encoder)
+		if (ebc_search.encoder) {
+			blog(LOG_INFO,
+			     "[Aitum Vertical] Reusing highest-resolution Twitch EBC encoder '%s' (%ux%u) for canvas '%s'",
+			     obs_encoder_get_name(ebc_search.encoder), obs_encoder_get_width(ebc_search.encoder),
+			     obs_encoder_get_height(ebc_search.encoder),
+			     ebc_search.canvas_name ? ebc_search.canvas_name : "(unnamed)");
 			return ebc_search.encoder;
+		}
+		blog(LOG_WARNING,
+		     "[Aitum Vertical] Twitch EBC encoder reuse was requested for canvas '%s', but no active matching encoder was found",
+		     ebc_search.canvas_name ? ebc_search.canvas_name : "(unnamed)");
+		return nullptr;
 	}
 
 	if (stream_advanced_settings) {
@@ -6541,21 +6566,36 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 {
 	CreateStreamOutput(it);
 	const bool started_video = StartVideo();
+	bool reused_twitch_ebc_encoder = false;
+	if (ShouldReuseTwitchEbcEncoder(it->settings)) {
+		auto ebc_encoder = GetStreamVideoEncoder(true);
+		if (ebc_encoder) {
+			auto old_encoder = obs_output_get_video_encoder(it->output);
+			if (old_encoder != ebc_encoder) {
+				obs_output_set_video_encoder(it->output, ebc_encoder);
+				obs_encoder_release(old_encoder);
+			} else {
+				obs_encoder_release(ebc_encoder);
+			}
+			reused_twitch_ebc_encoder = true;
+		}
+	}
 	if (it->settings && obs_data_get_bool(it->settings, "advanced") && obs_get_module("aitum-multistream")) {
 		blog(LOG_INFO, "[Vertical Canvas] Start output '%s' with multistream advanced settings", it->name.c_str());
 		auto venc_name = obs_data_get_string(it->settings, "video_encoder");
-		if (!venc_name || venc_name[0] == '\0') {
-			//use main encoder
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			auto new_enc = GetStreamVideoEncoder(true);
-			if (old_enc != new_enc) {
-				obs_output_set_video_encoder(it->output, new_enc);
-				obs_encoder_release(old_enc);
+		if (!reused_twitch_ebc_encoder) {
+			if (!venc_name || venc_name[0] == '\0') {
+				//use the regular vertical stream encoder when no EBC encoder is available.
+				auto old_enc = obs_output_get_video_encoder(it->output);
+				auto new_enc = GetStreamVideoEncoder();
+				if (old_enc != new_enc) {
+					obs_output_set_video_encoder(it->output, new_enc);
+					obs_encoder_release(old_enc);
+				} else {
+					obs_encoder_release(new_enc);
+				}
 			} else {
-				obs_encoder_release(new_enc);
-			}
-		} else {
-			obs_data_t *s = nullptr;
+				obs_data_t *s = nullptr;
 			auto ves = obs_data_get_obj(it->settings, "video_encoder_settings");
 			if (ves) {
 				s = obs_data_create();
@@ -6599,15 +6639,16 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 				}
 				//obs_encoder_set_gpu_scale_type(venc, (obs_scale_type)obs_data_get_int(it->settings, "scale_type"));
 			}
-			if (handle) {
-				os_dlclose(handle);
-			}
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			if (old_enc != venc) {
-				obs_output_set_video_encoder(it->output, venc);
-				obs_encoder_release(old_enc);
-			} else {
-				obs_encoder_release(venc);
+				if (handle) {
+					os_dlclose(handle);
+				}
+				auto old_enc = obs_output_get_video_encoder(it->output);
+				if (old_enc != venc) {
+					obs_output_set_video_encoder(it->output, venc);
+					obs_encoder_release(old_enc);
+				} else {
+					obs_encoder_release(venc);
+				}
 			}
 		}
 		auto aenc_name = obs_data_get_string(it->settings, "audio_encoder");
@@ -6639,15 +6680,17 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 		}
 	} else {
 		blog(LOG_INFO, "[Vertical Canvas] Start output '%s'", it->name.c_str());
-		auto old_enc = obs_output_get_video_encoder(it->output);
-		auto new_enc = GetStreamVideoEncoder(true);
-		if (old_enc != new_enc) {
-			obs_output_set_video_encoder(it->output, new_enc);
-			obs_encoder_release(old_enc);
-		} else {
-			obs_encoder_release(new_enc);
+		if (!reused_twitch_ebc_encoder) {
+			auto old_enc = obs_output_get_video_encoder(it->output);
+			auto new_enc = GetStreamVideoEncoder();
+			if (old_enc != new_enc) {
+				obs_output_set_video_encoder(it->output, new_enc);
+				obs_encoder_release(old_enc);
+			} else {
+				obs_encoder_release(new_enc);
+			}
 		}
-		old_enc = obs_output_get_audio_encoder(it->output, 0);
+		auto old_enc = obs_output_get_audio_encoder(it->output, 0);
 		new_enc = GetStreamAudioEncoder();
 		if (old_enc != new_enc) {
 			obs_output_set_audio_encoder(it->output, new_enc, 0);
@@ -6871,12 +6914,26 @@ void CanvasDock::StartStream()
 	obs_encoder_t *video_encoder = nullptr;
 	obs_encoder_t *audio_encoder = nullptr;
 	const bool started_video = StartVideo();
+	auto try_set_twitch_ebc_encoder_for_output = [this](obs_output_t *output, obs_data_t *settings) {
+		if (!ShouldReuseTwitchEbcEncoder(settings))
+			return false;
+		auto ebc_encoder = GetStreamVideoEncoder(true);
+		if (!ebc_encoder)
+			return false;
+		auto old_encoder = obs_output_get_video_encoder(output);
+		if (old_encoder != ebc_encoder) {
+			obs_output_set_video_encoder(output, ebc_encoder);
+			obs_encoder_release(old_encoder);
+		} else {
+			obs_encoder_release(ebc_encoder);
+		}
+		return true;
+	};
 	auto set_video_encoder_for_output = [this, &video_encoder](obs_output_t *output) {
-		// Resolve the vertical stream encoder once. If Twitch EBC is already active,
-		// every default vertical destination receives that exact encoder reference.
-		// Otherwise, all default destinations share the normal vertical encoder.
+		// All ordinary vertical destinations share one fallback encoder when
+		// Twitch EBC is not available or the destination opted out.
 		if (!video_encoder)
-			video_encoder = GetStreamVideoEncoder(true);
+			video_encoder = GetStreamVideoEncoder();
 		else
 			video_encoder = obs_encoder_get_ref(video_encoder);
 		auto old_encoder = obs_output_get_video_encoder(output);
@@ -6904,11 +6961,13 @@ void CanvasDock::StartStream()
 		CreateStreamOutput(it);
 		if (it->settings && obs_data_get_bool(it->settings, "advanced") && obs_get_module("aitum-multistream")) {
 			blog(LOG_INFO, "[Vertical Canvas] Start output '%s' with multistream advanced settings", it->name.c_str());
+			const bool reused_twitch_ebc_encoder =
+				try_set_twitch_ebc_encoder_for_output(it->output, it->settings);
 			auto venc_name = obs_data_get_string(it->settings, "video_encoder");
-			if (!venc_name || venc_name[0] == '\0') {
-				//use main encoder
+			if (!reused_twitch_ebc_encoder && (!venc_name || venc_name[0] == '\0')) {
+				//use the regular vertical encoder when EBC is unavailable.
 				set_video_encoder_for_output(it->output);
-			} else {
+			} else if (!reused_twitch_ebc_encoder) {
 				obs_data_t *ves_apply = nullptr;
 				auto ves = obs_data_get_obj(it->settings, "video_encoder_settings");
 				if (ves) {
@@ -6995,7 +7054,8 @@ void CanvasDock::StartStream()
 			}
 		} else {
 			blog(LOG_INFO, "[Vertical Canvas] Start output '%s'", it->name.c_str());
-			set_video_encoder_for_output(it->output);
+			if (!try_set_twitch_ebc_encoder_for_output(it->output, it->settings))
+				set_video_encoder_for_output(it->output);
 			if (!audio_encoder) {
 				audio_encoder = GetStreamAudioEncoder();
 			} else {
