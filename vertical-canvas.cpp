@@ -6226,8 +6226,17 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 				const char *output_id = obs_output_get_id(output);
 				const char *output_name = obs_output_get_name(output);
 				static constexpr char ebc_output_prefix[] = "aitum_multi_ebc_output_";
-				if (!output_id || strcmp(output_id, "rtmp_output") != 0 || !output_name ||
-				    strncmp(output_name, ebc_output_prefix, sizeof(ebc_output_prefix) - 1) != 0)
+				const bool id_match = output_id && strcmp(output_id, "rtmp_output") == 0;
+				const bool name_match = output_name &&
+							strncmp(output_name, ebc_output_prefix, sizeof(ebc_output_prefix) - 1) == 0;
+				if (id_match || name_match) {
+					blog(LOG_INFO,
+					     "[Aitum Vertical] Inspecting possible Twitch EBC output '%s' (id=%s, id_match=%s, name_match=%s, active=%s)",
+					     output_name ? output_name : "(unnamed)", output_id ? output_id : "(no id)",
+					     id_match ? "true" : "false", name_match ? "true" : "false",
+					     obs_output_active(output) ? "true" : "false");
+				}
+				if (!id_match || !name_match)
 					return true;
 
 				search->matching_outputs++;
