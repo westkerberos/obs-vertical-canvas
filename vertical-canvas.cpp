@@ -6630,7 +6630,8 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 			auto old_encoder = obs_output_get_video_encoder(it->output);
 			if (old_encoder != ebc_encoder) {
 				obs_output_set_video_encoder(it->output, ebc_encoder);
-				obs_encoder_release(old_encoder);
+				// The output takes its own reference; release this temporary one.
+				obs_encoder_release(ebc_encoder);
 			} else {
 				obs_encoder_release(ebc_encoder);
 			}
@@ -6982,7 +6983,8 @@ void CanvasDock::StartStream()
 		auto old_encoder = obs_output_get_video_encoder(output);
 		if (old_encoder != ebc_encoder) {
 			obs_output_set_video_encoder(output, ebc_encoder);
-			obs_encoder_release(old_encoder);
+			// The output takes its own reference; release this temporary one.
+			obs_encoder_release(ebc_encoder);
 		} else {
 			obs_encoder_release(ebc_encoder);
 		}
