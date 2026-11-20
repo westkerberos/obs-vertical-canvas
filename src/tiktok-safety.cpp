@@ -139,7 +139,7 @@ class SafetyDialog : public QDialog {
             QStringList text{QString("Status: %1").arg(state_.status), TikTokViolationSummary(state_.record)};
             const auto liveTitle = state_.record.value("live_info").toObject().value("title").toString();
             if (!liveTitle.isEmpty()) text << "LIVE: " + liveTitle;
-            for (const auto& reason : state_.detail.value("violation_reason").toArray()) if (reason.isString()) text << reason.toString();
+            for (const auto reason : state_.detail.value("violation_reason").toArray()) if (reason.isString()) text << reason.toString();
             const auto feature = state_.detail.value("subfeature_name").toString(); if (!feature.isEmpty()) text << "Affected feature: " + feature;
             details_->setPlainText(text.join('\n'));
             eligibility_->setText(state_.reason.isEmpty() ? "Choose a reason and submit to request a review." : state_.reason);
