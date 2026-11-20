@@ -6873,7 +6873,7 @@ void CanvasDock::StartStream()
 		return;
 	}
 
-obs_encoder_t *video_encoder = nullptr;
+	obs_encoder_t *video_encoder = nullptr;
 	obs_encoder_t *audio_encoder = nullptr;
 	const bool started_video = StartVideo();
 	auto set_video_encoder_for_output = [this, &video_encoder](obs_output_t *output, bool use_twitch_ebc) {
@@ -6921,13 +6921,6 @@ obs_encoder_t *video_encoder = nullptr;
 			if (!venc_name || venc_name[0] == '\0') {
 				//use main encoder
 			set_video_encoder_for_output(it->output, IsTwitchIngestServer(it->stream_server));
-				auto old_enc = obs_output_get_video_encoder(it->output);
-				if (old_enc != video_encoder) {
-					obs_output_set_video_encoder(it->output, video_encoder);
-					obs_encoder_release(old_enc);
-				} else {
-					obs_encoder_release(video_encoder);
-				}
 			} else {
 				obs_data_t *ves_apply = nullptr;
 				auto ves = obs_data_get_obj(it->settings, "video_encoder_settings");
@@ -7016,13 +7009,6 @@ obs_encoder_t *video_encoder = nullptr;
 		} else {
 			blog(LOG_INFO, "[Vertical Canvas] Start output '%s'", it->name.c_str());
 			set_video_encoder_for_output(it->output, IsTwitchIngestServer(it->stream_server));
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			if (old_enc != video_encoder) {
-				obs_output_set_video_encoder(it->output, video_encoder);
-				obs_encoder_release(old_enc);
-			} else {
-				obs_encoder_release(video_encoder);
-			}
 			if (!audio_encoder) {
 				audio_encoder = GetStreamAudioEncoder();
 			} else {
