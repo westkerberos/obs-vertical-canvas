@@ -7280,7 +7280,7 @@ void CanvasDock::stream_output_start(void *data, calldata_t *calldata)
 	auto d = static_cast<CanvasDock *>(data);
 	d->SendVendorEvent("streaming_started");
 	d->CheckReplayBuffer(true);
-	QMetaObject::invokeMethod(d, "OnStreamStart");
+	QMetaObject::invokeMethod(d, "OnStreamStart", Qt::QueuedConnection);
 }
 
 void CanvasDock::stream_output_stop(void *data, calldata_t *calldata)
@@ -7305,8 +7305,8 @@ void CanvasDock::stream_output_stop(void *data, calldata_t *calldata)
 		}
 	}
 
-	QMetaObject::invokeMethod(d, "OnStreamStop", Q_ARG(int, code), Q_ARG(QString, arg_last_error),
-				  Q_ARG(QString, stream_server), Q_ARG(QString, stream_key));
+	QMetaObject::invokeMethod(d, "OnStreamStop", Qt::QueuedConnection, Q_ARG(int, code),
+				  Q_ARG(QString, arg_last_error), Q_ARG(QString, stream_server), Q_ARG(QString, stream_key));
 }
 
 void CanvasDock::DestroyVideo()
