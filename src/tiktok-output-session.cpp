@@ -237,21 +237,25 @@ struct TikTokOutputSession::DualFeedState {
     static void LandscapeStopped(void *opaque, calldata_t *data)
     {
         auto state = static_cast<DualFeedState *>(opaque);
-        if (!state || state->stopping || !state->primaryOutput)
+        if (!state || state->stopping)
             return;
 
         const int code = static_cast<int>(calldata_int(data, "code"));
         const char *detail = state->landscapeOutput ? obs_output_get_last_error(state->landscapeOutput) : nullptr;
         const QString message = detail && *detail ? QString::fromUtf8(detail)
             : QString("TikTok landscape feed stopped (OBS code %1).").arg(code);
-        auto primary = obs_output_get_ref(state->primaryOutput);
-        QMetaObject::invokeMethod(QCoreApplication::instance(), [primary, message] {
-            if (!primary)
-                return;
-            obs_output_set_last_error(primary, message.toUtf8().constData());
-            obs_output_force_stop(primary);
-            obs_output_release(primary);
-        }, Qt::QueuedConnection);
+        const QByteArray messageUtf8 = message.toUtf8();
+
+        // The landscape RTMP feed can stop independently (for example, after
+        // an ingest disconnect). Do not force-stop the portrait output here:
+        // that would turn a secondary-feed failure into an explicit TikTok LIVE
+        // end request and can re-enter the session teardown while OBS is handling
+        // the RTMP stop callback. The portrait feed remains the owning output;
+        // an intentional user stop reaches DualFeedState::Stop(), which sets
+        // stopping before it stops this secondary output.
+        blog(LOG_WARNING,
+             "[Vertical Canvas] TikTok landscape feed stopped (OBS code %d); keeping portrait feed active: %s",
+             code, messageUtf8.constData());
     }
 
     bool Create(const TikTokOutputConfig &config, obs_output_t *primary, QString *error)
