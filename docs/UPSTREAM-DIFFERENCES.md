@@ -7,7 +7,7 @@ This file separates the inherited Vertical Canvas project from the TikTok functi
 - Upstream project: [Aitum/obs-vertical-canvas](https://github.com/Aitum/obs-vertical-canvas)
 - WEST Gaming fork: [westkerberos/obs-vertical-canvas](https://github.com/westkerberos/obs-vertical-canvas)
 - TikTok integration PR: [#1 — Integrate TikTok LIVE into Vertical Canvas outputs](https://github.com/westkerberos/obs-vertical-canvas/pull/1)
-- Development branch: `feature/tiktok-native-output`
+- Development branch: `feature/tiktok-native-ebc-combined` (combined TikTok + Twitch EBC encoder reuse; PR #6)
 
 The fork retains the Vertical Canvas plugin and adds a TikTok output provider/runtime inside the same Vertical Canvas module. It does not replace the existing canvas/scene product with an unrelated streaming engine.
 
@@ -91,13 +91,13 @@ There is no separate Multi-RTMP plugin in the maintained product architecture. E
 
 The repository is a fork of [Aitum/obs-vertical-canvas](https://github.com/Aitum/obs-vertical-canvas). The feature branch is not yet merged into the WEST Gaming `main` branch. The current Windows x64 build/test status and artifact are maintained in [Build and verification](BUILD-AND-TESTING.md).
 
-The exact changed-file, addition and deletion totals are intentionally not duplicated here because they change as the PR is updated. Use the live [PR #1 Files view](https://github.com/westkerberos/obs-vertical-canvas/pull/1/files) for current totals. Those PR-level totals are not a claim that every changed line is newly authored by WEST Gaming: the branch retains upstream Aitum code and includes third-party adaptations. The source-provenance and licensing sections below distinguish those contributions.
+The exact changed-file, addition and deletion totals are intentionally not duplicated here because they change as the PR is updated. Use the live [PR #6 Files view](https://github.com/westkerberos/obs-vertical-canvas/pull/6/files) for current totals. Those PR-level totals are not a claim that every changed line is newly authored by WEST Gaming: the branch retains upstream Aitum code and includes third-party adaptations. The source-provenance and licensing sections below distinguish those contributions.
 
 The practical source-level additions are the native TikTok client/session/signing/safety modules, connection and account widgets, Streamlabs helpers, dual-layout controls/output session, localization, build dependencies and the companion Multistream configuration bridge. The existing canvas/scene plugin remains the upstream foundation.
 
 ## Compatibility and release status
 
-The TikTok work is on the feature branch and open PR noted above. The default `main` branch does not contain it until the PR is merged. The repository had no GitHub Release at the time this document was updated (18 November 2026).
+The combined TikTok + Twitch EBC encoder-reuse work is on `feature/tiktok-native-ebc-combined`, PR #6 (open draft). The default `main` branch does not contain it until the PR is merged. The matching Aitum Multistream EBC branch is `feature/aitum-twitch-enhanced-broadcasting`, PR #2. Neither fork has a stable WEST Gaming GitHub Release. See [the complete stack source of truth](WEST-GAMING-STREAMING-STACK.md) for the current version and test matrix.
 
 The current CI workflow builds Windows x64. Linux/macOS jobs are not enabled in this fork, and Windows signing is skipped when signing secrets are unavailable. Do not advertise a broader operating-system support matrix without adding and testing those builds.
 
