@@ -525,6 +525,11 @@ void TikTokOutputSession::CancelPreparation()
 
 void TikTokOutputSession::Stop()
 {
+    // Stop may be re-entered while TikTokLiveSession::Stop() pumps Qt events.
+    // Only the first caller may tear down the dual-feed and live-session state.
+    if (stopping_.exchange(true, std::memory_order_acq_rel))
+        return;
+
     if (dual_)
         dual_->Stop();
     if (liveStudio_) {
