@@ -7278,35 +7278,51 @@ void CanvasDock::stream_output_start(void *data, calldata_t *calldata)
 {
 	UNUSED_PARAMETER(calldata);
 	auto d = static_cast<CanvasDock *>(data);
-	d->SendVendorEvent("streaming_started");
-	d->CheckReplayBuffer(true);
-	QMetaObject::invokeMethod(d, "OnStreamStart", Qt::QueuedConnection);
+	QMetaObject::invokeMethod(d, [d] {
+		d->SendVendorEvent("streaming_started");
+		d->CheckReplayBuffer(true);
+		d->OnStreamStart();
+	}, Qt::QueuedConnection);
 }
 
 void CanvasDock::stream_output_stop(void *data, calldata_t *calldata)
 {
 	const char *last_error = (const char *)calldata_ptr(calldata, "last_error");
-	QString arg_last_error = QString::fromUtf8(last_error);
+	const QString arg_last_error = QString::fromUtf8(last_error ? last_error : "");
 	const int code = (int)calldata_int(calldata, "code");
 	auto d = static_cast<CanvasDock *>(data);
-	const auto e = obs_data_create();
-	obs_data_set_int(e, "code", code);
-	obs_data_set_string(e, "last_error", last_error ? last_error : "");
-	d->SendVendorEvent("streaming_stopped", e);
-	obs_data_release(e);
-	QString stream_server;
-	QString stream_key;
-	obs_output_t *t = (obs_output_t *)calldata_ptr(calldata, "output");
-	for (auto it = d->streamOutputs.begin(); it != d->streamOutputs.end(); ++it) {
-		if (it->output == t) {
-			stream_server = QString::fromUtf8((it->active_server.empty() ? it->stream_server : it->active_server).c_str());
-			stream_key = QString::fromUtf8((it->active_key.empty() ? it->stream_key : it->active_key).c_str());
-			it->stopping = true;
+	auto *raw_output = (obs_output_t *)calldata_ptr(calldata, "output");
+	std::shared_ptr<obs_output_t> output_ref;
+	if (raw_output) {
+		if (auto *ref = obs_output_get_ref(raw_output)) {
+			output_ref = std::shared_ptr<obs_output_t>(ref, [](obs_output_t *output) {
+				obs_output_release(output);
+			});
 		}
 	}
 
-	QMetaObject::invokeMethod(d, "OnStreamStop", Qt::QueuedConnection, Q_ARG(int, code),
-				  Q_ARG(QString, arg_last_error), Q_ARG(QString, stream_server), Q_ARG(QString, stream_key));
+	// OBS can emit output-stop signals from an RTMP worker thread. Do not read
+	// or mutate streamOutputs, send UI events, or run session teardown here.
+	// Keep the output alive and move all dock state changes to the UI thread.
+	QMetaObject::invokeMethod(d, [d, output_ref, code, arg_last_error] {
+		QString stream_server;
+		QString stream_key;
+		for (auto it = d->streamOutputs.begin(); it != d->streamOutputs.end(); ++it) {
+			if (it->output == output_ref.get()) {
+				stream_server = QString::fromUtf8((it->active_server.empty() ? it->stream_server : it->active_server).c_str());
+				stream_key = QString::fromUtf8((it->active_key.empty() ? it->stream_key : it->active_key).c_str());
+				it->stopping = true;
+				break;
+			}
+		}
+
+		const auto event = obs_data_create();
+		obs_data_set_int(event, "code", code);
+		obs_data_set_string(event, "last_error", arg_last_error.toUtf8().constData());
+		d->SendVendorEvent("streaming_stopped", event);
+		obs_data_release(event);
+		d->OnStreamStop(code, arg_last_error, stream_server, stream_key);
+	}, Qt::QueuedConnection);
 }
 
 void CanvasDock::DestroyVideo()
