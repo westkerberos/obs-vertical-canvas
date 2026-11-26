@@ -88,7 +88,7 @@ The current patch also attempts to capture PCM S16LE audio from the named OBS au
 
 **Current evidence:** branch `obs-33.0.1-build` built `win-dshow.dll` against OBS 33.0.1 successfully (workflow [#43638792702](https://github.com/westkerberos/ChatGPT/actions/runs/43638792702)). Its artifact contains `win-dshow.dll`, a PDB and SHA-256 file; it is a temporary Actions artifact, not a release. A separate OBS 33.0.3 validation branch is being prepared. Do not install the 33.0.1 DLL into OBS 33.0.3 as though compatibility were already proven.
 
-Static review item: `DShowInput::Activate` starts the capture device before calling `NativeMjpegRecorder::Start`. Video callbacks can therefore begin while the recorder is initializing. `Active()`, `Write()` and `WriteAudio()` use the recorder mutex, but the current `Start()` initialization path does not hold that mutex. Treat this as a concurrency risk to fix and retest before relying on the recorder in a production session.
+Static review item: `DShowInput::Activate` calls `device.Start()` before `NativeMjpegRecorder::Start()`. The device may start delivering encoded MJPEG callbacks before the recorder initialization is complete. `Active()`, `Write()` and `WriteAudio()` use the recorder mutex, but `Start()` mutates `format_`, stream pointers and header state without holding that mutex. This is a code-review concurrency risk, not yet a reproduced runtime fault; fix the initialization ordering/locking and test callback concurrency before relying on the recorder in production.
 
 Patch source: [DirectShow native MJPEG patch](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.1-build/obs-33.0.0-beta4-native-mjpeg.patch).
 
@@ -100,12 +100,12 @@ The following are the development branches currently carrying the combined work.
 |---|---|---:|---:|---|
 | Vertical Canvas | [`feature/tiktok-native-ebc-combined`](https://github.com/westkerberos/obs-vertical-canvas/tree/feature/tiktok-native-ebc-combined), head `325b9ea337eed31829025142ddd363986114c808`, [PR #6](https://github.com/westkerberos/obs-vertical-canvas/pull/6) | 1.6.7 | Aitum Vertical 1.6.8 | Open draft; current branch includes the upstream scene-loading fix but not the 1.6.8 safe-area feature or new installer layout |
 | Aitum Multistream | [`feature/aitum-twitch-enhanced-broadcasting`](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting), head `8f7780ded10f0afa43a35b02f117e8f95567b2c3`, [PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2) | 1.0.9 | Aitum Multistream 1.0.10 | Open draft; EBC + TikTok bridge present, but upstream 1.0.10 load/installer fixes are missing |
-| DirectShow MJPEG | [`obs-33.0.1-build`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.1-build) and [33.0.3 validation branch](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) | OBS module patch | OBS 33.0.3 | 33.0.1 build passed; 33.0.3 build must pass before use |
+| DirectShow MJPEG | [`obs-33.0.1-build`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.1-build) and [33.0.3 validation branch](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) | OBS module patch | OBS 33.0.3 | 33.0.1 build passed; 33.0.3 attempt blocked by missing runner ATL components; no 33.0.3 DLL yet |
 | OBS host | [OBS Studio 33.0.3](https://github.com/obsproject/obs-studio/releases/tag/33.0.3) | User target | 33.0.3 | Target version, not yet the OBS SDK version used by the two plugin forks' buildspecs |
 
 ### Build configuration mismatch — important
 
-Both plugin forks' current `buildspec.json` files still declare OBS source dependency **31.1.0**. The successful fork CI builds therefore do not prove that the combined plugins have been compiled against OBS 33.0.3. Before calling either plugin 33.0.3-compatible, update the pinned OBS source/dependency hashes and Windows toolchain to the version used for the 33.0.3 build, then rebuild both paired plugins together.
+Both plugin forks' current `buildspec.json` files still declare OBS source dependency **31.1.0**. The successful fork CI builds therefore do not prove that the combined plugins have been compiled against OBS 33.0.3. Before calling either plugin 33.0.3-compatible, update the pinned OBS source/dependency hashes and Windows toolchain to the version used for the 33.0.3 build, then rebuild both paired plugins together. The first DirectShow 33.0.3 workflow also exposed a runner-image issue: the OBS dependency build requires ATL headers that were not installed. Resolve the Visual Studio ATL component in CI before interpreting another build attempt.
 
 The current Vertical Canvas CI success is [run #45851841060](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/45851841060): Windows build passed; Ubuntu/macOS were skipped; formatting was skipped; the test step exercises the relay control-protocol test only, not an actual TikTok session or media transport. The current Multistream feature branch has Windows CI success at [run #44808003981](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/44808003981); it also skipped formatting and non-Windows builds. Neither CI run is a full runtime regression test.
 
@@ -132,7 +132,7 @@ C:\ProgramData\obs-studio\plugins\<plugin-name>\data\...
 
 Portable OBS uses a `plugins\<plugin-name>\<plugin-name>.dll` directory under the portable OBS root; ProgramData is ignored by portable launches. Old `obs-plugins\64bit` layouts are legacy and are scheduled to stop loading in OBS 34.0. References: [OBS legacy plugin locations](https://obsproject.com/kb/legacy-plugin-locations), [developer layout details](https://obsproject.com/kb/legacy-plugin-developer-info).
 
-This means the current old-layout portable test ZIP must be repackaged before it is used to validate OBS 33.0.3. It must not place the module only in the legacy `obs-plugins` directory.
+This means the earlier portable test ZIP created using the old `obs-plugins` layout must not be treated as the OBS 33.0.3 test package. Repackage it into `plugins\\<plugin-name>\\<plugin-name>.dll` and `plugins\\<plugin-name>\\data\\...`; do not place the module only in the legacy `obs-plugins` directory.
 
 ## 8. Test plan — paired stack, not isolated plugins
 
