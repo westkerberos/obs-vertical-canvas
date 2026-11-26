@@ -77,6 +77,9 @@ public:
 	std::string stream_server;
 	bool enabled = true;
 	bool stopping = false;
+	// Prevent nested OnStreamStop calls from finalizing and releasing the same
+	// TikTok session while Stop() is pumping the Qt event loop.
+	bool tiktokStopInProgress = false;
 	std::shared_ptr<TikTokOutputSession> tiktokSession;
 	std::string active_server;
 	std::string active_key;
