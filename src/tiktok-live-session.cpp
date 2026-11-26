@@ -38,7 +38,7 @@ QSet<QByteArray> leases;
 // authenticated session when uid_tt is absent), never the file path.
 QByteArray AccountKey(const QByteArray& cookies)
 {
-    for (const auto name : {QByteArray("uid_tt"), QByteArray("sessionid"), QByteArray("sessionid_ss")})
+    for (const auto &name : {QByteArray("uid_tt"), QByteArray("sessionid"), QByteArray("sessionid_ss")})
         for (const auto& line : cookies.split('\n')) {
             const auto fields = line.split('\t');
             if (fields.size() >= 7 && fields[5] == name && !fields[6].trimmed().isEmpty())
