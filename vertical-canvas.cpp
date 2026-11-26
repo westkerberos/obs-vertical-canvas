@@ -8259,9 +8259,22 @@ void CanvasDock::OnStreamStop(int code, QString last_error, QString stream_serve
 		const QString activeKey = QString::fromUtf8((it->active_key.empty() ? it->stream_key : it->active_key).c_str());
 		if (stream_server == activeServer && stream_key == activeKey) {
 			if (it->tiktokSession) {
-				it->tiktokSession->Stop();
-				const QString sessionError = it->tiktokSession->Error();
-				it->tiktokSession.reset();
+				// Stop() runs a nested Qt event loop while the TikTok LIVE end request
+				// completes. A second output-stop callback can therefore be delivered
+				// before the first call returns. Ignore that reentrant callback, and
+				// keep a strong reference so the session cannot be destroyed mid-stop.
+				if (it->tiktokStopInProgress) {
+					blog(LOG_WARNING, "[Vertical Canvas] Ignoring reentrant TikTok stop callback for '%s'",
+					     it->name.c_str());
+					return;
+				}
+				it->tiktokStopInProgress = true;
+				auto session = it->tiktokSession;
+				session->Stop();
+				const QString sessionError = session->Error();
+				if (it->tiktokSession == session)
+					it->tiktokSession.reset();
+				it->tiktokStopInProgress = false;
 				if (last_error.isEmpty() && !sessionError.isEmpty())
 					last_error = sessionError;
 			}
