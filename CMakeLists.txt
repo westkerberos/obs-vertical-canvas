@@ -3,7 +3,7 @@ if(CMAKE_PROJECT_NAME STREQUAL "obs-studio")
   set(BUILD_OUT_OF_TREE OFF)
 else()
   set(BUILD_OUT_OF_TREE ON)
-  cmake_minimum_required(VERSION 3.16...3.26)
+  cmake_minimum_required(VERSION 3.28...3.30)
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
 
