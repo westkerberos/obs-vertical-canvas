@@ -11,25 +11,20 @@ The complete architecture and version matrix are maintained in [WEST Gaming Stre
 
 ## Build configuration
 
-This is a Windows x64 target. The current fork `buildspec.json` still pins OBS source dependency **31.1.0** and declares Aitum Vertical version **1.6.7**. Therefore the existing CI result is not a build against OBS 33.0.3.
+This Windows x64 fork is now pinned to the OBS **33.0.3** source archive and the matching Windows dependency/Qt snapshots dated 2026-10-23. The current plugin version remains **1.6.7** deliberately: the branch already contains Aitum 1.6.8's scene-list loading/order fix and the OBS 33 ProgramData installer path, but it does not include Aitum 1.6.8's new Safe Areas preview option. That optional UI/rendering feature is excluded to preserve the existing WEST feature set without adding functionality.
 
-Before claiming OBS 33.0.3 compatibility:
-- Update the OBS source/dependency pins and hashes to 33.0.3.
-- Use a Windows toolchain compatible with the OBS 33.0.3 build environment.
-- Port upstream Aitum Vertical 1.6.8 changes selectively, keeping all WEST TikTok/EBC changes.
-- Update package layout for OBS 33's new third-party plugin directory.
-- Build this plugin and the matching Multistream branch from a recorded pair of commits.
+The companion Multistream branch is pinned to OBS **33.0.3** and declares Aitum Multistream **1.0.10**. Build and test the pair from recorded commit SHAs; do not substitute either official Aitum binary because that would remove WEST's EBC/TikTok integration.
 
 ## Latest known CI
 
-- Workflow: [#45851841060](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/45851841060)
+- Workflow: [#45863996075](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/45863996075)
 - Branch: `feature/tiktok-native-ebc-combined`
-- Commit: `325b9ea337eed31829025142ddd363986114c808`
-- Result: Windows x64 build **success**; Ubuntu/macOS **skipped**; formatting **skipped**.
-- Artifact: `vertical-canvas-1.6.7-windows-x64-325b9ea33`.
+- Commit: `407799eb58dca76eb4fa55946c8e177810b4726b`
+- Result: Windows x64 build **success** against the current OBS 33.0.3 buildspec; Ubuntu/macOS **skipped**; formatting **skipped**.
+- Artifact: `vertical-canvas-1.6.7-windows-x64-407799eb5` (includes the OBS 33 ProgramData package and installer).
 - The test step runs `west-tiktok-relay-control-protocol`, which validates JSON-lines control protocol only. It does not connect to TikTok, carry media, test RTMP/FLV, authenticate, sign requests or test Dual LIVE.
 
-This CI run proves source compilation/package creation for the configured dependency baseline. It does not prove runtime stability in OBS 33.0.3, Twitch EBC, shared NVENC identity, TikTok session lifecycle or full multi-destination streaming.
+This CI run proves Windows x64 compilation and packaging from the OBS 33.0.3 dependency pin. It does not prove runtime behavior in OBS, Twitch EBC negotiation, shared NVENC encoder identity, TikTok session lifecycle or full multi-destination streaming.
 
 ## Existing runtime evidence
 
@@ -55,10 +50,10 @@ Do not run first-time failure/reconnect experiments during a critical public bro
 
 ## Release gates
 
-- [ ] OBS 33.0.3 dependency/toolchain build succeeds for both matched plugin branches.
-- [ ] Upstream Aitum Vertical 1.6.8 changes are ported or explicitly documented as intentionally omitted.
-- [ ] New Windows and portable plugin path is packaged and verified.
-- [ ] Multistream 1.0.10 vertical-output reload fix is ported into the companion fork.
+- [x] OBS 33.0.3 Windows x64 dependency/toolchain builds succeed for both matched plugin branches.
+- [x] Aitum Vertical 1.6.8 scene-list fix is present; the Safe Areas feature is explicitly omitted to avoid adding a function.
+- [x] New Windows ProgramData plugin path is packaged; portable-package layout is included in the artifact.
+- [x] Multistream 1.0.10 vertical-output reload fix is present in the companion fork.
 - [ ] Paired Twitch landscape + portrait EBC test passes.
 - [ ] Every opted-in vertical target reuses the same EBC portrait video encoder.
 - [ ] TikTok connection methods and Dual LIVE pass regression testing.

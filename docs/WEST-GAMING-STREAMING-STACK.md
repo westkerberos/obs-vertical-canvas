@@ -98,28 +98,33 @@ The following are the development branches currently carrying the combined work.
 
 | Component | Current integration source | Version declared in fork | Upstream version to port | Status |
 |---|---|---:|---:|---|
-| Vertical Canvas | [`feature/tiktok-native-ebc-combined`](https://github.com/westkerberos/obs-vertical-canvas/tree/feature/tiktok-native-ebc-combined), last code-tested commit `325b9ea337eed31829025142ddd363986114c808` (later commits are documentation-only), [PR #6](https://github.com/westkerberos/obs-vertical-canvas/pull/6) | 1.6.7 | Aitum Vertical 1.6.8 | Open draft; current branch includes the upstream scene-loading fix but not the 1.6.8 safe-area feature or new installer layout |
-| Aitum Multistream | [`feature/aitum-twitch-enhanced-broadcasting`](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting), last code-tested commit `8f7780ded10f0afa43a35b02f117e8f95567b2c3` (later commits are documentation-only), [PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2) | 1.0.9 | Aitum Multistream 1.0.10 | Open draft; EBC + TikTok bridge present, but upstream 1.0.10 load/installer fixes are missing |
-| DirectShow MJPEG | [`obs-33.0.1-build`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.1-build) and [33.0.3 validation branch](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) | OBS module patch | OBS 33.0.3 | 33.0.1 build passed; 33.0.3 attempt blocked by missing runner ATL components; no 33.0.3 DLL yet |
-| OBS host | [OBS Studio 33.0.3](https://github.com/obsproject/obs-studio/releases/tag/33.0.3) | User target | 33.0.3 | Target version, not yet the OBS SDK version used by the two plugin forks' buildspecs |
+| Vertical Canvas | [`feature/tiktok-native-ebc-combined`](https://github.com/westkerberos/obs-vertical-canvas/tree/feature/tiktok-native-ebc-combined), current head `407799eb58dca76eb4fa55946c8e177810b4726b`, [PR #6](https://github.com/westkerberos/obs-vertical-canvas/pull/6) | 1.6.7 (custom feature-preserving build) | Aitum Vertical 1.6.8 | OBS 33.0.3 Windows build passed; 1.6.8 scene-list fix and new installer path present; Safe Areas intentionally omitted |
+| Aitum Multistream | [`feature/aitum-twitch-enhanced-broadcasting`](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting), current head `98103d39e4e972b649ce912678e273eab8dbf3e7`, [PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2) | 1.0.10 | Aitum Multistream 1.0.10 | OBS 33.0.3 Windows build passed; EBC + TikTok bridge retained; upstream reload and installer fixes present |
+| DirectShow MJPEG | [`obs-33.0.3-native-mjpeg`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) | OBS module patch | OBS 33.0.3 | Separate validation workflow; latest run after patch-file repair is pending |
+| OBS host | [OBS Studio 33.0.3](https://github.com/obsproject/obs-studio/releases/tag/33.0.3) | User target | 33.0.3 | Both Aitum forks now build from OBS 33.0.3 source dependencies; DShow is validated separately |
 
-### Build configuration mismatch — important
+### OBS 33.0.3 build status
 
-Both plugin forks' current `buildspec.json` files still declare OBS source dependency **31.1.0**. The successful fork CI builds therefore do not prove that the combined plugins have been compiled against OBS 33.0.3. Before calling either plugin 33.0.3-compatible, update the pinned OBS source/dependency hashes and Windows toolchain to the version used for the 33.0.3 build, then rebuild both paired plugins together. The first DirectShow 33.0.3 workflow also exposed a runner-image issue: the OBS dependency build requires ATL headers that were not installed. Resolve the Visual Studio ATL component in CI before interpreting another build attempt.
+Both Aitum fork `buildspec.json` files now pin the OBS source dependency to **33.0.3** and use the Windows dependency/Qt snapshots dated 2026-10-23.
 
-The current Vertical Canvas CI success is [run #45851841060](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/45851841060): Windows build passed; Ubuntu/macOS were skipped; formatting was skipped; the test step exercises the relay control-protocol test only, not an actual TikTok session or media transport. The current Multistream feature branch has Windows CI success at [run #44808003981](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/44808003981); it also skipped formatting and non-Windows builds. Neither CI run is a full runtime regression test.
+- Vertical Canvas: [Windows CI #45863996075](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/45863996075), commit `407799eb58dca76eb4fa55946c8e177810b4726b`, success; artifact `vertical-canvas-1.6.7-windows-x64-407799eb5`.
+- Multistream: [Windows CI #45863976132](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45863976132), commit `98103d39e4e972b649ce912678e273eab8dbf3e7`, success; artifact `aitum-multistream-1.0.10-windows-x64-98103d39e`.
 
-## 7. Upstream changes required before the next paired build
+These runs establish Windows x64 compilation and packaging against OBS 33.0.3. Vertical's CI also passes its relay control-protocol test. Formatting checks and non-Windows builds are skipped by design. Neither CI run validates actual Twitch EBC negotiation, encoder-object reuse, TikTok authentication/media transport, Dual LIVE, or the paired runtime graph.
+
+## 7. Upstream changes integrated or intentionally excluded
 
 ### Aitum Multistream 1.0.10
 
-Upstream commit [`64ef323`](https://github.com/Aitum/obs-aitum-multistream/commit/64ef3233a8b078268adf68ec8427d0bfba68678d) adds `LoadVerticalOutputs(false)` after `LoadSettingsFile()` on `OBS_FRONTEND_EVENT_FINISHED_LOADING`. Our current Multistream fork does not have that call. Port it while retaining the EBC code and TikTok bridge.
+The companion fork now declares **1.0.10** and contains both relevant upstream changes:
+- [Commit 64ef323](https://github.com/Aitum/obs-aitum-multistream/commit/64ef3233a8b078268adf68ec8427d0bfba68678d): `LoadVerticalOutputs(false)` is called after `LoadSettingsFile()` on `OBS_FRONTEND_EVENT_FINISHED_LOADING`.
+- [Commit 41329c5](https://github.com/Aitum/obs-aitum-multistream/commit/41329c56d8f1254b7b55a2821a44b08abeeab3bb): the OBS 33 ProgramData plugin install layout is present in the Windows installer.
 
-Upstream commit [`41329c5`](https://github.com/Aitum/obs-aitum-multistream/commit/41329c56d8f1254b7b55a2821a44b08abeeab3bb) also bumps the version to 1.0.10 and updates the Windows installer to the OBS 33 third-party plugin folder layout. Port its install-layout change; do not replace our customized Multistream code with the upstream binary.
+The fork retains the custom Twitch EBC implementation and Vertical Canvas/TikTok configuration bridge. Do not replace it with the official Aitum binary.
 
 ### Aitum Vertical 1.6.8
 
-Upstream [Vertical 1.6.8](https://github.com/Aitum/obs-vertical-canvas/releases/tag/1.6.8) adds safe-area drawing and contains the upstream scene-loading fix. Our current feature branch includes the scene-loading fix commit but does not yet contain the safe-area UI/rendering changes, version/manifest bump or new Windows installer layout. Port changes selectively and preserve EBC reuse, TikTok, Dual LIVE and lifecycle fixes.
+The WEST Vertical Canvas branch already contains the upstream scene-list loading/order fix from [commit fde49d2](https://github.com/Aitum/obs-vertical-canvas/commit/fde49d2339af4180cf014e4d7a23fc0ebccd9324), and its installer already contains the OBS 33 ProgramData plugin path. The only functional addition in upstream 1.6.8 beyond that baseline is the optional Safe Areas preview UI/rendering change. It is intentionally not imported because the update requirement is to preserve the existing feature set without adding functions. The fork therefore continues to identify its feature-preserving plugin build as 1.6.7.
 
 ### OBS Studio 33 plugin-loading layout
 
