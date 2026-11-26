@@ -86,11 +86,11 @@ The DirectShow modification is a separate patch to OBS Studio's `plugins/win-dsh
 
 The current patch also attempts to capture PCM S16LE audio from the named OBS audio source (default `Mic/Aux`); if the source is missing, it warns and writes video only. This is a packet-level recording path, not a video re-encode.
 
-**Current evidence:** branch `obs-33.0.1-build` built `win-dshow.dll` against OBS 33.0.1 successfully (workflow [#43638792702](https://github.com/westkerberos/ChatGPT/actions/runs/43638792702)). Its artifact contains `win-dshow.dll`, a PDB and SHA-256 file; it is a temporary Actions artifact, not a release. A separate OBS 33.0.3 validation branch is being prepared. Do not install the 33.0.1 DLL into OBS 33.0.3 as though compatibility were already proven.
+**Current OBS 33.0.3 evidence:** branch `obs-33.0.3-native-mjpeg`, commit `f4ef30142ca4fe70fea712b39322fb2fb6c9fdcf`, built `win-dshow.dll` successfully in [workflow #45898711824](https://github.com/westkerberos/ChatGPT/actions/runs/45898711824). Patch application, source-marker checks, CMake configuration, the `win-dshow` target, and artifact upload all passed. Artifact SHA-256: `06553fda76c1a974e8610a00ac6a41ae6979aabee072ebfc3cc88226d11a3b64`; DLL SHA-256: `EBD7B77E9DA422F9A6ED72BC4661C8387E8889D1BCC1D5EFD1BAC2FCF1ECF9AD`.
 
-Static review item: `DShowInput::Activate` calls `device.Start()` before `NativeMjpegRecorder::Start()`. The device may start delivering encoded MJPEG callbacks before the recorder initialization is complete. `Active()`, `Write()` and `WriteAudio()` use the recorder mutex, but `Start()` mutates `format_`, stream pointers and header state without holding that mutex. This is a code-review concurrency risk, not yet a reproduced runtime fault; fix the initialization ordering/locking and test callback concurrency before relying on the recorder in production.
+This confirms compilation against OBS 33.0.3, not end-to-end camera recording. The real DirectShow MJPEG camera path, MOV output, audio capture and synchronization still require runtime validation. Do not substitute the old OBS 33.0.1 DLL.
 
-Component guide and validation record: [DirectShow native MJPEG recorder](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/docs/DIRECTSHOW-NATIVE-MJPEG.md). Patch source: [DirectShow native MJPEG patch](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.1-build/obs-33.0.0-beta4-native-mjpeg.patch).
+Component guide and validation record: [DirectShow native MJPEG recorder](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/docs/DIRECTSHOW-NATIVE-MJPEG.md). Patch source: [DirectShow native MJPEG patch](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/obs-33.0.0-beta4-native-mjpeg.patch).
 
 ## 6. Branch and version matrix
 
@@ -100,7 +100,7 @@ The following are the development branches currently carrying the combined work.
 |---|---|---:|---:|---|
 | Vertical Canvas | [`feature/tiktok-native-ebc-combined`](https://github.com/westkerberos/obs-vertical-canvas/tree/feature/tiktok-native-ebc-combined), current head `407799eb58dca76eb4fa55946c8e177810b4726b`, [PR #6](https://github.com/westkerberos/obs-vertical-canvas/pull/6) | 1.6.7 (custom feature-preserving build) | Aitum Vertical 1.6.8 | OBS 33.0.3 Windows build passed; 1.6.8 scene-list fix and new installer path present; Safe Areas intentionally omitted |
 | Aitum Multistream | [`feature/aitum-twitch-enhanced-broadcasting`](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting), current head `98103d39e4e972b649ce912678e273eab8dbf3e7`, [PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2) | 1.0.10 | Aitum Multistream 1.0.10 | OBS 33.0.3 Windows build passed; EBC + TikTok bridge retained; upstream reload and installer fixes present |
-| DirectShow MJPEG | [`obs-33.0.3-native-mjpeg`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) | OBS module patch | OBS 33.0.3 | Separate validation workflow; latest run after patch-file repair is pending |
+| DirectShow MJPEG | [`obs-33.0.3-native-mjpeg`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg), commit `f4ef30142ca4fe70fea712b39322fb2fb6c9fdcf` | OBS module patch | OBS 33.0.3 | Windows x64 `win-dshow.dll` build passed in workflow #45898711824; runtime camera validation remains |
 | OBS host | [OBS Studio 33.0.3](https://github.com/obsproject/obs-studio/releases/tag/33.0.3) | User target | 33.0.3 | Both Aitum forks now build from OBS 33.0.3 source dependencies; DShow is validated separately |
 
 ### OBS 33.0.3 build status
