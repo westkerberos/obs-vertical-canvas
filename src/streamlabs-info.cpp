@@ -84,7 +84,7 @@ StreamlabsCategoryResult SearchStreamlabsCategories(const std::string &token, co
     if (!categories.isArray()) return {{}, "Category.Unavailable"};
     const auto categoryArray = categories.toArray();
     StreamlabsCategoryResult result;
-    for (const auto &entry : categoryArray) {
+    for (const auto entry : categoryArray) {
         const auto object = entry.toObject();
         const auto name = object.value("full_name").toString();
         const auto id = object.value("game_mask_id");
