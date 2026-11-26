@@ -99,7 +99,7 @@ struct TikTokLiveSession::State {
     QString error;
     std::condition_variable wake;
     std::thread heartbeat, signatures;
-    bool stopping = false;
+    std::atomic_bool stopping{false};
     bool adopted = false;
     std::optional<TikTokSafetyContext> safetyContext;
     std::unique_ptr<TikTokSafetyMonitor> safety;
@@ -190,7 +190,7 @@ bool TikTokLiveSession::Start(const TikTokOutputConfig &config, const std::vecto
     std::function<void(const QJsonObject &)> saveDevices)
 {
     auto &s = *state_;
-    if (outputs.size() != (config.UsesDualLayout() ? 2u : 1u) || !s.feeds.empty() || s.stopping) {
+    if (outputs.size() != (config.UsesDualLayout() ? 2u : 1u) || !s.feeds.empty() || s.stopping.load(std::memory_order_acquire)) {
         s.Fail("Invalid TikTok output session."); return false;
     }
     if (outputs.size() == 2 && outputs[0] == outputs[1]) {
@@ -314,8 +314,9 @@ bool TikTokLiveSession::Start(const TikTokOutputConfig &config, const std::vecto
 void TikTokLiveSession::Stop()
 {
     auto &s = *state_;
-    if (s.stopping) return;
-    s.stopping = true;
+    // Stop can be reached from output callbacks and teardown paths. Only one
+    // caller may remove packet callbacks, join workers, and end the LIVE.
+    if (s.stopping.exchange(true, std::memory_order_acq_rel)) return;
     s.monitor.stop();
     for (const auto& feed : s.feeds) if (feed->output) {
         obs_output_remove_packet_callback(feed->output, State::Packet, feed.get());
