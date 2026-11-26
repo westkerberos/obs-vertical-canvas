@@ -29,5 +29,6 @@ private:
     std::string server_;
     std::string key_;
     QString error_;
+    std::atomic_bool stopping_{false};
     bool streamlabsStarted_ = false;
 };
