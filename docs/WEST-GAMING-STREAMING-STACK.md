@@ -90,7 +90,7 @@ The current patch also attempts to capture PCM S16LE audio from the named OBS au
 
 Static review item: `DShowInput::Activate` calls `device.Start()` before `NativeMjpegRecorder::Start()`. The device may start delivering encoded MJPEG callbacks before the recorder initialization is complete. `Active()`, `Write()` and `WriteAudio()` use the recorder mutex, but `Start()` mutates `format_`, stream pointers and header state without holding that mutex. This is a code-review concurrency risk, not yet a reproduced runtime fault; fix the initialization ordering/locking and test callback concurrency before relying on the recorder in production.
 
-Patch source: [DirectShow native MJPEG patch](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.1-build/obs-33.0.0-beta4-native-mjpeg.patch).
+Component guide and validation record: [DirectShow native MJPEG recorder](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/docs/DIRECTSHOW-NATIVE-MJPEG.md). Patch source: [DirectShow native MJPEG patch](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.1-build/obs-33.0.0-beta4-native-mjpeg.patch).
 
 ## 6. Branch and version matrix
 
