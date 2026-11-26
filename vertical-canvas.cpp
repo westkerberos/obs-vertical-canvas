@@ -6728,6 +6728,7 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 		obs_encoder_release(new_audio_enc);
 	}
 	it->stopping = false;
+	it->tiktokStopInProgress = false;
 	if (!PrepareTikTokOutput(it)) {
 		if (started_video) {
 			DestroyVideo();
