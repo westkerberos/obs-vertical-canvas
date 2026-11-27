@@ -38,6 +38,7 @@ TikTok Portrait can reuse the Twitch EBC 1080×1920 track. TikTok Landscape reus
 
 - [WEST Gaming streaming stack — source of truth](docs/WEST-GAMING-STREAMING-STACK.md)
 - [Repeatable OBS/plugin update procedure](docs/UPDATE-PROCEDURE.md)
+- [Next-chat handoff and exact current stack manifest](docs/NEW-CHAT-START-HERE.md)
 - [Build and runtime verification](docs/BUILD-AND-TESTING.md)
 - [TikTok LIVE setup and Dual LIVE](docs/TIKTOK-LIVE.md)
 - [Upstream differences](docs/UPSTREAM-DIFFERENCES.md)
