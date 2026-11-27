@@ -2,7 +2,7 @@
 
 **Status date:** 27 November 2026  
 **Upstream:** [Aitum/obs-vertical-canvas](https://github.com/Aitum/obs-vertical-canvas)  
-**WEST branch:** [release/obs33.0.3-vertical-1.6.8-west-stack-20261127](https://github.com/westkerberos/obs-vertical-canvas/tree/release/obs33.0.3-vertical-1.6.8-west-stack-20261127)
+**WEST branch:** [main](https://github.com/westkerberos/obs-vertical-canvas/tree/main)
 
 ## Upstream Aitum Vertical 1.6.8 changes carried
 
