@@ -91,6 +91,7 @@ struct TikTokLiveSession::State {
         State* owner;
         std::unique_ptr<SignedSeiSession> metadata;
         obs_output_t* output;
+        std::atomic_bool firstPacketLogged{false};
     };
     std::vector<std::unique_ptr<Feed>> feeds;
     QTimer monitor;
@@ -145,9 +146,12 @@ struct TikTokLiveSession::State {
         QString error;
         const auto original = QByteArray::fromRawData(reinterpret_cast<const char *>(packet->data),
             static_cast<qsizetype>(packet->size));
-        if (feed.metadata->transform_packet(strcmp(codec, "hevc") == 0 ? SignedVideoCodec::Hevc : SignedVideoCodec::H264,
-                original, packet->dts_usec / 1000, static_cast<int>(obs_encoder_get_width(packet->encoder)),
-                static_cast<int>(obs_encoder_get_height(packet->encoder)), QDateTime::currentMSecsSinceEpoch(), &replacement, &error)) {
+        const bool signedPacket = feed.metadata->transform_packet(
+            strcmp(codec, "hevc") == 0 ? SignedVideoCodec::Hevc : SignedVideoCodec::H264,
+            original, packet->dts_usec / 1000, static_cast<int>(obs_encoder_get_width(packet->encoder)),
+            static_cast<int>(obs_encoder_get_height(packet->encoder)), QDateTime::currentMSecsSinceEpoch(),
+            &replacement, &error);
+        if (signedPacket) {
             const auto size = static_cast<size_t>(replacement.size());
             // OBS stores a long reference count immediately before packet data.
             // A new buffer isolates outputs that share the same encoder.
@@ -159,6 +163,21 @@ struct TikTokLiveSession::State {
             changed.size = size;
             obs_encoder_packet_release(packet);
             *packet = changed;
+
+            if (!feed.firstPacketLogged.exchange(true, std::memory_order_acq_rel)) {
+                blog(LOG_INFO,
+                    "[Vertical Canvas] TikTok first signed packet: output='%s' codec='%s' size=%ux%u bytes=%zu",
+                    obs_output_get_name(feed.output) ? obs_output_get_name(feed.output) : "(unknown)",
+                    codec, obs_encoder_get_width(packet->encoder), obs_encoder_get_height(packet->encoder), size);
+            }
+        } else {
+            const QByteArray detail = error.toUtf8();
+            blog(LOG_ERROR,
+                "[Vertical Canvas] TikTok packet signing failed: output='%s' codec='%s' packet_bytes=%zu error='%s'",
+                obs_output_get_name(feed.output) ? obs_output_get_name(feed.output) : "(unknown)",
+                codec, static_cast<size_t>(packet->size), detail.isEmpty() ? "(no detail)" : detail.constData());
+            if (error.isEmpty())
+                error = "TikTok frame signing failed without a diagnostic message.";
         }
         state.Fail(error);
     }
