@@ -30,7 +30,7 @@ The official upstream buildspec is older (OBS 31.1.0 / 2025 dependencies). WEST 
 - [Aitum commit 64ef323](https://github.com/Aitum/obs-aitum-multistream/commit/64ef3233a8b078268adf68ec8427d0bfba68678d): call LoadVerticalOutputs(false) after LoadSettingsFile() when OBS finishes loading.
 - [Aitum commit 41329c5](https://github.com/Aitum/obs-aitum-multistream/commit/41329c56d8f1254b7b55a2821a44b08abeeab3bb): version 1.0.10 and OBS 33 ProgramData installer paths.
 
-The WEST Multistream branch retains TikTok destination configuration bridge and Twitch EBC negotiation/output; official upstream binaries are not drop-in replacements.
+The WEST Multistream main branch retains TikTok destination configuration bridge and Twitch EBC negotiation/output; official upstream binaries are not drop-in replacements.
 
 ## Maintenance rules
 
