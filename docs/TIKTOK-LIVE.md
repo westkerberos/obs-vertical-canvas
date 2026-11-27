@@ -1,116 +1,99 @@
-# TikTok LIVE in WEST Gaming's Vertical Canvas fork
+# TikTok LIVE in WEST Gaming Vertical Canvas
 
-This guide describes the TikTok integration in the WEST Gaming fork of Aitum Vertical Canvas. Only the TikTok authentication portion was borrowed and adapted from [Loukious/obs-multi-rtmp](https://github.com/Loukious/obs-multi-rtmp), a downstream fork of [sorayuki/obs-multi-rtmp](https://github.com/sorayuki/obs-multi-rtmp). The native TikTok client/runtime components carry separate direct attribution to [Smile-4-Me/tiktok-live-obs](https://github.com/Smile-4-Me/tiktok-live-obs). WEST Gaming adapted the connection UI and the runtime/output lifecycle to OBS/Qt and Vertical Canvas, including canvas/encoder ownership and Dual LIVE. The broader OBS Multi-RTMP plugin is not a runtime dependency. The maintained setup is Vertical Canvas plus the optional Aitum Multistream wizard bridge.
+This guide describes the WEST Gaming TikTok destination/runtime in Vertical Canvas. The matching WEST Gaming Aitum Multistream fork provides the configuration/list/start-stop bridge and Twitch EBC output; it does not implement a second TikTok runtime.
 
-> **Current branch status (26 November 2026):** the combined TikTok + Twitch EBC encoder-reuse implementation is developed in [PR #6](https://github.com/westkerberos/obs-vertical-canvas/pull/6), branch `feature/tiktok-native-ebc-combined`. It must be paired with [WEST Gaming Aitum Multistream PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2). The default `main` branch and upstream Aitum downloads do not contain the full WEST Gaming integration. There is no stable WEST Gaming GitHub Release. See [the complete stack source of truth](WEST-GAMING-STREAMING-STACK.md) before updating either plugin.
+**Current target:** OBS 33.0.3 · Vertical Canvas 1.6.8 · Aitum Multistream 1.0.10. See [the full stack source of truth](WEST-GAMING-STREAMING-STACK.md) and [update procedure](UPDATE-PROCEDURE.md) before replacing either plugin.
 
-## What the integration adds
+## Connection methods
 
-A Vertical Canvas output can be configured to publish to TikTok using one of four connection methods:
+| Method | Credentials / endpoint | What it does |
+|---|---|---|
+| Custom RTMP / stream key | Server URL and stream key | Uses the normal RTMP output path; does not create a TikTok-native room through the LIVE Studio session flow |
+| TikTok LIVE Studio — Desktop | RapidAPI signing key and cookie file, or QR login | Creates/resumes a TikTok LIVE session, obtains dynamic ingest details and manages session lifecycle |
+| TikTok LIVE Studio — Mobile | RapidAPI key, cookie file or QR login, mobile device profile | Uses mobile request/device profile; Camera LIVE and screen capture are different modes |
+| Streamlabs Desktop | Streamlabs access token | Uses Streamlabs account/category and stream flow |
 
-| Method | Credentials / endpoint | What the plugin does |
-| --- | --- | --- |
-| Custom RTMP / stream key | Server URL and stream key supplied by the user | Uses the normal RTMP output path. No TikTok account lookup or native LIVE room creation is performed by this method. |
-| TikTok LIVE Studio — Desktop | RapidAPI signing key and a TikTok cookie file, or QR login | Creates or resumes a TikTok LIVE session, obtains the ingest endpoint and key, signs video packet metadata and manages the session lifecycle. |
-| TikTok LIVE Studio — Mobile | RapidAPI signing key and a TikTok cookie file, or QR login; mobile device profile | Uses the mobile request profile and device identity. Camera LIVE and screen capture are separate broadcast modes. |
-| Streamlabs Desktop | Streamlabs Desktop access token | Starts and ends a Streamlabs-managed TikTok stream and can look up the account/category information. |
+The editor also supports LIVE title/topic/game selection, gifts/comments, content disclosure, mature-content settings, account refresh, quota feedback and safety/violation workflows where supported.
 
-The native LIVE Studio and Mobile methods use the hosted signing service configured by the RapidAPI key. A cookie file is required for the TikTok account session. A QR login can create a new cookie export and select it in the editor.
+## Recommended destination start sequence
 
-## Configuring an output
+The current stack has two separate encoder prerequisites. Use this order:
 
-1. Add or edit a TikTok destination in the Vertical Canvas output workflow. When using the matching Aitum Multistream fork, open the **Vertical Canvas** settings tab and add a new TikTok output there.
-2. Choose the connection method.
-3. For LIVE Studio Desktop or Mobile, enter the RapidAPI key and select a readable TikTok cookie file. Use **Login with TikTok QR** to authenticate and save a new cookie export instead.
-4. Select the LIVE topic. When the selected topic requires a game, choose a game from the searchable list. Do not type an arbitrary game name and expect it to be accepted; selections are tied to TikTok's returned IDs.
-5. Set the LIVE title, gifts/comments permissions, content disclosure and mature-content option as required.
-6. Use **Refresh account** to repeat the account lookup after changing credentials or cookies. The account panel shows the resolved TikTok username and, where available, Dual LIVE eligibility.
-7. Save the destination. The editor validates required credentials, cookie readability, topic/game selection and mobile device settings before accepting the configuration.
+1. Start Twitch EBC; wait until it is connected and its portrait tracks are created.
+2. Start YouTube Vertical so it can reuse the 1080×1920 EBC portrait video encoder.
+3. Start YouTube Horizontal (or another Main Canvas horizontal output).
+4. Start Instagram Vertical if it is configured to reuse EBC.
+5. Start TikTok Dual LIVE.
 
-### Credentials and local data
+YouTube Vertical and Instagram only depend on Twitch EBC when their selected video encoder is set to reuse its portrait track. TikTok Dual LIVE has the additional Main Canvas dependency described below.
 
-- The RapidAPI key is masked in the editor. Masking is a display behavior, not encryption at rest.
-- The destination stores the selected cookie-file path and its TikTok connection settings in OBS/plugin configuration. Protect the OBS profile and the cookie file as credentials.
-- Mobile device/install identifiers and related device-profile fields are persisted so reconnects can reuse the same local identity. Leave both IDs blank for automatic registration; do not enter only one of the pair.
-- Never publish a cookie file, RapidAPI key, Streamlabs token, full OBS profile or unredacted log in a GitHub issue.
-- Account refresh and eligibility checks make network requests but do not themselves start a LIVE.
+## Credentials and local data
 
-## TikTok account, LIVE metadata and safety
+- The RapidAPI key is masked in the editor. Masking is display-only, not encryption at rest.
+- The OBS/plugin profile stores TikTok connection settings and the cookie-file path. Protect the profile and cookie file like credentials.
+- Mobile device/install identifiers and device profiles are persisted so reconnects can reuse the local identity.
+- Never publish cookie files, RapidAPI keys, Streamlabs tokens, full OBS profiles or logs containing credentials/account identifiers.
+- Account refresh and eligibility checks make network requests but do not start a LIVE.
 
-For native LIVE Studio and Mobile connections, the editor provides:
+## Dual LIVE — Portrait + Landscape
 
-- Account username lookup and refresh.
-- Topic and game selection.
-- Gifts and comments toggles.
-- Content disclosure: none, own brand, third-party brand, or both.
-- Mature-content setting.
-- RapidAPI quota feedback based on observed response headers.
-- Device/profile setup for the selected client.
-- LIVE violation monitoring, manual violation/appeal lookup and account-verified appeal actions where TikTok exposes the required route.
+Dual LIVE requires an eligible TikTok account and a supported LIVE Studio method. The documented paired-feed modes are:
+- TikTok LIVE Studio Desktop.
+- TikTok LIVE Studio Mobile **Camera LIVE**.
 
-The violation monitor starts after the LIVE has been confirmed as started. Manual checking is also available from the configuration dialog. Monitoring and appeal requests use the same signing credentials and may consume the signing service's quota. An appeal is an explicit user action; the plugin does not automatically submit appeals.
+Mobile screen capture, Streamlabs and Custom RTMP do not use this paired-feed mode.
 
-Streamlabs uses its own token, account lookup and category flow. TikTok-native room controls such as gifts/comments/content disclosure are not exposed by Streamlabs in this integration.
+### Automatic encoder reuse
 
-## Dual LIVE: portrait + landscape
+The default option reuses existing OBS encoders instead of defining a second set of video/audio settings:
 
-Dual LIVE is optional and requires TikTok to report that the account is eligible. It is supported by LIVE Studio Desktop and Mobile **Camera LIVE**. Mobile screen capture, Streamlabs and Custom RTMP do not use this paired-feed mode.
+| TikTok feed | Encoder source | Required state |
+|---|---|---|
+| Portrait | Video/audio encoders already assigned to the Vertical Canvas TikTok output | Vertical output must have its video encoder attached. For Twitch EBC reuse, start Twitch first and wait for the 1080×1920 portrait track |
+| Landscape | Video encoder and audio encoder 0 from OBS's primary Main Canvas streaming output | Start a horizontal Main Canvas stream first |
 
-One TikTok LIVE session supplies two distinct ingest endpoints. Vertical Canvas coordinates the two output feeds and stops the pair if the secondary feed fails unexpectedly.
+These prerequisites are independent. Twitch EBC being active does not satisfy the Main Canvas requirement. YouTube horizontal/Main Canvas being active does not create Twitch EBC's portrait track.
 
-### Recommended mode: reuse the existing canvas encoders
+### Pre-flight warnings
 
-The checkbox **Reuse the existing Vertical Canvas and Main Canvas settings (recommended)** is enabled by default.
+Vertical Canvas now checks these conditions before starting:
+- **Twitch EBC missing:** if a destination is configured to reuse EBC but no active portrait track is found, the dialog recommends starting Twitch first. The user can cancel or explicitly continue with an independent vertical encoder; continuing may add NVENC load.
+- **Main Canvas missing:** if TikTok automatic Dual LIVE cannot obtain the horizontal Main Canvas output, OBS shows a specific warning explaining that a horizontal stream must be started first.
 
-In this mode the plugin inherits the two encoder configurations already in use:
-
-| TikTok feed | Source of settings | Practical result |
-| --- | --- | --- |
-| Portrait | The video/audio encoders already assigned to the TikTok output on the Vertical Canvas | Keeps the current vertical canvas scene, resolution, video/audio encoder and encoder settings. No separate portrait profile needs to be configured in the Dual LIVE panel. |
-| Landscape | OBS's primary Main Canvas streaming output, returned by OBS's frontend streaming-output API | Reuses the horizontal stream's current video/audio encoder objects and their settings, such as the configuration used by the normal YouTube or Twitch stream. |
-
-**Start the Main Canvas stream first**, then start the TikTok Dual LIVE output. The automatic mode needs the Main Canvas streaming output to be active so it can obtain the actual horizontal video and audio encoders. If it is not active or does not have both encoders assigned, startup stops with an explanatory error.
-
-This mode shares the existing encoder objects with the TikTok transports; it does not build another set of manual per-layout encoder profiles. It also does not change the Main Canvas stream's encoder settings.
+The EBC pre-flight also runs for Start All. The default choice is the safe/cancel path rather than silently creating an extra encoder.
 
 ### Advanced manual override
 
-Turn off the reuse checkbox to expose the manual layout editor. The manual mode can define separate portrait and landscape scenes/canvases, dimensions, video encoders, bitrate, frame-rate divisor and Fit/Crop framing. Audio can be shared or configured independently, including encoder, mixer and bitrate. It also provides layout preview and the OBS encoder-property editor.
+Turn off the automatic reuse option to configure independent portrait/landscape layouts. The manual editor supports separate scenes/canvases, width/height, video encoders, bitrate, frame-rate divisor, Fit/Crop framing, shared/independent audio and encoder properties. Use it only when you want layouts different from your existing Vertical and Main Canvas outputs.
 
-Use manual mode only when the inherited Vertical Canvas and Main Canvas configurations are not the layouts you want to send to TikTok. It is not necessary for the default WEST Gaming setup.
+### Failure and stop behaviour
 
-### Dual LIVE constraints
+Portrait and Landscape use separate RTMP output transports. A landscape transport failure is logged and can be retried by OBS; it no longer forcibly ends the portrait output. This avoids turning a secondary-feed failure into a full TikTok LIVE teardown. It also means a session can temporarily be **portrait-only** while Landscape is reconnecting or stopped. Confirm both feeds in TikTok; an active OBS portrait output alone does not prove Landscape is delivering.
 
-- TikTok account eligibility must be confirmed; an unknown or locked state does not enable Dual LIVE.
-- Mobile Dual LIVE requires **Camera LIVE**, not screen capture.
-- The Main Canvas stream must be active in automatic encoder-reuse mode.
-- The two feeds need separate valid ingest endpoints from the same TikTok LIVE session.
-- If either transport fails terminally, the pair is stopped and the managed LIVE session is cleaned up.
-- A successful OBS start request is not itself proof that TikTok is receiving or displaying both feeds; confirm both layouts in TikTok during the live test.
+A deliberate user stop of the TikTok destination still tears down the managed LIVE session and its feeds. Check the OBS log for the specific RTMP send/connect error before changing codec, bitrate or ingest settings.
 
 ## What this integration does not do
 
-- It does not replace OBS's global streaming service or take ownership of the ordinary Main Canvas stream.
-- It does not turn Aitum Multistream into a second TikTok API/signing engine. The matching Multistream fork only invokes the Vertical Canvas configuration bridge.
-- It does not offer Dual LIVE for Streamlabs, Custom RTMP or Mobile screen capture.
-- It does not guarantee TikTok account eligibility, approval of a LIVE, or uninterrupted ingest. Those decisions and service availability remain on TikTok's side.
-- It does not make an unsigned test build equivalent to a signed production installer.
+- It does not replace OBS's global Main Canvas streaming service.
+- It does not make Multistream a second TikTok signing/session engine.
+- It does not make every TikTok account eligible for Dual LIVE or guarantee ingest availability.
+- It does not create an additional third encoder set in automatic mode.
+- It does not make an unsigned CI artifact a production installer.
 
-## Current verification status
+## Verification status
 
-The latest Windows x64 build of the combined branch is [GitHub Actions run #45851841060](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/45851841060), commit `325b9ea337eed31829025142ddd363986114c808`, artifact `vertical-canvas-1.6.7-windows-x64-325b9ea33`. Windows compilation/package succeeded; Ubuntu/macOS and formatting were skipped. The test step validates only the relay stub's JSON-lines control protocol; it does not connect to TikTok or carry media. This build uses the current fork buildspec's OBS 31.1.0 dependency and therefore does not establish OBS 33.0.3 compatibility. See [Build and verification](BUILD-AND-TESTING.md) for exact scope.
+The 27 November 13:01 OBS 33.0.3 log used Multistream 1.0.10 and Vertical Canvas 1.6.7. Twitch EBC started first; the 1080×1920 encoder was found/reused; YouTube horizontal/Main Canvas started; TikTok Portrait and Landscape then connected and stayed active until manual stop with no TikTok RTMP send errors in that session.
 
-On 18 November 2026, the repository owner completed an approximately 30-minute maintainer smoke test in OBS 33.0.1 on Windows. TikTok Landscape, Portrait and Dual LIVE were reported working with the separate OBS Multi-RTMP plugin disabled. This is evidence for that earlier TikTok branch and one Windows setup; it does not validate the current combined PR #6 + Multistream PR #2 pair, Twitch EBC encoder reuse, or OBS 33.0.3. The paired test matrix in [Build and verification](BUILD-AND-TESTING.md) remains required.
+Vertical Canvas 1.6.8 and the paired Multistream 1.0.10 branch have since passed Windows x64 compile/package CI. The exact 1.6.8 pair still needs an OBS runtime regression test, including the optional Safe Areas checkbox, all connection methods, Dual LIVE failure/reconnect and a longer soak. CI success alone is not runtime proof.
 
-The workflow currently builds Windows x64 only. Code signing is skipped because signing secrets are not configured in this fork; the generated test package is unsigned. Ubuntu and macOS jobs are not enabled.
+## Troubleshooting checklist
 
-## Reporting a problem
-
-Include:
+When TikTok fails to start, collect:
 - OBS version and Windows version.
-- Whether the target uses Custom RTMP, LIVE Studio Desktop, LIVE Studio Mobile or Streamlabs.
-- Whether the problem occurs in single-feed or Dual LIVE mode.
-- Whether the Main Canvas stream was already active when automatic Dual LIVE was started.
-- The relevant OBS log section with cookies, keys, tokens, account IDs and personal data removed.
+- Multistream and Vertical Canvas versions/commit SHAs.
+- Which output was active first: Twitch EBC, YouTube Vertical, Main Canvas horizontal, Instagram, TikTok.
+- Whether the error was EBC-unavailable or Main-Canvas-unavailable.
+- Whether the failing feed was Portrait or Landscape.
+- The relevant redacted OBS log section.
 
-Do not attach cookie files or API keys.
+Do not attach cookie files, API keys, stream keys or unredacted OBS profiles.
