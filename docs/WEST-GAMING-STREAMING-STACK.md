@@ -1,8 +1,8 @@
 # WEST Gaming Streaming Stack — Source of Truth
 
 **Status date:** 2026-11-27  
-**Vertical Canvas integration merge:** `8c64a52994fd10fbc2414ea7bf98e7ee02975f42` · current main documentation head: `bc532b6f04793a7b0772f45fe77600939d41c87f`  
-**Multistream integration merge:** `6d4c0922f60ddd0012778c69dc7584a0cef55d15` · current main documentation head: `f8f3e9a3f0a4bbaaded8c8ac11caa8414770716d`  
+**Vertical Canvas integration merge:** `8c64a52994fd10fbc2414ea7bf98e7ee02975f42` ([PR #6 merged](https://github.com/westkerberos/obs-vertical-canvas/pull/6))  
+**Multistream integration merge:** `6d4c0922f60ddd0012778c69dc7584a0cef55d15` ([PR #2 merged](https://github.com/westkerberos/obs-aitum-multistream/pull/2))  
 **Target host:** OBS Studio 33.0.3 · Windows x64  
 **Purpose:** Single operational and engineering reference for the complete WEST Gaming OBS stack. Use this document before changing OBS, either Aitum plugin, DirectShow, DroidCam or the build dependencies.
 
@@ -13,7 +13,7 @@
 | Component | Current version / source | Official upstream status | Current evidence |
 |---|---|---|---|
 | OBS Studio | **33.0.3**, Windows x64 | Current target used by the logs and builds in this update | The user's 27 Nov logs are OBS 33.0.3 |
-| WEST Vertical Canvas | **1.6.8**, merged to `main` via PR #6 (`8c64a52994fd10fbc2414ea7bf98e7ee02975f42`) | Ports Aitum Vertical 1.6.8 while retaining WEST TikTok/EBC code | Windows x64 CI [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) succeeded; artifact `vertical-canvas-1.6.8-windows-x64-6a0598716` |
+| WEST Vertical Canvas | **1.6.8**, merged to `main` via PR #6 (`8c64a52994fd10fbc2414ea7bf98e7ee02975f42`) | Ports Aitum Vertical 1.6.8 while retaining WEST TikTok/EBC code | Post-merge Windows x64 CI [#46036075188](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46036075188) succeeded; artifact `vertical-canvas-1.6.8-windows-x64-8c64a5299` |
 | WEST Aitum Multistream | **1.0.10**, merged to `main` via PR #2 (`6d4c0922f60ddd0012778c69dc7584a0cef55d15`) | Contains Aitum Multistream 1.0.10 upstream changes plus WEST EBC and TikTok bridge | Windows x64 CI [#46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193) succeeded; artifact `aitum-multistream-1.0.10-windows-x64-3c582ebb5` |
 | OBS DirectShow module | Custom **OBS 33.0.3 `win-dshow.dll`** patch, merged into [maintenance repo main](https://github.com/westkerberos/ChatGPT/commit/ae7cc2dbcf71a3f6be74579577d47fd90fa452b3) | This is a patch to OBS core's DirectShow module, not a third-party Aitum plugin | Latest Windows x64 build [#46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651) succeeded; runtime MJPEG recording still requires validation |
 | DroidCam OBS (optional) | **2.5.1** | Latest official release inspected on 27 Nov 2026; use the OBS 33-specific installer if reinstalling | User's 27 Nov startup log reports DroidCam release 251; official OBS 33 installer: [DroidCamOBS.Setup.2.5.1.obs33_1.exe](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe) |
@@ -182,7 +182,7 @@ For every update, record OBS build, Windows build, GPU driver, plugin commit SHA
 
 | Area | Status |
 |---|---|
-| Vertical Canvas 1.6.8 Windows x64 compile/package against OBS 33.0.3 | **Passed** — workflow [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) |
+| Vertical Canvas 1.6.8 Windows x64 compile/package against OBS 33.0.3 | **Passed** — post-merge workflow [#46036075188](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46036075188) |
 | Multistream 1.0.10 Windows x64 compile/package against OBS 33.0.3 | **Passed** — workflow [#46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193) |
 | DirectShow patched `win-dshow.dll` Windows x64 compile/package against OBS 33.0.3 | **Passed** — workflow [#46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651) |
 | TikTok Dual LIVE with correct prerequisites, in the user's 13:01 log | **Passed for a short session**; portrait + landscape active until manual stop |
