@@ -7096,6 +7096,10 @@ void CanvasDock::StartStream()
 		return;
 	}
 
+	obs_encoder_t *video_encoder = nullptr;
+	obs_encoder_t *audio_encoder = nullptr;
+	const bool started_video = StartVideo();
+
 	bool requires_twitch_ebc = false;
 	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
 		if (it->enabled && IsTwitchEbcVerticalEncoderSelected(it->settings)) {
@@ -7111,15 +7115,13 @@ void CanvasDock::StartStream()
 			auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
 			if (!ConfirmIndependentVerticalEncoderFallback(main_window ? main_window : this)) {
 				blog(LOG_INFO, "[Vertical Canvas] Cancelled Start All because the selected Twitch EBC vertical encoder is unavailable");
+				if (started_video)
+					DestroyVideo();
 				return;
 			}
 			blog(LOG_WARNING, "[Vertical Canvas] User chose to start selected vertical outputs with independent encoders because Twitch EBC is unavailable");
 		}
 	}
-
-	obs_encoder_t *video_encoder = nullptr;
-	obs_encoder_t *audio_encoder = nullptr;
-	const bool started_video = StartVideo();
 	auto try_set_twitch_ebc_encoder_for_output = [this](obs_output_t *output, obs_data_t *settings) {
 		if (!IsTwitchEbcVerticalEncoderSelected(settings))
 			return false;
