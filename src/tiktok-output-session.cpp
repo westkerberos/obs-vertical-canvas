@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QMetaObject>
 #include <QTimer>
+#include <QUrl>
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <obs.hpp>
@@ -123,6 +124,43 @@ public:
 
     video_t *Video() const { return canvas_ ? obs_canvas_get_video(canvas_) : nullptr; }
 };
+
+static QString TikTokEndpointHost(const std::string &server)
+{
+    const QUrl url(QString::fromStdString(server));
+    const QString host = url.host();
+    return host.isEmpty() ? QStringLiteral("<unparsed>") : host;
+}
+
+static void LogTikTokEncoder(const char *feed, const char *kind, obs_encoder_t *encoder)
+{
+    if (!encoder) {
+        blog(LOG_WARNING, "[Vertical Canvas] TikTok encoder diagnostic: feed=%s type=%s encoder=missing",
+            feed ? feed : "(unknown)", kind ? kind : "(unknown)");
+        return;
+    }
+
+    const char *name = obs_encoder_get_name(encoder);
+    const char *id = obs_encoder_get_id(encoder);
+    const char *codec = obs_encoder_get_codec(encoder);
+    OBSDataAutoRelease settings = obs_encoder_get_settings(encoder);
+    const int bitrate = settings ? static_cast<int>(obs_data_get_int(settings, "bitrate")) : 0;
+    const bool active = obs_encoder_active(encoder);
+
+    if (kind && strcmp(kind, "video") == 0) {
+        const int keyint = settings ? static_cast<int>(obs_data_get_int(settings, "keyint_sec")) : 0;
+        blog(LOG_INFO,
+            "[Vertical Canvas] TikTok encoder diagnostic: feed=%s type=video name='%s' id='%s' codec='%s' size=%ux%u bitrate=%d keyint_sec=%d active=%s encoder=%p",
+            feed ? feed : "(unknown)", name ? name : "(unnamed)", id ? id : "(unknown)",
+            codec ? codec : "(unknown)", obs_encoder_get_width(encoder), obs_encoder_get_height(encoder),
+            bitrate, keyint, active ? "true" : "false", static_cast<void *>(encoder));
+    } else {
+        blog(LOG_INFO,
+            "[Vertical Canvas] TikTok encoder diagnostic: feed=%s type=audio name='%s' id='%s' codec='%s' bitrate=%d active=%s encoder=%p",
+            feed ? feed : "(unknown)", name ? name : "(unnamed)", id ? id : "(unknown)",
+            codec ? codec : "(unknown)", bitrate, active ? "true" : "false", static_cast<void *>(encoder));
+    }
+}
 
 static obs_data_t *EncoderSettings(const std::string &encoderId,
     const QJsonObject &params, int bitrate, bool video)
@@ -335,6 +373,19 @@ struct TikTokOutputSession::DualFeedState {
                 obs_encoder_release(oldAudio);
         }
 
+        // Diagnostic-only snapshot of the exact encoders assigned to each TikTok feed.
+        // This logs encoder metadata and pointer identity, never stream keys or credentials.
+        auto portraitVideoForLog = obs_output_get_video_encoder(primaryOutput);
+        auto portraitAudioForLog = obs_output_get_audio_encoder(primaryOutput, 0);
+        LogTikTokEncoder("portrait", "video", portraitVideoForLog);
+        LogTikTokEncoder("portrait", "audio", portraitAudioForLog);
+        if (portraitVideoForLog)
+            obs_encoder_release(portraitVideoForLog);
+        if (portraitAudioForLog)
+            obs_encoder_release(portraitAudioForLog);
+        LogTikTokEncoder("landscape", "video", landscapeVideo);
+        LogTikTokEncoder("landscape", "audio", landscapeAudio);
+
         OBSDataAutoRelease outputSettings = obs_output_get_settings(primaryOutput);
         if (!outputSettings)
             outputSettings = obs_data_create();
@@ -488,8 +539,18 @@ bool TikTokOutputSession::Start(const TikTokOutputConfig &config, obs_output *ou
         }
         server_ = liveStudio_->Server(false);
         key_ = liveStudio_->Key(false);
+        const std::string landscapeServer = liveStudio_->Server(true);
+        const std::string landscapeKey = liveStudio_->Key(true);
+        const QString portraitHost = TikTokEndpointHost(server_);
+        const QString landscapeHost = TikTokEndpointHost(landscapeServer);
+        const QByteArray portraitHostUtf8 = portraitHost.toUtf8();
+        const QByteArray landscapeHostUtf8 = landscapeHost.toUtf8();
+        blog(LOG_INFO,
+            "[Vertical Canvas] TikTok Dual LIVE endpoint diagnostic: portrait_host='%s' landscape_host='%s' portrait_key=%s landscape_key=%s",
+            portraitHostUtf8.constData(), landscapeHostUtf8.constData(),
+            key_.empty() ? "missing" : "present", landscapeKey.empty() ? "missing" : "present");
         if (server_.empty() || key_.empty() ||
-            !dual_->StartLandscape(liveStudio_->Server(true), liveStudio_->Key(true), &layoutError)) {
+            !dual_->StartLandscape(landscapeServer, landscapeKey, &layoutError)) {
             error_ = !layoutError.isEmpty() ? layoutError : QString("TikTok did not return both RTMP feed endpoints.");
             Stop();
             return false;
