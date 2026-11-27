@@ -22,8 +22,8 @@ Do not replace either fork with the upstream Aitum binary; it would remove WEST 
 | Component | Run | Commit | Artifact | Result |
 |---|---|---|---|---|
 | Vertical Canvas 1.6.8 | [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) | 6a05987169096d4c9c00641706766f0c6f90e6a6 | vertical-canvas-1.6.8-windows-x64-6a0598716 | **Success** |
-| Multistream 1.0.10 | [#45899264700](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45899264700) | 6a5578990456c9c55403ea9cdc51d18d3af3d5b1 | aitum-multistream-1.0.10-windows-x64-6a5578990 | **Success** |
-| OBS 33.0.3 win-dshow.dll patch | [#45899269116](https://github.com/westkerberos/ChatGPT/actions/runs/45899269116) | 44d9713aa7752a07e2414edbc16328db1f176b8c | obs-33.0.3-native-mjpeg-win-dshow | **Success** |
+| Multistream 1.0.10 | [#46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193) | 4b1ef9ec1ca3bba92222c3c5f82e2dfeb830d615 | aitum-multistream-1.0.10-windows-x64-3c582ebb5 | **Success** |
+| OBS 33.0.3 win-dshow.dll patch | [#46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651) | ae7cc2dbcf71a3f6be74579577d47fd90fa452b3 | obs-33.0.3-native-mjpeg-win-dshow | **Success** |
 
 The Aitum workflows are Windows-only; formatting and non-Windows jobs are skipped. The DirectShow run builds the OBS win-dshow target separately. These results establish compile/package success only, not complete runtime validation.
 
@@ -43,7 +43,7 @@ The user supplied two OBS 33.0.3 logs.
 - TikTok then reused the negotiated EBC portrait encoder; both TikTok feeds connected and remained active until manual stop.
 - No TikTok RTMP send errors were recorded in that final session.
 
-This is short-session runtime evidence for the 1.0.10 + 1.6.7 pair. It is **not** yet runtime evidence for the new 1.6.8 safe-area code, a long-duration stream or all destinations/methods.
+This is short-session runtime evidence for Multistream 1.0.10 + Vertical Canvas 1.6.7. It is **not** yet runtime evidence for the exact 1.6.8 + 1.0.10 pair, a long-duration stream or all destinations/methods.
 
 ## Required paired test plan
 
