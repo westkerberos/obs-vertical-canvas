@@ -116,6 +116,7 @@ private:
 	std::vector<obs_sceneitem_t *> selectedItems;
 	std::mutex selectMutex;
 	bool drawSpacingHelpers = true;
+	bool drawSafeAreas = false;
 
 	vec2 startPos{};
 	vec2 mousePos{};
@@ -252,6 +253,13 @@ private:
 	gs_texture_t *overflow = nullptr;
 	gs_vertbuffer_t *rectFill = nullptr;
 	gs_vertbuffer_t *circleFill = nullptr;
+
+	gs_vertbuffer_t *actionSafeMargin = nullptr;
+	gs_vertbuffer_t *graphicsSafeMargin = nullptr;
+	gs_vertbuffer_t *fourByThreeSafeMargin = nullptr;
+	gs_vertbuffer_t *leftLine = nullptr;
+	gs_vertbuffer_t *topLine = nullptr;
+	gs_vertbuffer_t *rightLine = nullptr;
 
 	gs_vertbuffer_t *box = nullptr;
 
