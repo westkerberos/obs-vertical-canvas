@@ -174,16 +174,16 @@ struct TikTokLiveSession::State {
                         codec, obs_encoder_get_width(packet->encoder), obs_encoder_get_height(packet->encoder), size);
                 }
             }
-        } else {
+        } else if (!error.isEmpty()) {
+            // false + empty error is the normal no-op result when this frame
+            // has no scheduled SEI payload. Only a real diagnostic is fatal.
             const QByteArray detail = error.toUtf8();
             blog(LOG_ERROR,
                 "[Vertical Canvas] TikTok packet signing failed: output='%s' codec='%s' packet_bytes=%zu error='%s'",
                 obs_output_get_name(feed.output) ? obs_output_get_name(feed.output) : "(unknown)",
-                codec, static_cast<size_t>(packet->size), detail.isEmpty() ? "(no detail)" : detail.constData());
-            if (error.isEmpty())
-                error = "TikTok frame signing failed without a diagnostic message.";
+                codec, static_cast<size_t>(packet->size), detail.constData());
+            state.Fail(error);
         }
-        state.Fail(error);
     }
 };
 
