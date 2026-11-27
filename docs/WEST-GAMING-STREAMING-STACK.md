@@ -59,7 +59,9 @@ Automatic TikTok Dual LIVE has two separate prerequisites:
 1. **Portrait:** reuses the encoder(s) already attached to the TikTok Vertical Canvas output. When configured for Twitch EBC, that vertical output must be started after Twitch EBC has created its portrait track.
 2. **Landscape:** reuses the active OBS Main Canvas streaming output's video encoder and audio encoder 0. A horizontal Main Canvas stream must already be active before TikTok Dual LIVE starts.
 
-These are distinct dependencies. Twitch being active does not, by itself, satisfy the Main Canvas requirement. Conversely, YouTube horizontal being active does not provide Twitch's EBC portrait track.
+These are distinct, independent encoder routes. **For the current WEST Gaming profile, TikTok Portrait reuses the portrait video encoder negotiated by Twitch EBC** (the dedicated `aitum_multi_ebc_output_Twitch Output` managed by Multistream), when the Vertical Canvas TikTok output is configured for EBC reuse. **TikTok Landscape reuses the active Main Canvas horizontal output, which in this profile is YouTube Horizontal**. The 2560×1440 HEVC/H.265 encoder at 25 Mbps seen on that route belongs to the YouTube/Main Canvas output; it is not a Twitch EBC encoder and must never be diagnosed or changed as if it were Twitch's connection. Twitch EBC creates and owns its own negotiated encoder group and separate Twitch RTMP output. Identify every encoder by its owning output/name and actual object, never by codec or bitrate alone.
+
+Twitch being active does not, by itself, satisfy the Main Canvas requirement. Conversely, YouTube horizontal being active does not provide Twitch EBC's portrait track.
 
 ### Recommended pre-flight start order
 
