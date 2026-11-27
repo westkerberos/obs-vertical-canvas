@@ -385,6 +385,18 @@ struct TikTokOutputSession::DualFeedState {
             obs_encoder_release(portraitAudioForLog);
         LogTikTokEncoder("landscape", "video", landscapeVideo);
         LogTikTokEncoder("landscape", "audio", landscapeAudio);
+        const char *portraitOutputName = obs_output_get_name(primaryOutput);
+        const char *portraitOutputId = obs_output_get_id(primaryOutput);
+        blog(LOG_INFO,
+            "[Vertical Canvas] TikTok primary output prepared: name='%s' id='%s' active=%s",
+            portraitOutputName ? portraitOutputName : "(unknown)",
+            portraitOutputId ? portraitOutputId : "(unknown)");
+        const char *landscapeCodec = landscapeVideo ? obs_encoder_get_codec(landscapeVideo) : nullptr;
+        if (landscapeCodec && strcmp(landscapeCodec, "hevc") == 0) {
+            blog(LOG_WARNING,
+                "[Vertical Canvas] TikTok landscape is reusing an HEVC Main Canvas encoder (%ux%u). RTMP ingest compatibility is not guaranteed; TikTok H.264 validation is still required.",
+                obs_encoder_get_width(landscapeVideo), obs_encoder_get_height(landscapeVideo));
+        }
 
         OBSDataAutoRelease outputSettings = obs_output_get_settings(primaryOutput);
         if (!outputSettings)
@@ -415,8 +427,14 @@ struct TikTokOutputSession::DualFeedState {
         obs_data_set_string(settings, "key", key.c_str());
         obs_data_set_string(settings, "bearer_token", key.c_str());
         obs_service_update(landscapeService, settings);
-        if (!obs_output_start(landscapeOutput)) {
-            const char *last = obs_output_get_last_error(landscapeOutput);
+        const bool started = obs_output_start(landscapeOutput);
+        const char *last = obs_output_get_last_error(landscapeOutput);
+        blog(started ? LOG_INFO : LOG_ERROR,
+            "[Vertical Canvas] TikTok landscape output start result: name='%s' started=%s active=%s last_error='%s'",
+            obs_output_get_name(landscapeOutput) ? obs_output_get_name(landscapeOutput) : "(unknown)",
+            started ? "true" : "false", obs_output_active(landscapeOutput) ? "true" : "false",
+            last && *last ? last : "(empty)");
+        if (!started) {
             *error = last && *last ? QString::fromUtf8(last) : QString("Could not start the TikTok landscape feed.");
             return false;
         }
