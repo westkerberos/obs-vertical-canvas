@@ -52,7 +52,9 @@ The default option reuses existing OBS encoders instead of defining a second set
 | Portrait | Video/audio encoders already assigned to the Vertical Canvas TikTok output | Vertical output must have its video encoder attached. For Twitch EBC reuse, start Twitch first and wait for the 1080×1920 portrait track |
 | Landscape | Video encoder and audio encoder 0 from OBS's primary Main Canvas streaming output | Start a horizontal Main Canvas stream first |
 
-These prerequisites are independent. Twitch EBC being active does not satisfy the Main Canvas requirement. YouTube horizontal/Main Canvas being active does not create Twitch EBC's portrait track.
+These prerequisites are independent and belong to different output paths. **In the current WEST Gaming profile, TikTok Portrait uses the portrait encoder supplied by Twitch EBC** (when EBC reuse is selected); **TikTok Landscape reuses the active Main Canvas horizontal output, which is YouTube Horizontal in this profile**. The 2560×1440 HEVC/H.265 encoder at 25 Mbps on that Main Canvas route is YouTube's encoder, not Twitch's. Twitch EBC is a separate Multistream-managed output with its own negotiated encoder group and RTMP connection. Do not infer encoder ownership from H.264/HEVC or bitrate; verify the output and encoder identity in the log.
+
+Twitch EBC being active does not satisfy the Main Canvas requirement. YouTube horizontal/Main Canvas being active does not create Twitch EBC's portrait track.
 
 ### Pre-flight warnings
 
