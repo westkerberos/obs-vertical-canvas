@@ -1,8 +1,8 @@
 # WEST Gaming Streaming Stack — Source of Truth
 
 **Status date:** 2026-11-27  
-**Merged Vertical Canvas main:** `8c64a52994fd10fbc2414ea7bf98e7ee02975f42`  
-**Merged Multistream main:** `6d4c0922f60ddd0012778c69dc7584a0cef55d15`  
+**Vertical Canvas integration merge:** `8c64a52994fd10fbc2414ea7bf98e7ee02975f42` · current main documentation head: `bc532b6f04793a7b0772f45fe77600939d41c87f`  
+**Multistream integration merge:** `6d4c0922f60ddd0012778c69dc7584a0cef55d15` · current main documentation head: `f8f3e9a3f0a4bbaaded8c8ac11caa8414770716d`  
 **Target host:** OBS Studio 33.0.3 · Windows x64  
 **Purpose:** Single operational and engineering reference for the complete WEST Gaming OBS stack. Use this document before changing OBS, either Aitum plugin, DirectShow, DroidCam or the build dependencies.
 
@@ -13,8 +13,8 @@
 | Component | Current version / source | Official upstream status | Current evidence |
 |---|---|---|---|
 | OBS Studio | **33.0.3**, Windows x64 | Current target used by the logs and builds in this update | The user's 27 Nov logs are OBS 33.0.3 |
-| WEST Vertical Canvas | **1.6.8**, `main` at `8c64a52994fd10fbc2414ea7bf98e7ee02975f42` ([merged PR #6](https://github.com/westkerberos/obs-vertical-canvas/pull/6)) | Ports Aitum Vertical 1.6.8 while retaining WEST TikTok/EBC code | Windows x64 CI [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) succeeded; artifact `vertical-canvas-1.6.8-windows-x64-6a0598716` |
-| WEST Aitum Multistream | **1.0.10**, `main` at `6d4c0922f60ddd0012778c69dc7584a0cef55d15` ([merged PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2)) | Contains Aitum Multistream 1.0.10 upstream changes plus WEST EBC and TikTok bridge | Windows x64 CI [#46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193) succeeded; artifact `aitum-multistream-1.0.10-windows-x64-3c582ebb5` |
+| WEST Vertical Canvas | **1.6.8**, merged to `main` via PR #6 (`8c64a52994fd10fbc2414ea7bf98e7ee02975f42`) | Ports Aitum Vertical 1.6.8 while retaining WEST TikTok/EBC code | Windows x64 CI [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) succeeded; artifact `vertical-canvas-1.6.8-windows-x64-6a0598716` |
+| WEST Aitum Multistream | **1.0.10**, merged to `main` via PR #2 (`6d4c0922f60ddd0012778c69dc7584a0cef55d15`) | Contains Aitum Multistream 1.0.10 upstream changes plus WEST EBC and TikTok bridge | Windows x64 CI [#46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193) succeeded; artifact `aitum-multistream-1.0.10-windows-x64-3c582ebb5` |
 | OBS DirectShow module | Custom **OBS 33.0.3 `win-dshow.dll`** patch, merged into [maintenance repo main](https://github.com/westkerberos/ChatGPT/commit/ae7cc2dbcf71a3f6be74579577d47fd90fa452b3) | This is a patch to OBS core's DirectShow module, not a third-party Aitum plugin | Latest Windows x64 build [#46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651) succeeded; runtime MJPEG recording still requires validation |
 | DroidCam OBS (optional) | **2.5.1** | Latest official release inspected on 27 Nov 2026; use the OBS 33-specific installer if reinstalling | User's 27 Nov startup log reports DroidCam release 251; official OBS 33 installer: [DroidCamOBS.Setup.2.5.1.obs33_1.exe](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe) |
 
@@ -107,10 +107,10 @@ The optional recorder:
 - Writes the incoming MJPEG packets to MOV without video re-encoding.
 - Attempts PCM S16LE audio from the configured OBS audio source (default `Mic/Aux`); if that source is unavailable, the recorder warns and writes video only.
 
-Latest known build: [workflow #45899269116](https://github.com/westkerberos/ChatGPT/actions/runs/45899269116), commit `44d9713aa7752a07e2414edbc16328db1f176b8c`, artifact `obs-33.0.3-native-mjpeg-win-dshow`. This is compile/package evidence only. The actual camera's 4K MJPEG mode, MOV integrity, audio sync, source deactivation/reactivation and long-session handling still need runtime validation.
+Latest build: [workflow #46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651), DirectShow source head `80c45786d1cb4659a364b17580d937aaeaa518dc`, merged maintenance repo main `ae7cc2dbcf71a3f6be74579577d47fd90fa452b3`, artifact `obs-33.0.3-native-mjpeg-win-dshow`. ZIP SHA-256: `88dff9f2b12b735370d5f7928fef91a8c476627c67a43f4b2e813b3777cd9cc6`; DLL SHA-256: `EBD7B77E9DA422F9A6ED72BC4661C8387E8889D1BCC1D5EFD1BAC2FCF1ECF9AD`. This is compile/package evidence only. The actual camera's 4K MJPEG mode, MOV integrity, audio sync, source deactivation/reactivation and long-session handling still need runtime validation.
 
-- [DirectShow patch source](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/obs-33.0.0-beta4-native-mjpeg.patch)
-- [DirectShow implementation and test notes](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/docs/DIRECTSHOW-NATIVE-MJPEG.md)
+- [DirectShow patch source](https://github.com/westkerberos/ChatGPT/blob/main/obs-33.0.0-beta4-native-mjpeg.patch)
+- [DirectShow implementation and test notes](https://github.com/westkerberos/ChatGPT/blob/main/docs/DIRECTSHOW-NATIVE-MJPEG.md)
 
 ## 6. Official upstream changes carried forward
 
