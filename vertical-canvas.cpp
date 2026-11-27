@@ -8389,7 +8389,7 @@ void CanvasDock::OnStreamStop(int code, QString last_error, QString stream_serve
 			blog(LOG_WARNING, "[Vertical Canvas] stream stop error %i", code);
 		}
 	}
-	const bool missing_main_canvas_output =
+	const bool missing_main_canvas_output = code != OBS_OUTPUT_SUCCESS &&
 		last_error.contains(QStringLiteral("OBS Main Canvas streaming output is unavailable"), Qt::CaseInsensitive);
 	if (missing_main_canvas_output) {
 		auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
