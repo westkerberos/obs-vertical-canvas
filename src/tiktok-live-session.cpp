@@ -152,23 +152,27 @@ struct TikTokLiveSession::State {
             static_cast<int>(obs_encoder_get_height(packet->encoder)), QDateTime::currentMSecsSinceEpoch(),
             &replacement, &error);
         if (signedPacket) {
-            const auto size = static_cast<size_t>(replacement.size());
-            // OBS stores a long reference count immediately before packet data.
-            // A new buffer isolates outputs that share the same encoder.
-            auto *references = static_cast<long *>(bmalloc(sizeof(long) + size));
-            *references = 1;
-            std::memcpy(references + 1, replacement.constData(), size);
-            encoder_packet changed = *packet;
-            changed.data = reinterpret_cast<uint8_t *>(references + 1);
-            changed.size = size;
-            obs_encoder_packet_release(packet);
-            *packet = changed;
+            // An empty replacement means this frame did not need SEI metadata;
+            // leave the original encoder packet untouched and continue streaming.
+            if (!replacement.isEmpty()) {
+                const auto size = static_cast<size_t>(replacement.size());
+                // OBS stores a long reference count immediately before packet data.
+                // A new buffer isolates outputs that share the same encoder.
+                auto *references = static_cast<long *>(bmalloc(sizeof(long) + size));
+                *references = 1;
+                std::memcpy(references + 1, replacement.constData(), size);
+                encoder_packet changed = *packet;
+                changed.data = reinterpret_cast<uint8_t *>(references + 1);
+                changed.size = size;
+                obs_encoder_packet_release(packet);
+                *packet = changed;
 
-            if (!feed.firstPacketLogged.exchange(true, std::memory_order_acq_rel)) {
-                blog(LOG_INFO,
-                    "[Vertical Canvas] TikTok first signed packet: output='%s' codec='%s' size=%ux%u bytes=%zu",
-                    obs_output_get_name(feed.output) ? obs_output_get_name(feed.output) : "(unknown)",
-                    codec, obs_encoder_get_width(packet->encoder), obs_encoder_get_height(packet->encoder), size);
+                if (!feed.firstPacketLogged.exchange(true, std::memory_order_acq_rel)) {
+                    blog(LOG_INFO,
+                        "[Vertical Canvas] TikTok first signed packet: output='%s' codec='%s' size=%ux%u bytes=%zu",
+                        obs_output_get_name(feed.output) ? obs_output_get_name(feed.output) : "(unknown)",
+                        codec, obs_encoder_get_width(packet->encoder), obs_encoder_get_height(packet->encoder), size);
+                }
             }
         } else {
             const QByteArray detail = error.toUtf8();
