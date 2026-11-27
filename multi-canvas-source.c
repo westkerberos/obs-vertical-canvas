@@ -1,5 +1,6 @@
 
 #include <obs-module.h>
+#include <util/threading.h>
 #include "multi-canvas-source.h"
 
 struct multi_canvas_info {
@@ -10,6 +11,8 @@ struct multi_canvas_info {
 	DARRAY(uint32_t) widths;
 	DARRAY(uint32_t) heights;
 	DARRAY(gs_texrender_t *) renders;
+	/* Protect canvas/render arrays while the graphics thread renders and the UI adds/removes canvases. */
+	pthread_mutex_t canvas_mutex;
 };
 
 const char *multi_canvas_get_name(void *type_data)
@@ -22,6 +25,13 @@ void *multi_canvas_create(obs_data_t *settings, obs_source_t *source)
 {
 	UNUSED_PARAMETER(settings);
 	struct multi_canvas_info *multi_canvas = bzalloc(sizeof(struct multi_canvas_info));
+	if (!multi_canvas)
+		return NULL;
+	if (pthread_mutex_init_recursive(&multi_canvas->canvas_mutex) != 0) {
+		blog(LOG_ERROR, "[Vertical Canvas] Could not initialize multi-canvas render mutex");
+		bfree(multi_canvas);
+		return NULL;
+	}
 	multi_canvas->source = source;
 	return multi_canvas;
 }
@@ -29,6 +39,9 @@ void *multi_canvas_create(obs_data_t *settings, obs_source_t *source)
 void multi_canvas_destroy(void *data)
 {
 	struct multi_canvas_info *mc = data;
+	if (!mc)
+		return;
+	pthread_mutex_lock(&mc->canvas_mutex);
 	da_free(mc->canvas);
 	da_free(mc->widths);
 	da_free(mc->heights);
@@ -36,6 +49,8 @@ void multi_canvas_destroy(void *data)
 		gs_texrender_destroy(mc->renders.array[i]);
 	}
 	da_free(mc->renders);
+	pthread_mutex_unlock(&mc->canvas_mutex);
+	pthread_mutex_destroy(&mc->canvas_mutex);
 	bfree(data);
 }
 
@@ -81,6 +96,8 @@ static void multi_canvas_video_render(void *data, gs_effect_t *effect)
 
 	effect = obs_get_base_effect(OBS_EFFECT_DEFAULT);
 
+	/* Keep each canvas and its texrender alive for the full GPU render. */
+	pthread_mutex_lock(&mc->canvas_mutex);
 	for (size_t i = 0; i < mc->canvas.num; i++) {
 		obs_canvas_t *canvas = mc->canvas.array[i];
 		const enum gs_color_format format = gs_get_format_from_space(gs_get_color_space());
@@ -122,19 +139,26 @@ static void multi_canvas_video_render(void *data, gs_effect_t *effect)
 
 		gs_matrix_translate3f((float)mc->widths.array[i], 0.0f, 0.0f);
 	}
+	pthread_mutex_unlock(&mc->canvas_mutex);
 	gs_matrix_pop();
 }
 
 uint32_t multi_canvas_get_width(void *data)
 {
 	struct multi_canvas_info *mc = data;
-	return mc->width;
+	pthread_mutex_lock(&mc->canvas_mutex);
+	const uint32_t width = mc->width;
+	pthread_mutex_unlock(&mc->canvas_mutex);
+	return width;
 }
 
 uint32_t multi_canvas_get_height(void *data)
 {
 	struct multi_canvas_info *mc = data;
-	return mc->height;
+	pthread_mutex_lock(&mc->canvas_mutex);
+	const uint32_t height = mc->height;
+	pthread_mutex_unlock(&mc->canvas_mutex);
+	return height;
 }
 
 void multi_canvas_update_size(struct multi_canvas_info *mc)
@@ -156,9 +180,12 @@ void multi_canvas_update_size(struct multi_canvas_info *mc)
 void multi_canvas_source_add_canvas(void *data, obs_canvas_t *canvas, uint32_t width, uint32_t height)
 {
 	struct multi_canvas_info *mc = data;
+	pthread_mutex_lock(&mc->canvas_mutex);
 	for (size_t i = 0; i < mc->canvas.num; i++) {
-		if (mc->canvas.array[i] == canvas)
+		if (mc->canvas.array[i] == canvas) {
+			pthread_mutex_unlock(&mc->canvas_mutex);
 			return;
+		}
 	}
 	da_push_back(mc->widths, &width);
 	da_push_back(mc->heights, &height);
@@ -167,11 +194,13 @@ void multi_canvas_source_add_canvas(void *data, obs_canvas_t *canvas, uint32_t w
 	da_push_back(mc->renders, &render);
 
 	multi_canvas_update_size(mc);
+	pthread_mutex_unlock(&mc->canvas_mutex);
 }
 
 void multi_canvas_source_remove_canvas(void *data, obs_canvas_t *canvas)
 {
 	struct multi_canvas_info *mc = data;
+	pthread_mutex_lock(&mc->canvas_mutex);
 	for (size_t i = 0; i < mc->canvas.num; i++) {
 		if (mc->canvas.array[i] == canvas) {
 			gs_texrender_destroy(mc->renders.array[i]);
@@ -183,6 +212,7 @@ void multi_canvas_source_remove_canvas(void *data, obs_canvas_t *canvas)
 		}
 	}
 	multi_canvas_update_size(mc);
+	pthread_mutex_unlock(&mc->canvas_mutex);
 }
 
 struct obs_source_info multi_canvas_source = {
