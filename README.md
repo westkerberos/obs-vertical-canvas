@@ -18,7 +18,7 @@ The matching [WEST Aitum Multistream fork](https://github.com/westkerberos/obs-a
 ## Current merged integration
 
 - Vertical Canvas: [1.6.8 main branch](https://github.com/westkerberos/obs-vertical-canvas/tree/main) — Merged to main as commit `8c64a52994fd10fbc2414ea7bf98e7ee02975f42`; the post-merge Windows x64 build passed in [CI #46036075188](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46036075188), artifact `vertical-canvas-1.6.8-windows-x64-8c64a5299`.
-- Multistream: **1.0.10**, merged to main as commit `6d4c0922f60ddd0012778c69dc7584a0cef55d15` ([PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2)); final Windows x64 build passed in [CI #46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193), artifact `aitum-multistream-1.0.10-windows-x64-3c582ebb5`.
+- Multistream: **1.0.10**, merged to main as commit `6d4c0922f60ddd0012778c69dc7584a0cef55d15` ([PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2)); post-merge Windows x64 build passed on Multistream main in [CI #46036486335](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46036486335), artifact `aitum-multistream-1.0.10-windows-x64-6d4c0922f`.
 - OBS DirectShow native MJPEG patch: merged into [maintenance repo main](https://github.com/westkerberos/ChatGPT/commit/ae7cc2dbcf71a3f6be74579577d47fd90fa452b3); the OBS 33.0.3 Windows x64 build passed in [CI #46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651).
 - DroidCam OBS: official 2.5.1 is current; the startup log reports release 251. Use the [OBS 33-specific 2.5.1 installer](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe) if reinstalling.
 
