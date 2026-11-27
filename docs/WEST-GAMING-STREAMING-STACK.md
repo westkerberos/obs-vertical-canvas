@@ -1,6 +1,8 @@
 # WEST Gaming Streaming Stack — Source of Truth
 
 **Status date:** 2026-11-27  
+**Merged Vertical Canvas main:** `8c64a52994fd10fbc2414ea7bf98e7ee02975f42`  
+**Merged Multistream main:** `6d4c0922f60ddd0012778c69dc7584a0cef55d15`  
 **Target host:** OBS Studio 33.0.3 · Windows x64  
 **Purpose:** Single operational and engineering reference for the complete WEST Gaming OBS stack. Use this document before changing OBS, either Aitum plugin, DirectShow, DroidCam or the build dependencies.
 
@@ -11,8 +13,8 @@
 | Component | Current version / source | Official upstream status | Current evidence |
 |---|---|---|---|
 | OBS Studio | **33.0.3**, Windows x64 | Current target used by the logs and builds in this update | The user's 27 Nov logs are OBS 33.0.3 |
-| WEST Vertical Canvas | **1.6.8**, branch [`release/obs33.0.3-vertical-1.6.8-west-stack-20261127`](https://github.com/westkerberos/obs-vertical-canvas/tree/release/obs33.0.3-vertical-1.6.8-west-stack-20261127) | Ports Aitum Vertical 1.6.8 while retaining WEST TikTok/EBC code | Windows x64 CI [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) succeeded; artifact `vertical-canvas-1.6.8-windows-x64-6a0598716` |
-| WEST Aitum Multistream | **1.0.10**, branch [`feature/aitum-twitch-enhanced-broadcasting`](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting) | Contains Aitum Multistream 1.0.10 upstream changes plus WEST EBC and TikTok bridge | Windows x64 CI [#45899264700](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45899264700) succeeded; artifact `aitum-multistream-1.0.10-windows-x64-6a5578990` |
+| WEST Vertical Canvas | **1.6.8**, `main` at `8c64a52994fd10fbc2414ea7bf98e7ee02975f42` ([merged PR #6](https://github.com/westkerberos/obs-vertical-canvas/pull/6)) | Ports Aitum Vertical 1.6.8 while retaining WEST TikTok/EBC code | Windows x64 CI [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) succeeded; artifact `vertical-canvas-1.6.8-windows-x64-6a0598716` |
+| WEST Aitum Multistream | **1.0.10**, `main` at `6d4c0922f60ddd0012778c69dc7584a0cef55d15` ([merged PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2)) | Contains Aitum Multistream 1.0.10 upstream changes plus WEST EBC and TikTok bridge | Windows x64 CI [#46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193) succeeded; artifact `aitum-multistream-1.0.10-windows-x64-3c582ebb5` |
 | OBS DirectShow module | Custom **OBS 33.0.3 `win-dshow.dll`** patch, branch [`obs-33.0.3-native-mjpeg`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) | This is a patch to OBS core's DirectShow module, not a third-party Aitum plugin | Latest Windows build [#45899269116](https://github.com/westkerberos/ChatGPT/actions/runs/45899269116) succeeded at commit `44d9713aa7752a07e2414edbc16328db1f176b8c`; runtime MJPEG recording still requires validation |
 | DroidCam OBS (optional) | **2.5.1** | Latest official release inspected on 27 Nov 2026; use the OBS 33-specific installer if reinstalling | User's 27 Nov startup log reports DroidCam release 251; official OBS 33 installer: [DroidCamOBS.Setup.2.5.1.obs33_1.exe](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe) |
 
@@ -142,8 +144,8 @@ For portable OBS, use `plugins\<plugin-name>\<plugin-name>.dll` and its `data` d
 ## 7. Evidence from the 27 November OBS logs
 
 The two uploaded logs were created by OBS 33.0.3 on Windows 10 22H2:
-- [12:50:14 log](https://github.com/westkerberos/obs-vertical-canvas) — Multistream 1.0.9.
-- [13:01:00 log](https://github.com/westkerberos/obs-vertical-canvas) — Multistream 1.0.10.
+- `2026-11-27 12-50-14.txt` (conversation upload) — Multistream 1.0.9.
+- `2026-11-27 13-01-00.txt` (conversation upload) — Multistream 1.0.10.
 
 Observed in the 12:50 session:
 - TikTok was initially started without Main Canvas; Vertical Canvas reported `OBS Main Canvas streaming output is unavailable`.
