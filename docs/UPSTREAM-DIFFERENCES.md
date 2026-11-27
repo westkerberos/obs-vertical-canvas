@@ -8,7 +8,7 @@
 
 | Upstream commit | Change | WEST status |
 |---|---|---|
-| [fde49d2](https://github.com/Aitum/obs-vertical-canvas/commit/fde49d2339af4180cf014e4d7a23fc0ebccd9324) | Scene-list loading/order fix | Present in the prior WEST branch |
+| [fde49d2](https://github.com/Aitum/obs-vertical-canvas/commit/fde49d2339af4180cf014e4d7a23fc0ebccd9324) | Fix hang while loading scenes; correct scene-list ordering | Present in the prior WEST branch; this is the 1.6.8 release-note hang fix |
 | [3751ef7](https://github.com/Aitum/obs-vertical-canvas/commit/3751ef743337b9e7635f52d4e8fc74011596d8d0) | Optional Safe Areas preview UI/rendering | Ported; disabled by default; user can enable in Vertical Canvas settings |
 | [d7e88a5](https://github.com/Aitum/obs-vertical-canvas/commit/d7e88a551c7a842ccecacdd7c1b2fe5e2d076046) | Version bump to 1.6.8 and installer layout | Version/manifest bumped to 1.6.8; OBS 33 ProgramData installer layout already existed in WEST branch |
 
