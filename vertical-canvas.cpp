@@ -76,6 +76,24 @@ static bool IsTwitchEbcVerticalEncoderSelected(obs_data_t *settings)
 	return selected_encoder && strcmp(selected_encoder, TWITCH_EBC_VERTICAL_ENCODER) == 0;
 }
 
+static bool ConfirmIndependentVerticalEncoderFallback(QWidget *parent)
+{
+	QMessageBox prompt(
+		QMessageBox::Warning,
+		QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Title")),
+		QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Message")),
+		QMessageBox::NoButton, parent);
+	auto *continue_button = prompt.addButton(
+		QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Continue")),
+		QMessageBox::AcceptRole);
+	auto *start_twitch_button = prompt.addButton(
+		QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.StartTwitchFirst")),
+		QMessageBox::RejectRole);
+	prompt.setDefaultButton(start_twitch_button);
+	prompt.exec();
+	return prompt.clickedButton() == continue_button;
+}
+
 inline std::list<CanvasDock *> canvas_docks;
 
 void clear_canvas_docks()
@@ -6621,21 +6639,7 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 			// The user explicitly selected Twitch EBC. Do not silently add another
 			// vertical encoder when Twitch has not finished creating its EBC tracks.
 			auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
-			QMessageBox prompt(
-				QMessageBox::Warning,
-				QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Title")),
-				QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Message")),
-				QMessageBox::NoButton,
-				main_window ? main_window : this);
-			auto *continue_button = prompt.addButton(
-				QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Continue")),
-				QMessageBox::AcceptRole);
-			auto *start_twitch_button = prompt.addButton(
-				QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.StartTwitchFirst")),
-				QMessageBox::RejectRole);
-			prompt.setDefaultButton(start_twitch_button);
-			prompt.exec();
-			if (prompt.clickedButton() != continue_button) {
+			if (!ConfirmIndependentVerticalEncoderFallback(main_window ? main_window : this)) {
 				blog(LOG_INFO,
 				     "[Vertical Canvas] Cancelled '%s' start because the selected Twitch EBC vertical encoder is unavailable",
 				     it->name.c_str());
@@ -7090,6 +7094,27 @@ void CanvasDock::StartStream()
 						 QString::fromUtf8(obs_module_text("NoOutputServerWarning")));
 		}
 		return;
+	}
+
+	bool requires_twitch_ebc = false;
+	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
+		if (it->enabled && IsTwitchEbcVerticalEncoderSelected(it->settings)) {
+			requires_twitch_ebc = true;
+			break;
+		}
+	}
+	if (requires_twitch_ebc) {
+		auto ebc_encoder = GetStreamVideoEncoder(true);
+		if (ebc_encoder) {
+			obs_encoder_release(ebc_encoder);
+		} else {
+			auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
+			if (!ConfirmIndependentVerticalEncoderFallback(main_window ? main_window : this)) {
+				blog(LOG_INFO, "[Vertical Canvas] Cancelled Start All because the selected Twitch EBC vertical encoder is unavailable");
+				return;
+			}
+			blog(LOG_WARNING, "[Vertical Canvas] User chose to start selected vertical outputs with independent encoders because Twitch EBC is unavailable");
+		}
 	}
 
 	obs_encoder_t *video_encoder = nullptr;
