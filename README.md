@@ -2,7 +2,7 @@
 
 A WEST Gaming-maintained fork of [Aitum Vertical Canvas](https://github.com/Aitum/obs-vertical-canvas). It is the vertical-output and TikTok runtime half of the matched WEST Gaming OBS streaming stack.
 
-**Current update candidate — 27 November 2026:** OBS Studio 33.0.3 · Vertical Canvas 1.6.8 · Aitum Multistream 1.0.10 · Windows x64.
+**Current merged stack — 27 November 2026:** OBS Studio 33.0.3 · Vertical Canvas 1.6.8 · Aitum Multistream 1.0.10 · Windows x64.
 
 ## What this fork owns
 
@@ -18,8 +18,8 @@ The matching [WEST Aitum Multistream fork](https://github.com/westkerberos/obs-a
 ## Current merged integration
 
 - Vertical Canvas: [1.6.8 main branch](https://github.com/westkerberos/obs-vertical-canvas/tree/main) — Merged to main as commit `8c64a52994fd10fbc2414ea7bf98e7ee02975f42`; Windows x64 build passed in [CI #46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506).
-- Multistream: [1.0.10 integration branch](https://github.com/westkerberos/obs-aitum-multistream/tree/main) — Windows x64 build passed in [CI #45899264700](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45899264700).
-- OBS DirectShow native MJPEG patch: [OBS 33.0.3 branch](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) — win-dshow.dll build passed in [CI #45899269116](https://github.com/westkerberos/ChatGPT/actions/runs/45899269116).
+- Multistream: **1.0.10**, merged to main as commit `6d4c0922f60ddd0012778c69dc7584a0cef55d15` ([PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2)); final Windows x64 build passed in [CI #46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193), artifact `aitum-multistream-1.0.10-windows-x64-3c582ebb5`.
+- OBS DirectShow native MJPEG patch: [OBS 33.0.3 branch](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) — win-dshow.dll patch merged into maintenance repo main at `ae7cc2dbcf71a3f6be74579577d47fd90fa452b3`; OBS 33.0.3 Windows x64 build passed in [CI #46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651).
 - DroidCam OBS: official 2.5.1 is current; the startup log reports release 251. Use the [OBS 33-specific 2.5.1 installer](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe) if reinstalling.
 
 The exact commit/version matrix, encoder routing, component ownership, start order, runtime evidence and pending tests live in the [WEST Gaming Streaming Stack source of truth](docs/WEST-GAMING-STREAMING-STACK.md).
