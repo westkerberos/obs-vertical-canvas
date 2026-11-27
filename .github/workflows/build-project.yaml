@@ -1,6 +1,12 @@
 name: Build Project
 on:
   workflow_call:
+    inputs:
+      windowsOnly:
+        description: Build only the Windows target when called from this workflow
+        required: false
+        type: boolean
+        default: false
     outputs:
       pluginName:
         description: Project name detected by parsing build spec file
@@ -72,6 +78,7 @@ jobs:
           fi
 
   macos-build:
+    if: ${{ !inputs.windowsOnly }}
     name: Build for macOS 🍏
     runs-on: macos-15
     needs: check-event
@@ -176,6 +183,7 @@ jobs:
           key: ${{ runner.os }}-ccache-${{ needs.check-event.outputs.config }}
 
   ubuntu-build:
+    if: ${{ !inputs.windowsOnly }}
     name: Build for Ubuntu 🐧
     strategy:
       fail-fast: false
@@ -258,7 +266,7 @@ jobs:
 
   windows-build:
     name: Build for Windows 🪟
-    runs-on: windows-2022
+    runs-on: windows-2025
     needs: check-event
     defaults:
       run:
@@ -290,6 +298,37 @@ jobs:
         with:
           target: x64
           config: ${{ needs.check-event.outputs.config }}
+
+      - name: Test TikTok Relay Control Protocol 🧪
+        if: steps.build.outcome == 'success'
+        run: |
+          $cachePath = "build_x64/CMakeCache.txt"
+          if (-not (Test-Path $cachePath)) {
+            throw "CMake cache not found: $cachePath"
+          }
+
+          $qtEntry = Get-Content $cachePath | Where-Object { $_.StartsWith("Qt6_DIR:PATH=") } | Select-Object -First 1
+          if (-not $qtEntry) {
+            $qtEntry = Get-Content $cachePath | Where-Object { $_.StartsWith("Qt6Core_DIR:PATH=") } | Select-Object -First 1
+          }
+          if (-not $qtEntry) {
+            throw "Could not locate Qt6_DIR/Qt6Core_DIR in CMakeCache.txt"
+          }
+
+          $qtPackageDir = $qtEntry.Substring($qtEntry.IndexOf("=") + 1)
+          $qtCmakeDir = Split-Path $qtPackageDir -Parent
+          $qtLibDir = Split-Path $qtCmakeDir -Parent
+          $qtRootDir = Split-Path $qtLibDir -Parent
+          $qtBinDir = Join-Path $qtRootDir "bin"
+          if (-not (Test-Path $qtBinDir)) {
+            throw "Qt runtime directory not found: $qtBinDir"
+          }
+
+          $env:PATH = "$qtBinDir;$env:PATH"
+          ctest --test-dir build_x64 --build-config ${{ needs.check-event.outputs.config }} --output-on-failure -R west-tiktok-relay-control-protocol
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
 
       - name: Create Code Signing Certificate
         if: success() && github.event_name != 'pull_request'

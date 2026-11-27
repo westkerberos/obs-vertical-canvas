@@ -3,7 +3,7 @@ if(CMAKE_PROJECT_NAME STREQUAL "obs-studio")
   set(BUILD_OUT_OF_TREE OFF)
 else()
   set(BUILD_OUT_OF_TREE ON)
-  cmake_minimum_required(VERSION 3.16...3.26)
+  cmake_minimum_required(VERSION 3.28...3.30)
 endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
 
@@ -53,6 +53,27 @@ if(BUILD_OUT_OF_TREE)
 endif()
 target_link_libraries(${PROJECT_NAME} PRIVATE CURL::libcurl)
 
+# TikTok's native LIVE integration (authentication, room lifecycle and signed packet metadata).
+find_package(qrcodegencpp CONFIG QUIET)
+if(NOT TARGET qrcodegencpp::qrcodegencpp)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(QRCODEGENCPP REQUIRED IMPORTED_TARGET qrcodegencpp)
+  add_library(qrcodegencpp::qrcodegencpp ALIAS PkgConfig::QRCODEGENCPP)
+endif()
+target_link_libraries(${PROJECT_NAME} PRIVATE qrcodegencpp::qrcodegencpp)
+target_compile_definitions(${PROJECT_NAME} PRIVATE NOMINMAX)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
+
+if(OS_WINDOWS)
+  set(TIKTOK_CRYPTO_LIBRARY bcrypt)
+elseif(NOT APPLE)
+  find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+  set(TIKTOK_CRYPTO_LIBRARY OpenSSL::Crypto)
+endif()
+if(TIKTOK_CRYPTO_LIBRARY)
+  target_link_libraries(${PROJECT_NAME} PRIVATE ${TIKTOK_CRYPTO_LIBRARY})
+endif()
+
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/version.h)
 
 if(OS_WINDOWS)
@@ -88,10 +109,66 @@ target_sources(${PROJECT_NAME} PRIVATE
 	audio-wrapper-source.h
 	obs-websocket-api.h
 	file-updater.h
-	multi-canvas-source.h)
+	multi-canvas-source.h
+	# TikTok integration lives inside this single Vertical Canvas module.
+	src/tiktok-live-session.cpp
+	src/tiktok-live-session.h
+	src/tiktok-output-session.cpp
+	src/tiktok-output-session.h
+	src/tiktok-output-settings-dialog.cpp
+	src/tiktok-safety.cpp
+	src/tiktok-safety.h
+	src/tiktok-output-settings-dialog.h
+	src/account-info.cpp
+	src/account-info.h
+	src/account-info-widget.cpp
+	src/account-info-widget.h
+	src/tiktok-dual-layout-widget.cpp
+	src/tiktok-dual-layout-widget.h
+	src/tiktok-layout-scene.cpp
+	src/tiktok-layout-scene.h
+	src/tiktok-encoder-properties-dialog.cpp
+	src/tiktok-encoder-properties-dialog.h
+	src/streamlabs-api.cpp
+	src/streamlabs-api.h
+	src/streamlabs-info.cpp
+	src/streamlabs-info.h
+	src/streamlabs-category-widget.cpp
+	src/streamlabs-category-widget.h
+	src/tiktok-game-info.cpp
+	src/tiktok-game-info.h
+	src/tiktok-topic-widget.cpp
+	src/tiktok-topic-widget.h
+	src/streamlabs-desktop.cpp
+	src/streamlabs-desktop.h)
+
+set(TIKTOK_NATIVE_SOURCES
+  src/tiktok-native/domain_routing.cpp
+  src/tiktok-native/live_safety.cpp
+  src/tiktok-native/frame_signing.cpp
+  src/tiktok-native/live_client.cpp
+  src/tiktok-native/mobile_device.cpp
+  src/tiktok-native/mobile_profile.cpp
+  src/tiktok-native/rapidapi_quota.cpp
+  src/tiktok-native/sei_metadata.cpp
+  src/tiktok-native/tiktok_request_signer.cpp
+  src/tiktok-native/tiktok_studio_device.cpp
+  src/tiktok-native/tiktok_studio_game_tags.cpp
+  src/tiktok-native/tiktok_studio_qr.cpp
+  src/tiktok-native/tiktok_studio_session.cpp
+  src/tiktok-native/tiktok_studio_topics.cpp
+  src/tiktok-native/localization.cpp)
+target_sources(${PROJECT_NAME} PRIVATE src/tiktok-live-settings.h ${TIKTOK_NATIVE_SOURCES})
 
 if(BUILD_OUT_OF_TREE)
 	set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
 else()
 	set_target_properties_obs(${PROJECT_NAME} PROPERTIES FOLDER "plugins/aitum" PREFIX "")
 endif()
+
+# Register CTest from the top-level build so the process-boundary smoke test is discoverable.
+include(CTest)
+
+# Independent process prototype. It has its own GPL-3.0-only subproject license
+# and deliberately does not link against libobs or this plugin target.
+add_subdirectory(tiktok-relay)

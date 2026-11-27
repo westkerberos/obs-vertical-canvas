@@ -225,7 +225,7 @@ void OBSHotkeyEdit::CreateDupeIcon()
 {
 	dupeIcon = addAction(QIcon::fromTheme("obs", QIcon(":/res/images/warning.svg")), ActionPosition::TrailingPosition);
 	dupeIcon->setToolTip(QString::fromUtf8(obs_frontend_get_locale_string("Basic.Settings.Hotkeys.DuplicateWarning")));
-	QObject::connect(dupeIcon, &QAction::triggered, [=] { emit SearchKey(key); });
+	QObject::connect(dupeIcon, &QAction::triggered, [=, this] { emit SearchKey(key); });
 	dupeIcon->setVisible(false);
 }
 
@@ -361,7 +361,7 @@ void OBSHotkeyWidget::AddEdit(obs_key_combination combo, int idx)
 	QObject::connect(clear, &QPushButton::clicked, edit, &OBSHotkeyEdit::ClearKey);
 
 	QObject::connect(edit, &OBSHotkeyEdit::KeyChanged, [&](obs_key_combination) { emit KeyChanged(); });
-	QObject::connect(edit, &OBSHotkeyEdit::SearchKey, [=](obs_key_combination c) { emit SearchKey(c); });
+	QObject::connect(edit, &OBSHotkeyEdit::SearchKey, [=, this](obs_key_combination c) { emit SearchKey(c); });
 }
 
 void OBSHotkeyWidget::RemoveEdit(size_t idx, bool signal)

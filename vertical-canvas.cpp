@@ -1,6 +1,7 @@
 #include "vertical-canvas.hpp"
 
 #include <list>
+#include <exception>
 
 #include "version.h"
 
@@ -14,6 +15,7 @@
 #include <QMainWindow>
 #include <QMenu>
 #include <QMessageBox>
+#include <QJsonDocument>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
@@ -31,6 +33,9 @@
 #include "scenes-dock.hpp"
 #include "sources-dock.hpp"
 #include "transitions-dock.hpp"
+#include "src/tiktok-output-session.h"
+#include "src/tiktok-output-settings-dialog.h"
+#include "src/tiktok-safety.h"
 #include "util/config-file.h"
 #include "util/dstr.h"
 #include "util/platform.h"
@@ -54,6 +59,40 @@ OBS_MODULE_USE_DEFAULT_LOCALE("vertical-canvas", "en-US")
 #define SPACER_LABEL_MARGIN 6.0f
 
 #define CANVAS_NAME "Aitum Vertical"
+
+static constexpr char TWITCH_EBC_VERTICAL_ENCODER[] = "__aitum_twitch_ebc_vertical__";
+
+static bool IsTwitchEbcVerticalEncoderSelected(obs_data_t *settings)
+{
+	if (!settings)
+		return false;
+
+	// Keep compatibility with profiles saved by the previous checkbox-based UI.
+	if (obs_data_has_user_value(settings, "use_twitch_ebc_encoder") &&
+	    obs_data_get_bool(settings, "use_twitch_ebc_encoder"))
+		return true;
+
+	const char *selected_encoder = obs_data_get_string(settings, "video_encoder");
+	return selected_encoder && strcmp(selected_encoder, TWITCH_EBC_VERTICAL_ENCODER) == 0;
+}
+
+static bool ConfirmIndependentVerticalEncoderFallback(QWidget *parent)
+{
+	QMessageBox prompt(
+		QMessageBox::Warning,
+		QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Title")),
+		QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Message")),
+		QMessageBox::NoButton, parent);
+	auto *continue_button = prompt.addButton(
+		QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Continue")),
+		QMessageBox::AcceptRole);
+	auto *start_twitch_button = prompt.addButton(
+		QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.StartTwitchFirst")),
+		QMessageBox::RejectRole);
+	prompt.setDefaultButton(start_twitch_button);
+	prompt.exec();
+	return prompt.clickedButton() == continue_button;
+}
 
 inline std::list<CanvasDock *> canvas_docks;
 
@@ -272,6 +311,17 @@ static void set_stream_settings(void *data, calldata_t *cd)
 		}
 		return;
 	}
+}
+
+static void configure_tiktok_output(void *data, calldata_t *cd)
+{
+	UNUSED_PARAMETER(data);
+	auto *parent = static_cast<QWidget *>(calldata_ptr(cd, "parent"));
+	auto *settings = static_cast<obs_data_t *>(calldata_ptr(cd, "settings"));
+	const char *name = calldata_string(cd, "name");
+	const bool accepted = parent && settings &&
+		ConfigureTikTokOutput(parent, settings, QString::fromUtf8(name && *name ? name : "TikTok"));
+	calldata_set_bool(cd, "accepted", accepted);
 }
 
 static void start_stream_output(void *data, calldata_t *cd)
@@ -655,6 +705,8 @@ bool obs_module_load(void)
 			 get_stream_settings, nullptr);
 	proc_handler_add(ph, "void aitum_vertical_set_stream_settings(in int width, in int height, in ptr outputs)",
 			 set_stream_settings, nullptr);
+	proc_handler_add(ph, "void aitum_vertical_configure_tiktok_output(in ptr parent, in ptr settings, in string name, out bool accepted)",
+				 configure_tiktok_output, nullptr);
 	proc_handler_add(ph, "void aitum_vertical_get_stream_output(in int width, in int height, in string name, out ptr output)",
 			 get_stream_output, nullptr);
 	proc_handler_add(ph, "void aitum_vertical_start_stream_output(in int width, in int height, in string name)",
@@ -750,6 +802,7 @@ void obs_module_post_load(void)
 
 void obs_module_unload(void)
 {
+	ShutdownTikTokSafety();
 	if (vendor && obs_get_module("obs-websocket")) {
 		obs_websocket_vendor_unregister_request(vendor, "version");
 		obs_websocket_vendor_unregister_request(vendor, "switch_scene");
@@ -773,6 +826,7 @@ void obs_module_unload(void)
 		obs_websocket_vendor_unregister_request(vendor, "pause_recording");
 		obs_websocket_vendor_unregister_request(vendor, "unpause_recording");
 	}
+	ShutdownTikTokSafety();
 	obs_frontend_remove_event_callback(frontend_event, nullptr);
 	if (version_update_info) {
 		update_info_destroy(version_update_info);
@@ -1055,6 +1109,7 @@ CanvasDock::CanvasDock(obs_data_t *settings, QWidget *parent)
 	replayPath = obs_data_get_string(settings, "backtrack_path");
 
 	virtual_cam_mode = (uint32_t)obs_data_get_int(settings, "virtual_camera_mode");
+	drawSafeAreas = obs_data_get_bool(settings, "draw_safe_areas");
 
 	auto so = obs_data_get_array(settings, "stream_outputs");
 	multi_rtmp = LoadStreamOutputs(so);
@@ -1151,7 +1206,6 @@ CanvasDock::CanvasDock(obs_data_t *settings, QWidget *parent)
 
 	setObjectName(QStringLiteral("contextContainer"));
 	setContentsMargins(0, 0, 0, 0);
-	setLayout(mainLayout);
 
 	const QString title = QString::fromUtf8(obs_module_text("Vertical"));
 
@@ -1692,15 +1746,8 @@ CanvasDock::~CanvasDock()
 		obs_output_stop(recordOutput);
 		outputsToStop.push_back(recordOutput);
 	} else {
-		auto old_enc = obs_output_get_video_encoder(recordOutput);
-		for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
-			auto old_audio_enc = obs_output_get_audio_encoder(recordOutput, i);
-			if (old_audio_enc) {
-				obs_encoder_release(old_audio_enc);
-			}
-		}
+		// The output owns its attached encoders; releasing the output releases them.
 		obs_output_release(recordOutput);
-		obs_encoder_release(old_enc);
 	}
 	recordOutput = nullptr;
 
@@ -1713,14 +1760,6 @@ CanvasDock::~CanvasDock()
 		obs_output_stop(replayOutput);
 		outputsToStop.push_back(replayOutput);
 	} else {
-		auto old_enc = obs_output_get_video_encoder(replayOutput);
-		obs_encoder_release(old_enc);
-		for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
-			auto old_audio_enc = obs_output_get_audio_encoder(replayOutput, i);
-			if (old_audio_enc) {
-				obs_encoder_release(old_audio_enc);
-			}
-		}
 		obs_output_release(replayOutput);
 	}
 	replayOutput = nullptr;
@@ -1729,9 +1768,7 @@ CanvasDock::~CanvasDock()
 		obs_output_stop(virtualCamOutput);
 		outputsToStop.push_back(virtualCamOutput);
 	} else {
-		auto old_enc = obs_output_get_video_encoder(virtualCamOutput);
 		obs_output_release(virtualCamOutput);
-		obs_encoder_release(old_enc);
 	}
 	virtualCamOutput = nullptr;
 
@@ -1742,16 +1779,8 @@ CanvasDock::~CanvasDock()
 			it->service = nullptr;
 			outputsToStop.push_back(it->output);
 		} else {
-			auto old_enc = obs_output_get_video_encoder(it->output);
 			obs_service_release(it->service);
-			for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
-				auto old_audio_enc = obs_output_get_audio_encoder(it->output, i);
-				if (old_audio_enc) {
-					obs_encoder_release(old_audio_enc);
-				}
-			}
 			obs_output_release(it->output);
-			obs_encoder_release(old_enc);
 		}
 		obs_data_release(it->settings);
 	}
@@ -1788,14 +1817,6 @@ CanvasDock::~CanvasDock()
 			if (obs_output_active(output)) {
 				continue;
 			}
-			auto old_enc = obs_output_get_video_encoder(output);
-			obs_encoder_release(old_enc);
-			for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
-				auto old_audio_enc = obs_output_get_audio_encoder(output, i);
-				if (old_audio_enc) {
-					obs_encoder_release(old_audio_enc);
-				}
-			}
 			obs_output_release(output);
 			outputsToStop.remove(output);
 			break;
@@ -1825,6 +1846,25 @@ CanvasDock::~CanvasDock()
 	}
 	if (circleFill) {
 		gs_vertexbuffer_destroy(circleFill);
+	}
+
+	if (actionSafeMargin) {
+		gs_vertexbuffer_destroy(actionSafeMargin);
+	}
+	if (graphicsSafeMargin) {
+		gs_vertexbuffer_destroy(graphicsSafeMargin);
+	}
+	if (fourByThreeSafeMargin) {
+		gs_vertexbuffer_destroy(fourByThreeSafeMargin);
+	}
+	if (leftLine) {
+		gs_vertexbuffer_destroy(leftLine);
+	}
+	if (topLine) {
+		gs_vertexbuffer_destroy(topLine);
+	}
+	if (rightLine) {
+		gs_vertexbuffer_destroy(rightLine);
 	}
 
 	gs_vertexbuffer_destroy(box);
@@ -2080,6 +2120,21 @@ void CanvasDock::DrawPreview(void *data, uint32_t cx, uint32_t cy)
 
 	gs_ortho(float(-x), newCX + float(x), float(-y), newCY + float(y), -100.0f, 100.0f);
 	gs_reset_viewport();
+
+	if (window->drawSafeAreas) {
+		if (!window->actionSafeMargin || !window->graphicsSafeMargin || !window->fourByThreeSafeMargin ||
+		    !window->leftLine || !window->topLine || !window->rightLine) {
+			InitSafeAreas(&window->actionSafeMargin, &window->graphicsSafeMargin, &window->fourByThreeSafeMargin,
+				      &window->leftLine, &window->topLine, &window->rightLine);
+		}
+
+		RenderSafeAreas(window->actionSafeMargin, newCX, newCY);
+		RenderSafeAreas(window->graphicsSafeMargin, newCX, newCY);
+		RenderSafeAreas(window->fourByThreeSafeMargin, newCX, newCY);
+		RenderSafeAreas(window->leftLine, newCX, newCY);
+		RenderSafeAreas(window->topLine, newCX, newCY);
+		RenderSafeAreas(window->rightLine, newCX, newCY);
+	}
 
 	gs_effect_t *solid = obs_get_base_effect(OBS_EFFECT_SOLID);
 	gs_technique_t *tech = gs_effect_get_technique(solid, "Solid");
@@ -5607,9 +5662,7 @@ void CanvasDock::StartRecord()
 		bool use_native = strcmp(format, "hybrid_mp4") == 0;
 		const char *output_id = use_native ? "mp4_output" : "ffmpeg_muxer";
 		if (!recordOutput || strcmp(obs_output_get_id(recordOutput), output_id) != 0) {
-			auto old_enc = obs_output_get_video_encoder(recordOutput);
 			obs_output_release(recordOutput);
-			obs_encoder_release(old_enc);
 			recordOutput = obs_output_create(output_id, "vertical_canvas_record", nullptr, nullptr);
 		}
 	} else {
@@ -5623,15 +5676,7 @@ void CanvasDock::StartRecord()
 			obs_output_release(replay_output);
 		}
 		if (!recordOutput || strcmp(obs_output_get_id(recordOutput), obs_output_get_id(output)) != 0) {
-			auto old_enc = obs_output_get_video_encoder(recordOutput);
-			for (size_t i = 0; i < MAX_AUDIO_MIXES; i++) {
-				auto old_audio_enc = obs_output_get_audio_encoder(recordOutput, i);
-				if (old_audio_enc) {
-					obs_encoder_release(old_audio_enc);
-				}
-			}
 			obs_output_release(recordOutput);
-			obs_encoder_release(old_enc);
 			recordOutput = obs_output_create(obs_output_get_id(output), "vertical_canvas_record", nullptr, nullptr);
 		}
 
@@ -5657,7 +5702,6 @@ void CanvasDock::StartRecord()
 	auto new_enc = GetRecordVideoEncoder();
 	if (old_enc != new_enc) {
 		obs_output_set_video_encoder(recordOutput, new_enc);
-		obs_encoder_release(old_enc);
 	} else {
 		obs_encoder_release(new_enc);
 	}
@@ -5882,7 +5926,6 @@ void CanvasDock::SetRecordAudioEncoders(obs_output_t *output)
 				auto old_enc = obs_output_get_audio_encoder(output, idx);
 				if (old_enc != aet) {
 					obs_output_set_audio_encoder(output, aet, idx);
-					obs_encoder_release(old_enc);
 				} else {
 					obs_encoder_release(aet);
 				}
@@ -6042,7 +6085,6 @@ void CanvasDock::StartReplayBuffer()
 			auto old_enc = obs_output_get_video_encoder(replayOutput);
 			if (old_enc != re) {
 				obs_output_set_video_encoder(replayOutput, obs_encoder_get_ref(re));
-				obs_encoder_release(old_enc);
 			}
 			enc_set = true;
 		}
@@ -6060,7 +6102,6 @@ void CanvasDock::StartReplayBuffer()
 						auto old_enc = obs_output_get_video_encoder(replayOutput);
 						if (old_enc != enc) {
 							obs_output_set_video_encoder(replayOutput, obs_encoder_get_ref(enc));
-							obs_encoder_release(old_enc);
 						}
 						enc_set = true;
 						break;
@@ -6076,7 +6117,6 @@ void CanvasDock::StartReplayBuffer()
 		auto new_enc = GetRecordVideoEncoder();
 		if (old_enc != new_enc) {
 			obs_output_set_video_encoder(replayOutput, new_enc);
-			obs_encoder_release(old_enc);
 		} else {
 			obs_encoder_release(new_enc);
 		}
@@ -6173,7 +6213,7 @@ const char *get_simple_output_encoder(const char *encoder)
 	return "obs_x264";
 }
 
-obs_encoder_t *CanvasDock::GetStreamVideoEncoder()
+obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 {
 	obs_encoder_t *video_encoder = nullptr;
 	const char *enc_id = nullptr;
@@ -6182,6 +6222,119 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder()
 
 	config_t *config = obs_frontend_get_profile_config();
 	const char *mode = config_get_string(config, "Output", "Mode");
+
+	// All vertical streaming destinations that use the canvas' main encoder may reuse
+	// the encoder negotiated by Twitch Enhanced Broadcasting. Recording, replay and
+	// virtual-camera paths call this method without opting in and keep their own path.
+	if (allow_ebc_encoder_reuse) {
+		// Twitch EBC exposes its negotiated tracks through Aitum Multistream's
+		// RTMP output. Resolve the vertical track from that output; the encoder
+		// can be part of an encoder group, so obs_encoder_active() and the
+		// encoder's video pointer are not reliable filters on every OBS build.
+		struct EbcEncoderSearch {
+			video_t *canvas_video;
+			const char *canvas_name;
+			uint32_t canvas_width;
+			uint32_t canvas_height;
+			obs_encoder_t *encoder;
+			uint64_t pixels;
+			size_t matching_outputs;
+			size_t inspected_encoders;
+			size_t matching_encoders;
+		};
+
+		obs_video_info canvas_info = {};
+		if (!obs_canvas_get_video_info(canvas, &canvas_info)) {
+			blog(LOG_WARNING, "[Aitum Vertical] Cannot inspect Twitch EBC encoders: vertical canvas video info is unavailable");
+			return nullptr;
+		}
+		EbcEncoderSearch ebc_search{obs_canvas_get_video(canvas), obs_canvas_get_name(canvas),
+					    canvas_info.base_width, canvas_info.base_height, nullptr, 0, 0, 0, 0};
+		obs_enum_outputs(
+			[](void *opaque, obs_output_t *output) {
+				auto *search = static_cast<EbcEncoderSearch *>(opaque);
+				const char *output_id = obs_output_get_id(output);
+				const char *output_name = obs_output_get_name(output);
+				static constexpr char ebc_output_prefix[] = "aitum_multi_ebc_output_";
+				const bool id_match = output_id && strcmp(output_id, "rtmp_output") == 0;
+				const bool name_match = output_name &&
+							strncmp(output_name, ebc_output_prefix, sizeof(ebc_output_prefix) - 1) == 0;
+				const bool output_active = obs_output_active(output);
+				if (!name_match) {
+					if (output_active)
+						blog(LOG_INFO, "[Aitum Vertical] Active OBS output during EBC search: '%s' (id=%s)",
+						     output_name ? output_name : "(unnamed)", output_id ? output_id : "(no id)");
+					return true;
+				}
+
+				// The Aitum EBC output name is our stable identifier. Log the
+				// OBS output id for diagnostics, but don't let it prevent a match.
+				blog(LOG_INFO,
+				     "[Aitum Vertical] Inspecting Twitch EBC output '%s' (id=%s, id_match=%s, active=%s)",
+				     output_name, output_id ? output_id : "(no id)",
+				     id_match ? "true" : "false", output_active ? "true" : "false");
+				blog(LOG_INFO, "[Aitum Vertical] Found Twitch EBC output '%s' (id=%s, active=%s)",
+				     output_name, output_id ? output_id : "(no id)", output_active ? "true" : "false");
+				if (!output_active)
+					return true;
+
+				for (size_t index = 0; index < MAX_OUTPUT_VIDEO_ENCODERS; ++index) {
+					// obs_output_get_video_encoder2 returns a borrowed pointer.
+					obs_encoder_t *encoder = obs_output_get_video_encoder2(output, index);
+					if (!encoder)
+						continue;
+
+					search->inspected_encoders++;
+					const uint32_t width = obs_encoder_get_width(encoder);
+					const uint32_t height = obs_encoder_get_height(encoder);
+					video_t *encoder_video = obs_encoder_video(encoder);
+					const bool same_video = search->canvas_video && encoder_video == search->canvas_video;
+					const bool same_portrait_aspect =
+						search->canvas_width > 0 && search->canvas_height > search->canvas_width &&
+						width > 0 && height > width &&
+						(uint64_t)width * search->canvas_height == (uint64_t)height * search->canvas_width;
+					blog(LOG_INFO,
+					     "[Aitum Vertical] EBC track[%zu]: '%s' %ux%u active=%s video_match=%s portrait_match=%s video=%p canvas_video=%p",
+					     index, obs_encoder_get_name(encoder), width, height,
+					     obs_encoder_active(encoder) ? "true" : "false",
+					     same_video ? "true" : "false", same_portrait_aspect ? "true" : "false",
+					     (void *)encoder_video, (void *)search->canvas_video);
+
+					// Prefer pointer identity. If OBS exposes a different parent
+					// video pointer for a grouped encoder, use the matching portrait
+					// aspect ratio as a fallback; the EBC output contains both main
+					// landscape tracks and the Aitum Vertical portrait tracks.
+					if (!same_video && !same_portrait_aspect)
+						continue;
+
+					search->matching_encoders++;
+					const uint64_t pixels = (uint64_t)width * height;
+					if (pixels > search->pixels) {
+						if (search->encoder)
+							obs_encoder_release(search->encoder);
+						search->encoder = obs_encoder_get_ref(encoder);
+						search->pixels = pixels;
+					}
+				}
+				return true;
+			},
+			&ebc_search);
+
+		if (ebc_search.encoder) {
+			blog(LOG_INFO,
+			     "[Aitum Vertical] Reusing highest-resolution Twitch EBC encoder '%s' (%ux%u) for canvas '%s'",
+			     obs_encoder_get_name(ebc_search.encoder), obs_encoder_get_width(ebc_search.encoder),
+			     obs_encoder_get_height(ebc_search.encoder),
+			     ebc_search.canvas_name ? ebc_search.canvas_name : "(unnamed)");
+			return ebc_search.encoder;
+		}
+
+		blog(LOG_WARNING,
+		     "[Aitum Vertical] Twitch EBC encoder unavailable for canvas '%s': outputs=%zu inspected=%zu matching=%zu. Using independent vertical encoder fallback.",
+		     ebc_search.canvas_name ? ebc_search.canvas_name : "(unnamed)",
+		     ebc_search.matching_outputs, ebc_search.inspected_encoders, ebc_search.matching_encoders);
+		return nullptr;
+	}
 
 	if (stream_advanced_settings) {
 		video_settings = stream_encoder_settings;
@@ -6216,6 +6369,8 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder()
 				}
 			}
 		}
+
+
 		if (strcmp(mode, "Advanced") == 0) {
 			video_settings = GetDataFromJsonFile("streamEncoder.json");
 			enc_id = config_get_string(config, "AdvOut", "Encoder");
@@ -6285,11 +6440,21 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder()
 	}
 
 	obs_encoder_t *se = nullptr;
+	static constexpr char ebc_encoder_prefix[] = "aitum_twitch_ebc_video_";
 	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
-		se = obs_output_get_video_encoder(it->output);
-		if (se) {
-			break;
+		auto candidate = obs_output_get_video_encoder(it->output);
+		if (!candidate)
+			continue;
+
+		const char *candidate_name = obs_encoder_get_name(candidate);
+		if (candidate_name &&
+		    strncmp(candidate_name, ebc_encoder_prefix, sizeof(ebc_encoder_prefix) - 1) == 0) {
+			// A destination explicitly using the independent vertical encoder
+			// must never inherit or reconfigure a Twitch EBC grouped track.
+			continue;
 		}
+		se = candidate;
+		break;
 	}
 	if (se && strcmp(enc_id, obs_encoder_get_id(se)) == 0) {
 		video_encoder = obs_encoder_get_ref(se);
@@ -6303,7 +6468,7 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder()
 	if (!video_encoder && useRecordEncoder && replayOutput) {
 		auto re = obs_output_get_video_encoder(replayOutput);
 		if (re && strcmp(enc_id, obs_encoder_get_id(re)) == 0) {
-			video_encoder = re;
+			video_encoder = obs_encoder_get_ref(re);
 		}
 	}
 	if (!video_encoder) {
@@ -6492,21 +6657,51 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 {
 	CreateStreamOutput(it);
 	const bool started_video = StartVideo();
+	bool reused_twitch_ebc_encoder = false;
+	if (IsTwitchEbcVerticalEncoderSelected(it->settings)) {
+		auto ebc_encoder = GetStreamVideoEncoder(true);
+		if (ebc_encoder) {
+			auto old_encoder = obs_output_get_video_encoder(it->output);
+			if (old_encoder != ebc_encoder) {
+				obs_output_set_video_encoder(it->output, ebc_encoder);
+				// The output takes its own reference; release this temporary one.
+				obs_encoder_release(ebc_encoder);
+			} else {
+				obs_encoder_release(ebc_encoder);
+			}
+			reused_twitch_ebc_encoder = true;
+		} else {
+			// The user explicitly selected Twitch EBC. Do not silently add another
+			// vertical encoder when Twitch has not finished creating its EBC tracks.
+			auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
+			if (!ConfirmIndependentVerticalEncoderFallback(main_window ? main_window : this)) {
+				blog(LOG_INFO,
+				     "[Vertical Canvas] Cancelled '%s' start because the selected Twitch EBC vertical encoder is unavailable",
+				     it->name.c_str());
+				if (started_video)
+					DestroyVideo();
+				return;
+			}
+			blog(LOG_WARNING,
+			     "[Vertical Canvas] User chose to continue '%s' with the independent vertical encoder because Twitch EBC is unavailable",
+			     it->name.c_str());
+		}
+	}
 	if (it->settings && obs_data_get_bool(it->settings, "advanced") && obs_get_module("aitum-multistream")) {
 		blog(LOG_INFO, "[Vertical Canvas] Start output '%s' with multistream advanced settings", it->name.c_str());
 		auto venc_name = obs_data_get_string(it->settings, "video_encoder");
-		if (!venc_name || venc_name[0] == '\0') {
-			//use main encoder
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			auto new_enc = GetStreamVideoEncoder();
-			if (old_enc != new_enc) {
-				obs_output_set_video_encoder(it->output, new_enc);
-				obs_encoder_release(old_enc);
-			} else {
+		if (!reused_twitch_ebc_encoder) {
+			if (IsTwitchEbcVerticalEncoderSelected(it->settings) || !venc_name || venc_name[0] == '\0') {
+				if (IsTwitchEbcVerticalEncoderSelected(it->settings))
+					blog(LOG_WARNING, "[Vertical Canvas] Twitch EBC was selected for '%s' but is unavailable; using the independent vertical encoder.",
+					     it->name.c_str());
+				auto old_enc = obs_output_get_video_encoder(it->output);
+				auto new_enc = GetStreamVideoEncoder();
+				if (old_enc != new_enc)
+					obs_output_set_video_encoder(it->output, new_enc);
 				obs_encoder_release(new_enc);
-			}
-		} else {
-			obs_data_t *s = nullptr;
+			} else {
+				obs_data_t *s = nullptr;
 			auto ves = obs_data_get_obj(it->settings, "video_encoder_settings");
 			if (ves) {
 				s = obs_data_create();
@@ -6550,14 +6745,12 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 				}
 				//obs_encoder_set_gpu_scale_type(venc, (obs_scale_type)obs_data_get_int(it->settings, "scale_type"));
 			}
-			if (handle) {
-				os_dlclose(handle);
-			}
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			if (old_enc != venc) {
-				obs_output_set_video_encoder(it->output, venc);
-				obs_encoder_release(old_enc);
-			} else {
+				if (handle) {
+					os_dlclose(handle);
+				}
+				auto old_enc = obs_output_get_video_encoder(it->output);
+				if (old_enc != venc)
+					obs_output_set_video_encoder(it->output, venc);
 				obs_encoder_release(venc);
 			}
 		}
@@ -6566,12 +6759,9 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 			//use main encoder
 			auto old_enc = obs_output_get_audio_encoder(it->output, 0);
 			auto new_enc = GetStreamAudioEncoder();
-			if (old_enc != new_enc) {
+			if (old_enc != new_enc)
 				obs_output_set_audio_encoder(it->output, new_enc, 0);
-				obs_encoder_release(old_enc);
-			} else {
-				obs_encoder_release(new_enc);
-			}
+			obs_encoder_release(new_enc);
 		} else {
 			obs_data_t *s = nullptr;
 			auto aes = obs_data_get_obj(it->settings, "audio_encoder_settings");
@@ -6587,36 +6777,48 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 			obs_data_release(s);
 			obs_encoder_set_audio(aenc, obs_get_audio());
 			obs_output_set_audio_encoder(it->output, aenc, 0);
+			obs_encoder_release(aenc);
 		}
 	} else {
 		blog(LOG_INFO, "[Vertical Canvas] Start output '%s'", it->name.c_str());
-		auto old_enc = obs_output_get_video_encoder(it->output);
-		auto new_enc = GetStreamVideoEncoder();
-		if (old_enc != new_enc) {
-			obs_output_set_video_encoder(it->output, new_enc);
-			obs_encoder_release(old_enc);
-		} else {
+		if (!reused_twitch_ebc_encoder) {
+			auto old_enc = obs_output_get_video_encoder(it->output);
+			auto new_enc = GetStreamVideoEncoder();
+			if (old_enc != new_enc)
+				obs_output_set_video_encoder(it->output, new_enc);
 			obs_encoder_release(new_enc);
 		}
-		old_enc = obs_output_get_audio_encoder(it->output, 0);
-		new_enc = GetStreamAudioEncoder();
-		if (old_enc != new_enc) {
-			obs_output_set_audio_encoder(it->output, new_enc, 0);
-			obs_encoder_release(old_enc);
-		} else {
-			obs_encoder_release(new_enc);
-		}
+		auto old_audio_enc = obs_output_get_audio_encoder(it->output, 0);
+		auto new_audio_enc = GetStreamAudioEncoder();
+		if (old_audio_enc != new_audio_enc)
+			obs_output_set_audio_encoder(it->output, new_audio_enc, 0);
+		obs_encoder_release(new_audio_enc);
 	}
 	it->stopping = false;
-	if (!obs_output_start(it->output)) {
+	it->tiktokStopInProgress = false;
+	if (!PrepareTikTokOutput(it)) {
 		if (started_video) {
 			DestroyVideo();
 		}
 		it->stopping = true;
 		QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
-					  Q_ARG(QString, QString::fromUtf8(obs_output_get_last_error(it->output))),
-					  Q_ARG(QString, QString::fromUtf8(it->stream_server)),
-					  Q_ARG(QString, QString::fromUtf8(it->stream_key)));
+					  Q_ARG(QString, QString::fromUtf8(it->runtime_error.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_server.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
+		return;
+	}
+	if (!obs_output_start(it->output)) {
+		if (started_video) {
+			DestroyVideo();
+		}
+		it->stopping = true;
+		const char *outputError = obs_output_get_last_error(it->output);
+		QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
+					  Q_ARG(QString, QString::fromUtf8(outputError && *outputError ? outputError : it->runtime_error.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_server.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
+	} else if (it->tiktokSession) {
+		it->tiktokSession->ConfirmStarted();
 	}
 }
 
@@ -6673,11 +6875,7 @@ void CanvasDock::CreateStreamOutput(std::vector<StreamServer>::iterator it)
 			if (obs_output_active(it->output)) {
 				obs_output_stop(it->output);
 			}
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			auto old_audio_enc = obs_output_get_audio_encoder(it->output, 0);
 			obs_output_release(it->output);
-			obs_encoder_release(old_enc);
-			obs_encoder_release(old_audio_enc);
 		}
 		std::string name = "vertical_canvas_stream";
 		if (!it->name.empty()) {
@@ -6710,6 +6908,120 @@ void CanvasDock::CreateStreamOutput(std::vector<StreamServer>::iterator it)
 	signal_handler_disconnect(signal, "stop", stream_output_stop, this);
 	signal_handler_connect(signal, "start", stream_output_start, this);
 	signal_handler_connect(signal, "stop", stream_output_stop, this);
+}
+
+bool CanvasDock::PrepareTikTokOutput(std::vector<StreamServer>::iterator it)
+{
+	it->runtime_error.clear();
+	it->active_server = it->stream_server;
+	it->active_key = it->stream_key;
+	it->tiktokSession.reset();
+
+	if (!it->settings) {
+		return true;
+	}
+
+	const std::string method = obs_data_get_string(it->settings, "tiktok_method");
+	if (method.empty() || method == "custom") {
+		return true;
+	}
+
+	TikTokOutputConfig config;
+	config.method = method;
+	config.title = obs_data_get_string(it->settings, "tiktok_title");
+	if (config.title.empty()) {
+		config.title = it->name;
+	}
+	config.rapidApiKey = obs_data_get_string(it->settings, "tiktok_rapidapi_key");
+	config.cookieFilePath = obs_data_get_string(it->settings, "tiktok_cookie_path");
+	config.topicId = obs_data_get_string(it->settings, "tiktok_topic_id");
+	config.gameId = obs_data_get_string(it->settings, "tiktok_game_id");
+	config.matureContent = obs_data_get_bool(it->settings, "tiktok_mature_content");
+	config.liveSettings.allowGifts = obs_data_get_bool(it->settings, "tiktok_allow_gifts");
+	config.liveSettings.allowComments = obs_data_get_bool(it->settings, "tiktok_allow_comments");
+	config.liveSettings.contentDisclosure = obs_data_get_string(it->settings, "tiktok_content_disclosure");
+	if (config.liveSettings.contentDisclosure.empty()) {
+		config.liveSettings.contentDisclosure = "off";
+	}
+	config.streamlabsAccessToken = obs_data_get_string(it->settings, "streamlabs_access_token");
+	config.streamlabsCategory = obs_data_get_string(it->settings, "streamlabs_category");
+	config.streamlabsMatureContent = obs_data_get_bool(it->settings, "streamlabs_mature_content");
+	config.monitorViolations = !obs_data_has_user_value(it->settings, "tiktok_monitor_violations") ||
+		obs_data_get_bool(it->settings, "tiktok_monitor_violations");
+	const char *profiles = obs_data_get_string(it->settings, "tiktok_device_profiles");
+	const auto profileJson = QJsonDocument::fromJson(QByteArray(profiles ? profiles : ""));
+	if (profileJson.isObject()) {
+		config.deviceProfiles = profileJson.object();
+	}
+
+	const char *dualSettings = obs_data_get_string(it->settings, "tiktok_dual_layout");
+	const auto dualJson = QJsonDocument::fromJson(QByteArray(dualSettings ? dualSettings : ""));
+	if (dualJson.isObject()) {
+		const auto dual = dualJson.object();
+		config.dualLayout.enabled = dual.value("enabled").toBool(false);
+		config.dualLayout.reuseCanvasEncoders = dual.value("reuse_canvas_encoders").toBool(true);
+		config.dualLayout.sameAudio = dual.value("same_audio").toBool(true);
+		const auto readAudio = [](const QJsonObject &json, TikTokLayoutAudioConfig &audio) {
+			audio.encoderId = json.value("encoder_id").toString("ffmpeg_aac").toStdString();
+			audio.mixer = json.value("mixer").toInt(0);
+			audio.bitrate = json.value("bitrate").toInt(160);
+			audio.encoderParams = json.value("encoder_params").toObject();
+		};
+		const auto readVideo = [&](const QJsonObject &json, TikTokLayoutVideoConfig &video) {
+			video.sceneUuid = json.value("scene_uuid").toString().toStdString();
+			video.sceneName = json.value("scene_name").toString().toStdString();
+			video.encoderId = json.value("encoder_id").toString().toStdString();
+			video.width = json.value("width").toInt(video.width);
+			video.height = json.value("height").toInt(video.height);
+			video.bitrate = json.value("bitrate").toInt(video.bitrate);
+			video.crop = json.value("crop").toBool(false);
+			video.fpsDivisor = json.value("fps_divisor").toInt(1);
+			video.encoderParams = json.value("encoder_params").toObject();
+			video.canvasUuid = json.value("canvas_uuid").toString().toStdString();
+			readAudio(json.value("audio").toObject(), video.audio);
+		};
+		readAudio(dual.value("shared_audio").toObject(), config.dualLayout.sharedAudio);
+		readVideo(dual.value("portrait").toObject(), config.dualLayout.portrait);
+		readVideo(dual.value("landscape").toObject(), config.dualLayout.landscape);
+	}
+
+	auto session = std::make_shared<TikTokOutputSession>();
+	try {
+		const bool ready = session->Start(config, it->output, [this, it](const QJsonObject &devices) {
+			if (it->settings) {
+				const QByteArray json = QJsonDocument(devices).toJson(QJsonDocument::Compact);
+				obs_data_set_string(it->settings, "tiktok_device_profiles", json.constData());
+				save_canvas();
+			}
+		});
+		if (!ready) {
+			it->runtime_error = session->Error().toUtf8().constData();
+			session->Stop();
+			return false;
+		}
+	} catch (const std::exception &exception) {
+		it->runtime_error = exception.what();
+		session->Stop();
+		return false;
+	} catch (...) {
+		it->runtime_error = "TikTok connection preparation failed.";
+		session->Stop();
+		return false;
+	}
+
+	it->active_server = session->Server();
+	it->active_key = session->Key();
+	it->tiktokSession = std::move(session);
+
+	// Aitum's existing RTMP output receives the dynamic endpoint. No new encoder
+	// is created: StartStreamOutput/StartStream already attached the canvas encoder.
+	auto serviceSettings = obs_data_create();
+	obs_data_set_string(serviceSettings, "server", it->active_server.c_str());
+	obs_data_set_string(serviceSettings, "key", it->active_key.c_str());
+	obs_data_set_string(serviceSettings, "bearer_token", it->active_key.c_str());
+	obs_service_update(it->service, serviceSettings);
+	obs_data_release(serviceSettings);
+	return true;
 }
 
 obs_encoder_t *CanvasDock::GetStreamAudioEncoder()
@@ -6822,6 +7134,56 @@ void CanvasDock::StartStream()
 	obs_encoder_t *video_encoder = nullptr;
 	obs_encoder_t *audio_encoder = nullptr;
 	const bool started_video = StartVideo();
+
+	bool requires_twitch_ebc = false;
+	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
+		if (it->enabled && IsTwitchEbcVerticalEncoderSelected(it->settings)) {
+			requires_twitch_ebc = true;
+			break;
+		}
+	}
+	if (requires_twitch_ebc) {
+		auto ebc_encoder = GetStreamVideoEncoder(true);
+		if (ebc_encoder) {
+			obs_encoder_release(ebc_encoder);
+		} else {
+			auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
+			if (!ConfirmIndependentVerticalEncoderFallback(main_window ? main_window : this)) {
+				blog(LOG_INFO, "[Vertical Canvas] Cancelled Start All because the selected Twitch EBC vertical encoder is unavailable");
+				if (started_video)
+					DestroyVideo();
+				return;
+			}
+			blog(LOG_WARNING, "[Vertical Canvas] User chose to start selected vertical outputs with independent encoders because Twitch EBC is unavailable");
+		}
+	}
+	auto try_set_twitch_ebc_encoder_for_output = [this](obs_output_t *output, obs_data_t *settings) {
+		if (!IsTwitchEbcVerticalEncoderSelected(settings))
+			return false;
+		auto ebc_encoder = GetStreamVideoEncoder(true);
+		if (!ebc_encoder)
+			return false;
+		auto old_encoder = obs_output_get_video_encoder(output);
+		if (old_encoder != ebc_encoder) {
+			obs_output_set_video_encoder(output, ebc_encoder);
+			// The output takes its own reference; release this temporary one.
+			obs_encoder_release(ebc_encoder);
+		} else {
+			obs_encoder_release(ebc_encoder);
+		}
+		return true;
+	};
+	auto set_video_encoder_for_output = [this, &video_encoder](obs_output_t *output) {
+		// All ordinary vertical destinations share one fallback encoder when
+		// Twitch EBC is not available or the destination opted out.
+		if (!video_encoder)
+			video_encoder = GetStreamVideoEncoder();
+		if (video_encoder) {
+			auto old_encoder = obs_output_get_video_encoder(output);
+			if (old_encoder != video_encoder)
+				obs_output_set_video_encoder(output, video_encoder);
+		}
+	};
 	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
 		if (!it->enabled) {
 			continue;
@@ -6839,22 +7201,16 @@ void CanvasDock::StartStream()
 		CreateStreamOutput(it);
 		if (it->settings && obs_data_get_bool(it->settings, "advanced") && obs_get_module("aitum-multistream")) {
 			blog(LOG_INFO, "[Vertical Canvas] Start output '%s' with multistream advanced settings", it->name.c_str());
+			const bool reused_twitch_ebc_encoder =
+				try_set_twitch_ebc_encoder_for_output(it->output, it->settings);
 			auto venc_name = obs_data_get_string(it->settings, "video_encoder");
-			if (!venc_name || venc_name[0] == '\0') {
-				//use main encoder
-				if (!video_encoder) {
-					video_encoder = GetStreamVideoEncoder();
-				} else {
-					video_encoder = obs_encoder_get_ref(video_encoder);
-				}
-				auto old_enc = obs_output_get_video_encoder(it->output);
-				if (old_enc != video_encoder) {
-					obs_output_set_video_encoder(it->output, video_encoder);
-					obs_encoder_release(old_enc);
-				} else {
-					obs_encoder_release(video_encoder);
-				}
-			} else {
+			if (!reused_twitch_ebc_encoder &&
+			    (IsTwitchEbcVerticalEncoderSelected(it->settings) || !venc_name || venc_name[0] == '\0')) {
+				if (IsTwitchEbcVerticalEncoderSelected(it->settings))
+					blog(LOG_WARNING, "[Vertical Canvas] Twitch EBC was selected for '%s' but is unavailable; using the independent vertical encoder.",
+					     it->name.c_str());
+				set_video_encoder_for_output(it->output);
+			} else if (!reused_twitch_ebc_encoder) {
 				obs_data_t *ves_apply = nullptr;
 				auto ves = obs_data_get_obj(it->settings, "video_encoder_settings");
 				if (ves) {
@@ -6902,24 +7258,18 @@ void CanvasDock::StartStream()
 				if (handle) {
 					os_dlclose(handle);
 				}
-				auto old_enc = obs_output_get_video_encoder(it->output);
 				obs_output_set_video_encoder(it->output, venc);
-				obs_encoder_release(old_enc);
+				obs_encoder_release(venc);
 			}
 			auto aenc_name = obs_data_get_string(it->settings, "audio_encoder");
 			if (!aenc_name || aenc_name[0] == '\0') {
 				//use main encoder
-				if (!audio_encoder) {
+				if (!audio_encoder)
 					audio_encoder = GetStreamAudioEncoder();
-				} else {
-					audio_encoder = obs_encoder_get_ref(audio_encoder);
-				}
-				auto old_enc = obs_output_get_audio_encoder(it->output, 0);
-				if (old_enc != audio_encoder) {
-					obs_output_set_audio_encoder(it->output, audio_encoder, 0);
-					obs_encoder_release(old_enc);
-				} else {
-					obs_encoder_release(audio_encoder);
+				if (audio_encoder) {
+					auto old_enc = obs_output_get_audio_encoder(it->output, 0);
+					if (old_enc != audio_encoder)
+						obs_output_set_audio_encoder(it->output, audio_encoder, 0);
 				}
 			} else {
 				obs_data_t *aes_apply = nullptr;
@@ -6935,38 +7285,27 @@ void CanvasDock::StartStream()
 								     obs_data_get_int(it->settings, "audio_track"), nullptr);
 				obs_data_release(aes_apply);
 				obs_encoder_set_audio(aenc, obs_get_audio());
-				auto old_enc = obs_output_get_audio_encoder(it->output, 0);
 				obs_output_set_audio_encoder(it->output, aenc, 0);
-				obs_encoder_release(old_enc);
+				obs_encoder_release(aenc);
 			}
 		} else {
 			blog(LOG_INFO, "[Vertical Canvas] Start output '%s'", it->name.c_str());
-			if (!video_encoder) {
-				video_encoder = GetStreamVideoEncoder();
-			} else {
-				video_encoder = obs_encoder_get_ref(video_encoder);
-			}
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			if (old_enc != video_encoder) {
-				obs_output_set_video_encoder(it->output, video_encoder);
-				obs_encoder_release(old_enc);
-			} else {
-				obs_encoder_release(video_encoder);
-			}
-			if (!audio_encoder) {
+			if (!try_set_twitch_ebc_encoder_for_output(it->output, it->settings))
+				set_video_encoder_for_output(it->output);
+			if (!audio_encoder)
 				audio_encoder = GetStreamAudioEncoder();
-			} else {
-				audio_encoder = obs_encoder_get_ref(audio_encoder);
-			}
-			old_enc = obs_output_get_audio_encoder(it->output, 0);
-			if (old_enc != audio_encoder) {
-				obs_output_set_audio_encoder(it->output, audio_encoder, 0);
-				obs_encoder_release(old_enc);
-			} else {
-				obs_encoder_release(audio_encoder);
+			if (audio_encoder) {
+				auto old_enc = obs_output_get_audio_encoder(it->output, 0);
+				if (old_enc != audio_encoder)
+					obs_output_set_audio_encoder(it->output, audio_encoder, 0);
 			}
 		}
 	}
+
+	if (video_encoder)
+		obs_encoder_release(video_encoder);
+	if (audio_encoder)
+		obs_encoder_release(audio_encoder);
 
 	SendVendorEvent("streaming_starting");
 
@@ -6976,21 +7315,32 @@ void CanvasDock::StartStream()
 		if (!it->enabled) {
 			continue;
 		}
+		it->stopping = false;
+		if (!PrepareTikTokOutput(it)) {
+			it->stopping = true;
+			QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
+						  Q_ARG(QString, QString::fromUtf8(it->runtime_error.c_str())),
+						  Q_ARG(QString, QString::fromUtf8(it->active_server.c_str())),
+					  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
+			continue;
+		}
 		if (config) {
 			OBSDataAutoRelease output_settings = obs_data_create();
 			obs_data_set_string(output_settings, "bind_ip", config_get_string(config, "Output", "BindIP"));
 			obs_data_set_string(output_settings, "ip_family", config_get_string(config, "Output", "IPFamily"));
 			obs_output_update(it->output, output_settings);
 		}
-		it->stopping = false;
 		if (obs_output_start(it->output)) {
 			success = true;
+			if (it->tiktokSession)
+				it->tiktokSession->ConfirmStarted();
 		} else {
 			it->stopping = true;
+			const char *outputError = obs_output_get_last_error(it->output);
 			QMetaObject::invokeMethod(this, "OnStreamStop", Q_ARG(int, OBS_OUTPUT_ERROR),
-						  Q_ARG(QString, QString::fromUtf8(obs_output_get_last_error(it->output))),
-						  Q_ARG(QString, QString::fromUtf8(it->stream_server)),
-						  Q_ARG(QString, QString::fromUtf8(it->stream_key)));
+						  Q_ARG(QString, QString::fromUtf8(outputError && *outputError ? outputError : it->runtime_error.c_str())),
+						  Q_ARG(QString, QString::fromUtf8(it->active_server.c_str())),
+						  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
 		}
 	}
 	if (!success && started_video) {
@@ -7018,35 +7368,51 @@ void CanvasDock::stream_output_start(void *data, calldata_t *calldata)
 {
 	UNUSED_PARAMETER(calldata);
 	auto d = static_cast<CanvasDock *>(data);
-	d->SendVendorEvent("streaming_started");
-	d->CheckReplayBuffer(true);
-	QMetaObject::invokeMethod(d, "OnStreamStart");
+	QMetaObject::invokeMethod(d, [d] {
+		d->SendVendorEvent("streaming_started");
+		d->CheckReplayBuffer(true);
+		d->OnStreamStart();
+	}, Qt::QueuedConnection);
 }
 
 void CanvasDock::stream_output_stop(void *data, calldata_t *calldata)
 {
 	const char *last_error = (const char *)calldata_ptr(calldata, "last_error");
-	QString arg_last_error = QString::fromUtf8(last_error);
+	const QString arg_last_error = QString::fromUtf8(last_error ? last_error : "");
 	const int code = (int)calldata_int(calldata, "code");
 	auto d = static_cast<CanvasDock *>(data);
-	const auto e = obs_data_create();
-	obs_data_set_int(e, "code", code);
-	obs_data_set_string(e, "last_error", last_error ? last_error : "");
-	d->SendVendorEvent("streaming_stopped", e);
-	obs_data_release(e);
-	QString stream_server;
-	QString stream_key;
-	obs_output_t *t = (obs_output_t *)calldata_ptr(calldata, "output");
-	for (auto it = d->streamOutputs.begin(); it != d->streamOutputs.end(); ++it) {
-		if (it->output == t) {
-			stream_server = QString::fromUtf8(it->stream_server);
-			stream_key = QString::fromUtf8(it->stream_key);
-			it->stopping = true;
+	auto *raw_output = (obs_output_t *)calldata_ptr(calldata, "output");
+	std::shared_ptr<obs_output_t> output_ref;
+	if (raw_output) {
+		if (auto *ref = obs_output_get_ref(raw_output)) {
+			output_ref = std::shared_ptr<obs_output_t>(ref, [](obs_output_t *output) {
+				obs_output_release(output);
+			});
 		}
 	}
 
-	QMetaObject::invokeMethod(d, "OnStreamStop", Q_ARG(int, code), Q_ARG(QString, arg_last_error),
-				  Q_ARG(QString, stream_server), Q_ARG(QString, stream_key));
+	// OBS can emit output-stop signals from an RTMP worker thread. Do not read
+	// or mutate streamOutputs, send UI events, or run session teardown here.
+	// Keep the output alive and move all dock state changes to the UI thread.
+	QMetaObject::invokeMethod(d, [d, output_ref, code, arg_last_error] {
+		QString stream_server;
+		QString stream_key;
+		for (auto it = d->streamOutputs.begin(); it != d->streamOutputs.end(); ++it) {
+			if (it->output == output_ref.get()) {
+				stream_server = QString::fromUtf8((it->active_server.empty() ? it->stream_server : it->active_server).c_str());
+				stream_key = QString::fromUtf8((it->active_key.empty() ? it->stream_key : it->active_key).c_str());
+				it->stopping = true;
+				break;
+			}
+		}
+
+		const auto event = obs_data_create();
+		obs_data_set_int(event, "code", code);
+		obs_data_set_string(event, "last_error", arg_last_error.toUtf8().constData());
+		d->SendVendorEvent("streaming_stopped", event);
+		obs_data_release(event);
+		d->OnStreamStop(code, arg_last_error, stream_server, stream_key);
+	}, Qt::QueuedConnection);
 }
 
 void CanvasDock::DestroyVideo()
@@ -7160,6 +7526,7 @@ obs_data_t *CanvasDock::SaveSettings()
 	}
 
 	obs_data_set_int(save_data, "virtual_camera_mode", virtual_cam_mode);
+	obs_data_set_bool(save_data, "draw_safe_areas", drawSafeAreas);
 
 	obs_data_array_t *stream_servers = SaveStreamOutputs();
 	obs_data_set_array(save_data, "stream_outputs", stream_servers);
@@ -7996,7 +8363,32 @@ void CanvasDock::OnStreamStop(int code, QString last_error, QString stream_serve
 {
 	bool active = false;
 	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
-		if (stream_server == QString::fromUtf8(it->stream_server) && stream_key == QString::fromUtf8(it->stream_key)) {
+		const QString activeServer = QString::fromUtf8((it->active_server.empty() ? it->stream_server : it->active_server).c_str());
+		const QString activeKey = QString::fromUtf8((it->active_key.empty() ? it->stream_key : it->active_key).c_str());
+		if (stream_server == activeServer && stream_key == activeKey) {
+			if (it->tiktokSession) {
+				// Stop() runs a nested Qt event loop while the TikTok LIVE end request
+				// completes. A second output-stop callback can therefore be delivered
+				// before the first call returns. Ignore that reentrant callback, and
+				// keep a strong reference so the session cannot be destroyed mid-stop.
+				if (it->tiktokStopInProgress) {
+					blog(LOG_WARNING, "[Vertical Canvas] Ignoring reentrant TikTok stop callback for '%s'",
+					     it->name.c_str());
+					return;
+				}
+				it->tiktokStopInProgress = true;
+				auto session = it->tiktokSession;
+				session->Stop();
+				const QString sessionError = session->Error();
+				if (it->tiktokSession == session)
+					it->tiktokSession.reset();
+				it->tiktokStopInProgress = false;
+				if (last_error.isEmpty() && !sessionError.isEmpty())
+					last_error = sessionError;
+			}
+			it->active_server.clear();
+			it->active_key.clear();
+			it->runtime_error.clear();
 		} else if (obs_output_active(it->output)) {
 			active = true;
 		}
@@ -8060,7 +8452,15 @@ void CanvasDock::OnStreamStop(int code, QString last_error, QString stream_serve
 			blog(LOG_WARNING, "[Vertical Canvas] stream stop error %i", code);
 		}
 	}
-	if (encode_error) {
+	const bool missing_main_canvas_output = code != OBS_OUTPUT_SUCCESS &&
+		last_error.contains(QStringLiteral("OBS Main Canvas streaming output is unavailable"), Qt::CaseInsensitive);
+	if (missing_main_canvas_output) {
+		auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
+		QMessageBox::warning(
+			main_window ? main_window : this,
+			QString::fromUtf8(obs_module_text("TikTok.DualMainOutputMissing.Title")),
+			QString::fromUtf8(obs_module_text("TikTok.DualMainOutputMissing.Message")));
+	} else if (encode_error) {
 		QString msg = last_error.isEmpty()
 				      ? QString::fromUtf8(obs_frontend_get_locale_string("Output.StreamEncodeError.Msg"))
 				      : QString::fromUtf8(obs_frontend_get_locale_string("Output.StreamEncodeError.Msg.LastError"))
@@ -8944,6 +9344,45 @@ void CanvasDock::get_transitions(void *data, struct obs_frontend_source_list *so
 	}
 }
 
+static void PreserveTikTokOutputSettings(obs_data_t *previous, obs_data_t *incoming)
+{
+	if (!previous || !incoming)
+		return;
+
+	static const char *stringKeys[] = {
+		"tiktok_method",
+		"tiktok_title",
+		"tiktok_rapidapi_key",
+		"tiktok_cookie_path",
+		"tiktok_topic_id",
+		"tiktok_game_id",
+		"tiktok_game_name",
+		"streamlabs_category_id",
+		"tiktok_content_disclosure",
+		"tiktok_device_profiles",
+		"tiktok_dual_layout",
+		"streamlabs_access_token",
+		"streamlabs_category",
+	};
+	for (const char *key : stringKeys) {
+		if (obs_data_has_user_value(previous, key))
+			obs_data_set_string(incoming, key, obs_data_get_string(previous, key));
+	}
+
+	static const char *boolKeys[] = {
+		"tiktok_target",
+		"tiktok_allow_gifts",
+		"tiktok_allow_comments",
+		"tiktok_mature_content",
+		"tiktok_monitor_violations",
+		"streamlabs_mature_content",
+	};
+	for (const char *key : boolKeys) {
+		if (obs_data_has_user_value(previous, key))
+			obs_data_set_bool(incoming, key, obs_data_get_bool(previous, key));
+	}
+}
+
 bool CanvasDock::LoadStreamOutputs(obs_data_array_t *outputs)
 {
 	auto count = obs_data_array_count(outputs);
@@ -8953,6 +9392,10 @@ bool CanvasDock::LoadStreamOutputs(obs_data_array_t *outputs)
 		for (size_t i = 0; !found && i < count; i++) {
 			auto item = obs_data_array_item(outputs, i);
 			if (it->name == obs_data_get_string(item, "name")) {
+				// Aitum Multistream may replace the settings object when its output
+				// list changes. Keep Vertical Canvas' TikTok credentials/configuration
+				// attached to the matching destination across that handoff.
+				PreserveTikTokOutputSettings(it->settings, item);
 				it->stream_server = obs_data_get_string(item, "stream_server");
 				it->stream_key = obs_data_get_string(item, "stream_key");
 				it->enabled = obs_data_get_bool(item, "enabled");
@@ -8970,12 +9413,8 @@ bool CanvasDock::LoadStreamOutputs(obs_data_array_t *outputs)
 			if (obs_output_active(it->output)) {
 				obs_output_stop(it->output);
 			}
-			auto old_enc = obs_output_get_video_encoder(it->output);
-			auto old_audio_enc = obs_output_get_audio_encoder(it->output, 0);
 			obs_output_release(it->output);
 			obs_service_release(it->service);
-			obs_encoder_release(old_enc);
-			obs_encoder_release(old_audio_enc);
 			obs_data_release(it->settings);
 			it = streamOutputs.erase(it);
 		} else {

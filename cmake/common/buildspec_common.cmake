@@ -54,7 +54,10 @@ function(_setup_obs_studio)
 
   if(OS_WINDOWS)
     set(_cmake_generator "${CMAKE_GENERATOR}")
-    set(_cmake_arch "-A ${arch},version=${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
+    set(_cmake_arch -A "${arch},version=${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
+    if(CMAKE_GENERATOR_TOOLSET)
+      set(_cmake_toolset -T "${CMAKE_GENERATOR_TOOLSET}")
+    endif()
     set(_cmake_extra "-DCMAKE_SYSTEM_VERSION=${CMAKE_SYSTEM_VERSION} -DCMAKE_ENABLE_SCRIPTING=OFF")
   elseif(OS_MACOS)
     set(_cmake_generator "Xcode")
@@ -66,7 +69,7 @@ function(_setup_obs_studio)
   execute_process(
     COMMAND
       "${CMAKE_COMMAND}" -S "${dependencies_dir}/${_obs_destination}" -B
-      "${dependencies_dir}/${_obs_destination}/build_${arch}" -G ${_cmake_generator} "${_cmake_arch}"
+      "${dependencies_dir}/${_obs_destination}/build_${arch}" -G ${_cmake_generator} ${_cmake_arch} ${_cmake_toolset}
       -DOBS_CMAKE_VERSION:STRING=3.0.0 -DENABLE_PLUGINS:BOOL=OFF -DENABLE_FRONTEND:BOOL=OFF
       -DOBS_VERSION_OVERRIDE:STRING=${_obs_version} "-DCMAKE_PREFIX_PATH='${CMAKE_PREFIX_PATH}'" ${_is_fresh}
       ${_cmake_extra}
@@ -193,15 +196,45 @@ function(_check_dependencies)
 
     if(NOT OBS_DEPENDENCY_${dependency}_${arch}_HASH STREQUAL ${hash})
       file(REMOVE_RECURSE "${dependencies_dir}/${destination}")
+      if(dependency STREQUAL obs-studio)
+        file(GLOB _old_obs_source_dirs LIST_DIRECTORIES TRUE "${dependencies_dir}/*")
+        foreach(_old_obs_source_dir IN LISTS _old_obs_source_dirs)
+          if(IS_DIRECTORY "${_old_obs_source_dir}" AND EXISTS "${_old_obs_source_dir}/CMakeLists.txt")
+            file(REMOVE_RECURSE "${_old_obs_source_dir}")
+          endif()
+        endforeach()
+      endif()
     endif()
 
-    if(NOT EXISTS "${dependencies_dir}/${destination}")
-      file(MAKE_DIRECTORY "${dependencies_dir}/${destination}")
-      if(dependency STREQUAL obs-studio)
+    if(dependency STREQUAL obs-studio)
+      set(_obs_source_directory "")
+      file(GLOB _obs_source_candidates LIST_DIRECTORIES TRUE "${dependencies_dir}/*")
+      foreach(_obs_source_candidate IN LISTS _obs_source_candidates)
+        if(IS_DIRECTORY "${_obs_source_candidate}" AND EXISTS "${_obs_source_candidate}/CMakeLists.txt")
+          set(_obs_source_directory "${_obs_source_candidate}")
+          break()
+        endif()
+      endforeach()
+
+      if(NOT _obs_source_directory)
         file(ARCHIVE_EXTRACT INPUT "${dependencies_dir}/${file}" DESTINATION "${dependencies_dir}")
-      else()
-        file(ARCHIVE_EXTRACT INPUT "${dependencies_dir}/${file}" DESTINATION "${dependencies_dir}/${destination}")
+        file(GLOB _obs_source_candidates LIST_DIRECTORIES TRUE "${dependencies_dir}/*")
+        foreach(_obs_source_candidate IN LISTS _obs_source_candidates)
+          if(IS_DIRECTORY "${_obs_source_candidate}" AND EXISTS "${_obs_source_candidate}/CMakeLists.txt")
+            set(_obs_source_directory "${_obs_source_candidate}")
+            break()
+          endif()
+        endforeach()
       endif()
+
+      if(NOT _obs_source_directory)
+        message(FATAL_ERROR "Unable to locate extracted OBS sources: no top-level CMakeLists.txt found in ${dependencies_dir}")
+      endif()
+      get_filename_component(destination "${_obs_source_directory}" NAME)
+      message(STATUS "Using OBS source directory: ${destination}")
+    elseif(NOT EXISTS "${dependencies_dir}/${destination}")
+      file(MAKE_DIRECTORY "${dependencies_dir}/${destination}")
+      file(ARCHIVE_EXTRACT INPUT "${dependencies_dir}/${file}" DESTINATION "${dependencies_dir}/${destination}")
     endif()
 
     file(WRITE "${dependencies_dir}/.dependency_${dependency}_${arch}.sha256" "${hash}")

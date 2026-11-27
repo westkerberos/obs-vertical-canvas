@@ -5,6 +5,8 @@ on:
     branches:
       - master
       - main
+      - 'feature/tiktok-native-ebc-combined'
+      - 'fix/tiktok-preflight-warnings-20261127'
       - 'release/**'
     tags:
       - '*'
@@ -21,6 +23,8 @@ jobs:
   build-project:
     name: Build Project 🧱
     uses: ./.github/workflows/build-project.yaml
+    with:
+      windowsOnly: true
     secrets: inherit
     permissions:
       contents: read

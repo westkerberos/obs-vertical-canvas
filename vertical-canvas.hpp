@@ -65,6 +65,7 @@ class CanvasScenesDock;
 class CanvasSourcesDock;
 class CanvasTransitionsDock;
 class OBSProjector;
+class TikTokOutputSession;
 
 class StreamServer {
 public:
@@ -76,6 +77,13 @@ public:
 	std::string stream_server;
 	bool enabled = true;
 	bool stopping = false;
+	// Prevent nested OnStreamStop calls from finalizing and releasing the same
+	// TikTok session while Stop() is pumping the Qt event loop.
+	bool tiktokStopInProgress = false;
+	std::shared_ptr<TikTokOutputSession> tiktokSession;
+	std::string active_server;
+	std::string active_key;
+	std::string runtime_error;
 };
 
 class CanvasDock : public QFrame {
@@ -108,6 +116,7 @@ private:
 	std::vector<obs_sceneitem_t *> selectedItems;
 	std::mutex selectMutex;
 	bool drawSpacingHelpers = true;
+	bool drawSafeAreas = false;
 
 	vec2 startPos{};
 	vec2 mousePos{};
@@ -245,6 +254,13 @@ private:
 	gs_vertbuffer_t *rectFill = nullptr;
 	gs_vertbuffer_t *circleFill = nullptr;
 
+	gs_vertbuffer_t *actionSafeMargin = nullptr;
+	gs_vertbuffer_t *graphicsSafeMargin = nullptr;
+	gs_vertbuffer_t *fourByThreeSafeMargin = nullptr;
+	gs_vertbuffer_t *leftLine = nullptr;
+	gs_vertbuffer_t *topLine = nullptr;
+	gs_vertbuffer_t *rightLine = nullptr;
+
 	gs_vertbuffer_t *box = nullptr;
 
 	OBSSourceAutoRelease spacerLabel[4];
@@ -333,6 +349,7 @@ private:
 	void TryRemux(QString path);
 	void StartStreamOutput(std::vector<StreamServer>::iterator it);
 	void CreateStreamOutput(std::vector<StreamServer>::iterator it);
+	bool PrepareTikTokOutput(std::vector<StreamServer>::iterator it);
 
 	void StreamButtonMultiMenu(QMenu *menu);
 
@@ -406,7 +423,7 @@ private slots:
 	void StopVirtualCam();
 	void SetRecordAudioEncoders(obs_output_t *output);
 	obs_encoder_t *GetRecordVideoEncoder();
-	obs_encoder_t *GetStreamVideoEncoder();
+	obs_encoder_t *GetStreamVideoEncoder(bool allow_ebc_encoder_reuse = false);
 	obs_encoder_t *GetStreamAudioEncoder();
 	void ShowNoReplayOutputError();
 	void StartRecord();
