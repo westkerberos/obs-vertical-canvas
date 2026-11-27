@@ -2,6 +2,8 @@
 
 This is the repeatable procedure for requests such as **“OBS updated; bring all WEST plugins up to date.”** Do not start by replacing DLLs or copying the latest upstream installers over the WEST forks.
 
+For a new conversation, start with [NEW-CHAT-START-HERE.md](NEW-CHAT-START-HERE.md), then use this full procedure and the [streaming-stack source of truth](WEST-GAMING-STREAMING-STACK.md). The handoff records exact current commits, artifact IDs/hashes, ownership boundaries, runtime evidence and remaining release gates.
+
 ## 1. Establish the current environment
 
 Record the user's actual versions from the latest OBS log, not from memory:
