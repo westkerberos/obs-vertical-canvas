@@ -21,7 +21,7 @@ Do not replace either fork with the upstream Aitum binary; it would remove WEST 
 
 | Component | Run | Commit | Artifact | Result |
 |---|---|---|---|---|
-| Vertical Canvas 1.6.8 | [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) | 6a05987169096d4c9c00641706766f0c6f90e6a6 | vertical-canvas-1.6.8-windows-x64-6a0598716 | **Success** |
+| Vertical Canvas 1.6.8 | [#46036075188](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46036075188) | merged main `8c64a52994fd10fbc2414ea7bf98e7ee02975f42` | vertical-canvas-1.6.8-windows-x64-8c64a5299 | **Success** |
 | Multistream 1.0.10 | [#46035894193](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/46035894193) | source head `4b1ef9ec1ca3bba92222c3c5f82e2dfeb830d615`; merged main `6d4c0922f60ddd0012778c69dc7584a0cef55d15` | aitum-multistream-1.0.10-windows-x64-3c582ebb5 | **Success** |
 | OBS 33.0.3 win-dshow.dll patch | [#46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651) | source head `80c45786d1cb4659a364b17580d937aaeaa518dc`; merged main `ae7cc2dbcf71a3f6be74579577d47fd90fa452b3` | obs-33.0.3-native-mjpeg-win-dshow | **Success** |
 
