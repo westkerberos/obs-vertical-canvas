@@ -6,6 +6,7 @@ on:
       - master
       - main
       - 'feature/tiktok-native-ebc-combined'
+      - 'fix/tiktok-preflight-warnings-20261127'
       - 'release/**'
     tags:
       - '*'
