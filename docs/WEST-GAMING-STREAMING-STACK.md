@@ -18,6 +18,8 @@
 | OBS DirectShow module | Custom **OBS 33.0.3 `win-dshow.dll`** patch, merged into [maintenance repo main](https://github.com/westkerberos/ChatGPT/commit/ae7cc2dbcf71a3f6be74579577d47fd90fa452b3) | This is a patch to OBS core's DirectShow module, not a third-party Aitum plugin | Latest Windows x64 build [#46035805651](https://github.com/westkerberos/ChatGPT/actions/runs/46035805651) succeeded; runtime MJPEG recording still requires validation |
 | DroidCam OBS (optional) | **2.5.1** | Latest official release inspected on 27 Nov 2026; use the OBS 33-specific installer if reinstalling | User's 27 Nov startup log reports DroidCam release 251; official OBS 33 installer: [DroidCamOBS.Setup.2.5.1.obs33_1.exe](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe) |
 
+For a concise handoff into a future ChatGPT conversation, see [NEW-CHAT-START-HERE.md](NEW-CHAT-START-HERE.md). It includes the exact merged SHAs, build artifact IDs/hashes and remaining validation gates.
+
 The Aitum plugins are a **matched pair**. Do not install the official upstream Aitum binaries over the WEST builds: doing so removes the custom Twitch EBC, TikTok bridge/runtime and pre-flight safeguards. DroidCam is an independent optional plugin; it is not part of the Aitum build or the DirectShow MJPEG patch.
 
 ## 2. Feature ownership and cross-plugin contracts
