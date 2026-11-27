@@ -196,6 +196,57 @@ static obs_encoder_t *CreateTikTokAudioEncoder(const TikTokLayoutAudioConfig &co
 }
 }
 
+// TikTok Dual LIVE's landscape endpoint uses the same H.264/1080p envelope
+// as the vertical feed. When Twitch EBC is active, prefer its existing Main
+// Canvas H.264 track instead of blindly reusing OBS' regular stream encoder
+// (which may be HEVC or larger than 1080p). This reuses an encoder already
+// running for Twitch and does not create another NVENC session.
+static obs_encoder_t *FindTwitchEbcLandscapeEncoder()
+{
+    struct SearchState {
+        obs_encoder_t *encoder = nullptr;
+        uint64_t pixels = 0;
+    } search;
+
+    obs_enum_outputs(
+        [](void *opaque, obs_output_t *output) {
+            auto *search = static_cast<SearchState *>(opaque);
+            static constexpr char ebc_output_prefix[] = "aitum_multi_ebc_output_";
+            const char *output_name = obs_output_get_name(output);
+            if (!output_name ||
+                strncmp(output_name, ebc_output_prefix, sizeof(ebc_output_prefix) - 1) != 0 ||
+                !obs_output_active(output))
+                return true;
+
+            for (size_t index = 0; index < MAX_OUTPUT_VIDEO_ENCODERS; ++index) {
+                // obs_output_get_video_encoder2 returns a borrowed pointer.
+                obs_encoder_t *encoder = obs_output_get_video_encoder2(output, index);
+                if (!encoder)
+                    continue;
+
+                const char *codec = obs_encoder_get_codec(encoder);
+                const uint32_t width = obs_encoder_get_width(encoder);
+                const uint32_t height = obs_encoder_get_height(encoder);
+                if (!codec || strcmp(codec, "h264") != 0 ||
+                    width <= height || width > 1920 || height > 1080)
+                    continue;
+
+                const uint64_t pixels = static_cast<uint64_t>(width) * height;
+                if (pixels > search->pixels) {
+                    if (search->encoder)
+                        obs_encoder_release(search->encoder);
+                    search->encoder = obs_encoder_get_ref(encoder);
+                    search->pixels = pixels;
+                }
+            }
+            return true;
+        },
+        &search);
+
+    return search.encoder;
+}
+
+
 struct TikTokOutputSession::DualFeedState {
     std::unique_ptr<TikTokLayoutScene> portraitScene;
     std::unique_ptr<TikTokLayoutScene> landscapeScene;
@@ -287,7 +338,32 @@ struct TikTokOutputSession::DualFeedState {
             }
             auto mainVideo = obs_output_get_video_encoder(mainOutput);
             auto mainAudio = obs_output_get_audio_encoder(mainOutput, 0);
-            landscapeVideo = mainVideo ? obs_encoder_get_ref(mainVideo) : nullptr;
+
+            // EBC already has a dedicated H.264 Main Canvas track at 1080p.
+            // Prefer it for TikTok landscape: the regular OBS stream may be
+            // HEVC and/or 1440p, which the TikTok RTMP ingest does not accept
+            // consistently. The EBC track is already encoded, so sharing it
+            // adds no new video encoder.
+            landscapeVideo = FindTwitchEbcLandscapeEncoder();
+            if (landscapeVideo) {
+                blog(LOG_INFO,
+                     "[Vertical Canvas] TikTok Dual LIVE reusing Twitch EBC Main Canvas H.264 encoder '%s' (%ux%u) for landscape feed.",
+                     obs_encoder_get_name(landscapeVideo), obs_encoder_get_width(landscapeVideo),
+                     obs_encoder_get_height(landscapeVideo));
+            } else {
+                landscapeVideo = mainVideo ? obs_encoder_get_ref(mainVideo) : nullptr;
+                if (landscapeVideo) {
+                    const char *codec = obs_encoder_get_codec(landscapeVideo);
+                    const uint32_t width = obs_encoder_get_width(landscapeVideo);
+                    const uint32_t height = obs_encoder_get_height(landscapeVideo);
+                    if (!codec || strcmp(codec, "h264") != 0 || width > 1920 || height > 1080) {
+                        blog(LOG_WARNING,
+                             "[Vertical Canvas] No compatible Twitch EBC H.264 landscape track is active; TikTok Dual LIVE is falling back to OBS Main Canvas encoder '%s' (%s %ux%u). TikTok may reject this format.",
+                             obs_encoder_get_name(landscapeVideo), codec ? codec : "unknown", width, height);
+                    }
+                }
+            }
+
             landscapeAudio = mainAudio ? obs_encoder_get_ref(mainAudio) : nullptr;
             obs_output_release(mainOutput);
             if (!landscapeVideo || !landscapeAudio) {
