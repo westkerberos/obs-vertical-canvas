@@ -5,8 +5,8 @@
 
 ## Matched source branches
 
-- Vertical Canvas 1.6.8: [release/obs33.0.3-vertical-1.6.8-west-stack-20261127](https://github.com/westkerberos/obs-vertical-canvas/tree/release/obs33.0.3-vertical-1.6.8-west-stack-20261127)
-- Aitum Multistream 1.0.10: [feature/aitum-twitch-enhanced-broadcasting](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting)
+- Vertical Canvas 1.6.8: [main](https://github.com/westkerberos/obs-vertical-canvas/tree/main)
+- Aitum Multistream 1.0.10: [main](https://github.com/westkerberos/obs-aitum-multistream/tree/main)
 - OBS DirectShow patch: [obs-33.0.3-native-mjpeg](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg)
 
 The two Aitum components must be installed and tested as a pair. Multistream owns Twitch EBC negotiation and its Main Canvas output; Vertical Canvas owns portrait destinations, EBC portrait-video encoder reuse and TikTok runtime/Dual LIVE.
