@@ -6,6 +6,7 @@ on:
       - master
       - main
       - 'feature/tiktok-native-ebc-combined'
+      - 'diagnostic/tiktok-dual-feed-encoder-logging-20261127'
       - 'release/**'
     tags:
       - '*'
