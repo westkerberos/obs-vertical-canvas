@@ -390,7 +390,8 @@ struct TikTokOutputSession::DualFeedState {
         blog(LOG_INFO,
             "[Vertical Canvas] TikTok primary output prepared: name='%s' id='%s' active=%s",
             portraitOutputName ? portraitOutputName : "(unknown)",
-            portraitOutputId ? portraitOutputId : "(unknown)");
+            portraitOutputId ? portraitOutputId : "(unknown)",
+            obs_output_active(primaryOutput) ? "true" : "false");
         const char *landscapeCodec = landscapeVideo ? obs_encoder_get_codec(landscapeVideo) : nullptr;
         if (landscapeCodec && strcmp(landscapeCodec, "hevc") == 0) {
             blog(LOG_WARNING,
