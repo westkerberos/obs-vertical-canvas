@@ -1,181 +1,215 @@
 # WEST Gaming Streaming Stack — Source of Truth
 
-**Status date:** 2026-11-26  
-**Target host:** OBS Studio 33.0.3, Windows x64  
-**Purpose:** Preserve the complete WEST Gaming streaming system when OBS, Aitum upstream plugins, OBS modules or build dependencies change. This document is the system-level map; component-specific guides remain linked below.
+**Status date:** 2026-11-27  
+**Target host:** OBS Studio 33.0.3 · Windows x64  
+**Purpose:** Single operational and engineering reference for the complete WEST Gaming OBS stack. Use this document before changing OBS, either Aitum plugin, DirectShow, DroidCam or the build dependencies.
 
-> This is an engineering inventory, not a release claim. A green CI build is not proof that the full streaming graph works in OBS. Do not install an experimental stack over the production OBS installation until the paired components pass the test matrix at the end of this document.
+> A successful compile proves only that the source built. It does not prove Twitch EBC negotiation, encoder identity/reuse, TikTok authentication/media delivery, Dual LIVE, or the native MJPEG recorder works at runtime. Keep a backup and validate the paired stack before replacing a working OBS installation.
 
-## 1. Required end-to-end behavior
+## 1. Inventory and version matrix
 
-The system must preserve all of the following as one integrated product:
+| Component | Current version / source | Official upstream status | Current evidence |
+|---|---|---|---|
+| OBS Studio | **33.0.3**, Windows x64 | Current target used by the logs and builds in this update | The user's 27 Nov logs are OBS 33.0.3 |
+| WEST Vertical Canvas | **1.6.8**, branch [`release/obs33.0.3-vertical-1.6.8-west-stack-20261127`](https://github.com/westkerberos/obs-vertical-canvas/tree/release/obs33.0.3-vertical-1.6.8-west-stack-20261127) | Ports Aitum Vertical 1.6.8 while retaining WEST TikTok/EBC code | Windows x64 CI [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) succeeded; artifact `vertical-canvas-1.6.8-windows-x64-6a0598716` |
+| WEST Aitum Multistream | **1.0.10**, branch [`feature/aitum-twitch-enhanced-broadcasting`](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting) | Contains Aitum Multistream 1.0.10 upstream changes plus WEST EBC and TikTok bridge | Windows x64 CI [#45899264700](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45899264700) succeeded; artifact `aitum-multistream-1.0.10-windows-x64-6a5578990` |
+| OBS DirectShow module | Custom **OBS 33.0.3 `win-dshow.dll`** patch, branch [`obs-33.0.3-native-mjpeg`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) | This is a patch to OBS core's DirectShow module, not a third-party Aitum plugin | Latest Windows build [#45899269116](https://github.com/westkerberos/ChatGPT/actions/runs/45899269116) succeeded at commit `44d9713aa7752a07e2414edbc16328db1f176b8c`; runtime MJPEG recording still requires validation |
+| DroidCam OBS (optional) | **2.5.1** | Latest official release inspected on 27 Nov 2026; use the OBS 33-specific installer if reinstalling | User's 27 Nov startup log reports DroidCam release 251; official OBS 33 installer: [DroidCamOBS.Setup.2.5.1.obs33_1.exe](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe) |
 
-1. **Twitch landscape + portrait through Twitch Enhanced Broadcasting (EBC).** Aitum Multistream owns the Twitch EBC output and negotiates the available tracks with Twitch. When the Vertical Canvas is present, the Twitch configuration includes both the OBS Main Canvas and the portrait Vertical Canvas.
-2. **Vertical Canvas destinations.** The vertical canvas is independently managed and can feed the configured vertical destinations (for example YouTube, TikTok and Instagram). It is not an optional feature to be removed when updating Multistream or OBS.
-3. **Video encoder reuse.** A vertical destination configured for the Twitch EBC portrait track reuses the portrait video encoder negotiated by Twitch EBC. If the EBC output/track is unavailable, Vertical Canvas falls back to an independent vertical encoder. A destination can also be configured to use its own encoder; the EBC path is opt-in per destination.
-4. **Native TikTok integration.** TikTok configuration, account/session handling, authentication, dynamic endpoint/key acquisition, request signing, LIVE metadata/safety and TikTok Dual LIVE runtime remain owned by Vertical Canvas. The Multistream integration is a configuration/management bridge, not a second TikTok runtime.
-5. **TikTok Dual LIVE.** When the account and method are eligible, portrait uses the Vertical Canvas output and landscape uses active OBS Main Canvas encoders. This is a separate paired-feed feature from Twitch EBC.
-6. **Independent recording/replay paths.** Recording, replay buffer and virtual-camera paths must not accidentally inherit Twitch EBC output tracks or create additional stream encodes unless explicitly configured.
+The Aitum plugins are a **matched pair**. Do not install the official upstream Aitum binaries over the WEST builds: doing so removes the custom Twitch EBC, TikTok bridge/runtime and pre-flight safeguards. DroidCam is an independent optional plugin; it is not part of the Aitum build or the DirectShow MJPEG patch.
 
-Do not review or ship only one item in isolation. A change to either Aitum fork, OBS, output creation, encoder ownership or plugin installation can affect this whole graph.
-
-## 2. Component ownership and contracts
+## 2. Feature ownership and cross-plugin contracts
 
 | Component | Owns | Must not take over |
 |---|---|---|
-| OBS Studio | Main Canvas video/audio, scenes, source graph, core output API, plugin loader | WEST-specific destination/session orchestration |
-| WEST Aitum Multistream fork | Main Canvas destination UI/output lifecycle; Vertical Canvas destination list/start-stop UI; Twitch EBC negotiation/output; TikTok target configuration bridge | TikTok cookies, LIVE session, signing, ingest transport or Dual LIVE runtime |
-| WEST Vertical Canvas fork | Portrait canvas/scenes; vertical destination outputs; EBC portrait-encoder lookup/reuse; shared fallback vertical video encoder; TikTok session/output lifecycle | Twitch EBC negotiation itself; duplicating the Multistream Twitch output |
-| WEST DirectShow patch (`win-dshow.dll`) | Optional native MJPEG camera recorder inside OBS's Windows DirectShow source module | Twitch/Vertical output management; this is not an Aitum plugin |
+| OBS Studio | Main Canvas, source/scene graph, global audio, output API and plugin loading | WEST destination/session policy |
+| WEST Aitum Multistream | Main Canvas destination UI/output lifecycle, Twitch Enhanced Broadcasting negotiation/output, Vertical Canvas destination list/start-stop UI, TikTok configuration bridge | TikTok cookies, LIVE session, signing, TikTok ingest or Dual LIVE runtime |
+| WEST Vertical Canvas | Portrait canvas/scenes, vertical destination outputs, Twitch EBC portrait-video encoder lookup/reuse, shared independent vertical fallback, TikTok account/session/output/safety/Dual LIVE | Twitch EBC negotiation itself or a duplicate Multistream Twitch output |
+| OBS DirectShow patch (`win-dshow.dll`) | Optional packet-level native MJPEG webcam recorder inside OBS's Windows DirectShow module | Aitum output/encoder orchestration |
+| DroidCam OBS | Optional DroidCam camera source | Native DirectShow MJPEG recorder and Aitum streaming outputs |
 
-### Inter-plugin contract
+### Required inter-plugin API contract
 
-- Multistream calls the Vertical Canvas proc-handler `aitum_vertical_configure_tiktok_output` to open/save TikTok-specific destination settings.
-- Multistream obtains and refreshes the vertical output list through `aitum_vertical_get_stream_settings`; it delegates vertical output start/stop through the Vertical Canvas proc-handler API.
-- Vertical Canvas identifies the Twitch EBC output by the output-name prefix `aitum_multi_ebc_output_`.
-- A vertical destination opts into EBC portrait-video reuse through the reserved encoder value `__aitum_twitch_ebc_vertical__`. Older profiles using `use_twitch_ebc_encoder=true` are migrated by the Vertical Canvas/Multistream settings code.
-- Keep these names, settings keys, ownership rules and lifetimes synchronized across both repositories. Renaming a handler, marker, output prefix or stored setting is a coordinated cross-repository change.
+- Multistream opens the TikTok destination editor through `aitum_vertical_configure_tiktok_output`.
+- Multistream obtains the Vertical Canvas destination list via `aitum_vertical_get_stream_settings` and delegates destination start/stop via `aitum_vertical_start_stream_output` and `aitum_vertical_stop_stream_output`.
+- Vertical Canvas identifies Twitch EBC output(s) using the `aitum_multi_ebc_output_` prefix.
+- A vertical destination opts into Twitch EBC portrait-video reuse through the reserved video-encoder value `__aitum_twitch_ebc_vertical__`. Legacy profiles using `use_twitch_ebc_encoder=true` remain supported.
+- Changes to these proc-handler names, output prefixes, marker values, saved settings keys, encoder reference ownership or start/stop callbacks are **cross-repository changes**. Update and build both forks together.
 
-## 3. Twitch EBC and vertical encoder path
+## 3. Encoder routing and operational dependencies
 
-### Twitch side
+### Twitch Enhanced Broadcasting
 
-The Multistream EBC implementation creates a dedicated custom RTMP output named with the prefix `aitum_multi_ebc_output_`. It requests Twitch's client configuration and creates the encoder/track group required by the response. The canvas configuration includes Main Canvas and, when available, the Aitum Vertical portrait canvas. The Main Canvas OBS stream is not silently converted into Twitch EBC; this is a separate Multistream-managed output path.
+Multistream negotiates Twitch EBC and owns the EBC RTMP output. With Vertical Canvas available, the Twitch request contains:
+- Main Canvas (horizontal) tracks.
+- Vertical Canvas (portrait) tracks.
 
-### Vertical side
+Vertical Canvas locates the active Multistream EBC output and reuses the highest-resolution portrait video encoder that matches its vertical canvas. The tested 1080×1920 track is named like `aitum_twitch_ebc_video_3_Twitch Output`.
 
-When a Vertical Canvas destination is configured to use the special EBC vertical encoder:
+This reuses the same OBS video-encoder object; it does not create another vertical NVENC instance for every opted-in destination. The feature is conditional on EBC being active and the track matching. Per-destination independent encoders and the shared independent fallback remain available.
 
-1. Vertical Canvas searches active OBS outputs for the Multistream EBC output prefix.
-2. It inspects the attached video encoders and matches the current vertical canvas video pointer, with a portrait-aspect-ratio fallback for grouped tracks.
-3. It selects the highest-resolution matching portrait encoder and retains an OBS encoder reference for the destination output.
-4. If no matching EBC encoder is available, it logs a warning and falls back to an independent vertical encoder.
+### TikTok Dual LIVE
 
-This means **video/NVENC reuse is conditional**, not a guarantee for every destination or every stream state. Check each destination's encoder selection and the OBS log. New vertical destinations default to the EBC selector in the current Multistream feature branch; existing profiles should be inspected after migration. An explicit encoder choice can opt out.
+Automatic TikTok Dual LIVE has two separate prerequisites:
 
-### Audio is a separate path
+1. **Portrait:** reuses the encoder(s) already attached to the TikTok Vertical Canvas output. When configured for Twitch EBC, that vertical output must be started after Twitch EBC has created its portrait track.
+2. **Landscape:** reuses the active OBS Main Canvas streaming output's video encoder and audio encoder 0. A horizontal Main Canvas stream must already be active before TikTok Dual LIVE starts.
 
-Do not describe the EBC change as sharing every encoder object. Vertical Canvas currently shares one ordinary Vertical Canvas audio encoder among its normal vertical destinations when those outputs use the shared-audio path. That code does not select the same Twitch EBC audio track group. TikTok Dual LIVE has its own audio reuse path for the active Main/Vertical Canvas encoders. Video encoder reuse is the NVENC optimization that must be verified explicitly.
+These are distinct dependencies. Twitch being active does not, by itself, satisfy the Main Canvas requirement. Conversely, YouTube horizontal being active does not provide Twitch's EBC portrait track.
 
-## 4. TikTok integration — preserve all connection methods
+### Recommended pre-flight start order
 
-The TikTok runtime is in Vertical Canvas. The current guide documents these methods:
+Use this predictable sequence for the user's current profile:
 
+1. **Twitch EBC** — start it and wait until Twitch is connected and its EBC tracks are initialized.
+2. **YouTube Vertical** — start only after Twitch EBC; confirm it selects the 1080×1920 EBC track rather than a fallback NVENC.
+3. **YouTube Horizontal** — start the Main Canvas output. This supplies the encoder objects required by TikTok Landscape.
+4. **Instagram Vertical** — start after EBC if its destination is configured to reuse that track.
+5. **TikTok Dual LIVE** — start last, after Portrait's selected encoder is ready and the Main Canvas horizontal output is active.
+
+The exact position of YouTube Vertical and Instagram relative to YouTube Horizontal does not affect TikTok's Main Canvas prerequisite. The order above is the recommended repeatable operator checklist, not a claim that every target requires every preceding destination.
+
+Vertical Canvas now includes explicit pre-flight prompts:
+- If an output is configured for Twitch EBC but the EBC vertical track is unavailable, it asks whether to start Twitch first or explicitly continue with an independent vertical encoder (with a warning about extra encoder load).
+- If TikTok Dual LIVE cannot find an active Main Canvas output, it shows a specific OBS-level warning even when the Vertical Canvas dock is hidden.
+- The EBC pre-flight applies to both individual destination start and Start All.
+
+### Audio is not a single shared EBC path
+
+The EBC reuse optimization primarily concerns **video/NVENC**. Ordinary Vertical Canvas destinations use the Vertical Canvas audio encoder path when sharing audio. TikTok Dual LIVE has its own shared or manual audio behaviour. Do not describe the system as reusing one identical audio/video bitstream across all platforms.
+
+## 4. TikTok feature inventory
+
+The TikTok runtime belongs to Vertical Canvas and must remain intact through upstream updates:
 - Custom RTMP / user-supplied server and stream key.
 - TikTok LIVE Studio Desktop.
-- TikTok LIVE Studio Mobile (camera LIVE and screen-capture modes have different capabilities).
+- TikTok LIVE Studio Mobile (Camera LIVE and screen-capture modes have different capabilities).
 - Streamlabs Desktop.
+- Cookie-backed account sessions, QR login, account refresh, device profiles and quota feedback.
+- LIVE title, topic/game, gifts/comments, content-disclosure and mature-content settings.
+- LIVE safety monitoring and manual violation/appeal workflows where supported by the account and API.
+- Dual LIVE portrait + landscape with automatic reuse or manual advanced layout/encoder overrides.
 
-The native LIVE Studio paths include cookie/session handling, QR login, account lookup, LIVE metadata/topic/game selection, hosted request signing, dynamic ingest details and LIVE safety/violation flows. Do not remove or replace these paths when integrating upstream Vertical Canvas changes.
+Automatic Dual LIVE is documented for eligible LIVE Studio Desktop and Mobile Camera LIVE workflows. It is not the paired-feed mode for Custom RTMP, Streamlabs or Mobile screen capture. Consult [TikTok LIVE](TIKTOK-LIVE.md) for connection and account constraints.
 
-Dual LIVE is currently documented for LIVE Studio Desktop and Mobile Camera LIVE with an eligible account. It is not the paired-feed mode for Custom RTMP, Streamlabs or Mobile screen capture. The default dual-feed mode reuses the active Vertical Canvas portrait encoders and OBS Main Canvas landscape encoders; the Main Canvas stream must be active first.
+The `tiktok-relay` directory is only a JSON-lines control-protocol prototype. It does **not** carry media, implement RTMP/FLV transport or replace the current TikTok runtime.
 
-The separate experimental `tiktok-relay` directory is a JSON-lines control-protocol prototype. It does not carry video/audio media, implement RTMP/FLV transport, session authentication, request signing or Dual LIVE. It must not be presented as a completed process boundary or as the TikTok runtime.
+## 5. DirectShow native MJPEG recorder
 
-Detailed guide: [TikTok LIVE in Vertical Canvas](TIKTOK-LIVE.md).
+The custom camera DLL is a patch to OBS's `plugins/win-dshow` module that builds **`win-dshow.dll`**. It is not the DroidCam plugin and not an Aitum extension.
 
-## 5. DirectShow / 4K native MJPEG webcam recorder
+The optional recorder:
+- Requires an active DirectShow source.
+- Requires `native_mjpeg_record` to be enabled.
+- Requires MJPEG capture at 3840×2160 or higher.
+- Writes the incoming MJPEG packets to MOV without video re-encoding.
+- Attempts PCM S16LE audio from the configured OBS audio source (default `Mic/Aux`); if that source is unavailable, the recorder warns and writes video only.
 
-The DirectShow modification is a separate patch to OBS Studio's `plugins/win-dshow` module, not an Aitum plugin. It adds an optional recorder that writes the incoming MJPEG packets to a MOV file when all of these conditions are met:
+Latest known build: [workflow #45899269116](https://github.com/westkerberos/ChatGPT/actions/runs/45899269116), commit `44d9713aa7752a07e2414edbc16328db1f176b8c`, artifact `obs-33.0.3-native-mjpeg-win-dshow`. This is compile/package evidence only. The actual camera's 4K MJPEG mode, MOV integrity, audio sync, source deactivation/reactivation and long-session handling still need runtime validation.
 
-- The DirectShow source is active.
-- The user enables `native_mjpeg_record`.
-- The selected camera capture format is MJPEG.
-- The capture mode is at least 3840x2160.
-- A valid output directory is configured.
+- [DirectShow patch source](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/obs-33.0.0-beta4-native-mjpeg.patch)
+- [DirectShow implementation and test notes](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/docs/DIRECTSHOW-NATIVE-MJPEG.md)
 
-The current patch also attempts to capture PCM S16LE audio from the named OBS audio source (default `Mic/Aux`); if the source is missing, it warns and writes video only. This is a packet-level recording path, not a video re-encode.
-
-**Current OBS 33.0.3 evidence:** branch `obs-33.0.3-native-mjpeg`, commit `f4ef30142ca4fe70fea712b39322fb2fb6c9fdcf`, built `win-dshow.dll` successfully in [workflow #45898711824](https://github.com/westkerberos/ChatGPT/actions/runs/45898711824). Patch application, source-marker checks, CMake configuration, the `win-dshow` target, and artifact upload all passed. Artifact SHA-256: `06553fda76c1a974e8610a00ac6a41ae6979aabee072ebfc3cc88226d11a3b64`; DLL SHA-256: `EBD7B77E9DA422F9A6ED72BC4661C8387E8889D1BCC1D5EFD1BAC2FCF1ECF9AD`.
-
-This confirms compilation against OBS 33.0.3, not end-to-end camera recording. The real DirectShow MJPEG camera path, MOV output, audio capture and synchronization still require runtime validation. Do not substitute the old OBS 33.0.1 DLL.
-
-Component guide and validation record: [DirectShow native MJPEG recorder](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/docs/DIRECTSHOW-NATIVE-MJPEG.md). Patch source: [DirectShow native MJPEG patch](https://github.com/westkerberos/ChatGPT/blob/obs-33.0.3-native-mjpeg/obs-33.0.0-beta4-native-mjpeg.patch).
-
-## 6. Branch and version matrix
-
-The following are the development branches currently carrying the combined work. The default `main` branches are not the supported combined stack.
-
-| Component | Current integration source | Version declared in fork | Upstream version to port | Status |
-|---|---|---:|---:|---|
-| Vertical Canvas | [`feature/tiktok-native-ebc-combined`](https://github.com/westkerberos/obs-vertical-canvas/tree/feature/tiktok-native-ebc-combined), current head `407799eb58dca76eb4fa55946c8e177810b4726b`, [PR #6](https://github.com/westkerberos/obs-vertical-canvas/pull/6) | 1.6.7 (custom feature-preserving build) | Aitum Vertical 1.6.8 | OBS 33.0.3 Windows build passed; 1.6.8 scene-list fix and new installer path present; Safe Areas intentionally omitted |
-| Aitum Multistream | [`feature/aitum-twitch-enhanced-broadcasting`](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting), current head `98103d39e4e972b649ce912678e273eab8dbf3e7`, [PR #2](https://github.com/westkerberos/obs-aitum-multistream/pull/2) | 1.0.10 | Aitum Multistream 1.0.10 | OBS 33.0.3 Windows build passed; EBC + TikTok bridge retained; upstream reload and installer fixes present |
-| DirectShow MJPEG | [`obs-33.0.3-native-mjpeg`](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg), commit `f4ef30142ca4fe70fea712b39322fb2fb6c9fdcf` | OBS module patch | OBS 33.0.3 | Windows x64 `win-dshow.dll` build passed in workflow #45898711824; runtime camera validation remains |
-| OBS host | [OBS Studio 33.0.3](https://github.com/obsproject/obs-studio/releases/tag/33.0.3) | User target | 33.0.3 | Both Aitum forks now build from OBS 33.0.3 source dependencies; DShow is validated separately |
-
-### OBS 33.0.3 build status
-
-Both Aitum fork `buildspec.json` files now pin the OBS source dependency to **33.0.3** and use the Windows dependency/Qt snapshots dated 2026-10-23.
-
-- Vertical Canvas: [Windows CI #45863996075](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/45863996075), commit `407799eb58dca76eb4fa55946c8e177810b4726b`, success; artifact `vertical-canvas-1.6.7-windows-x64-407799eb5`.
-- Multistream: [Windows CI #45863976132](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45863976132), commit `98103d39e4e972b649ce912678e273eab8dbf3e7`, success; artifact `aitum-multistream-1.0.10-windows-x64-98103d39e`.
-
-These runs establish Windows x64 compilation and packaging against OBS 33.0.3. Vertical's CI also passes its relay control-protocol test. Formatting checks and non-Windows builds are skipped by design. Neither CI run validates actual Twitch EBC negotiation, encoder-object reuse, TikTok authentication/media transport, Dual LIVE, or the paired runtime graph.
-
-## 7. Upstream changes integrated or intentionally excluded
+## 6. Official upstream changes carried forward
 
 ### Aitum Multistream 1.0.10
 
-The companion fork now declares **1.0.10** and contains both relevant upstream changes:
-- [Commit 64ef323](https://github.com/Aitum/obs-aitum-multistream/commit/64ef3233a8b078268adf68ec8427d0bfba68678d): `LoadVerticalOutputs(false)` is called after `LoadSettingsFile()` on `OBS_FRONTEND_EVENT_FINISHED_LOADING`.
-- [Commit 41329c5](https://github.com/Aitum/obs-aitum-multistream/commit/41329c56d8f1254b7b55a2821a44b08abeeab3bb): the OBS 33 ProgramData plugin install layout is present in the Windows installer.
+The WEST fork declares 1.0.10 and carries both official upstream changes:
+- [Aitum commit 64ef323](https://github.com/Aitum/obs-aitum-multistream/commit/64ef3233a8b078268adf68ec8427d0bfba68678d): reload Vertical Canvas outputs after OBS fires `OBS_FRONTEND_EVENT_FINISHED_LOADING`.
+- [Aitum commit 41329c5](https://github.com/Aitum/obs-aitum-multistream/commit/41329c56d8f1254b7b55a2821a44b08abeeab3bb): version 1.0.10 and OBS 33 ProgramData plugin installer paths.
 
-The fork retains the custom Twitch EBC implementation and Vertical Canvas/TikTok configuration bridge. Do not replace it with the official Aitum binary.
+The WEST branch additionally retains the TikTok destination bridge, Twitch EBC negotiation/output and OBS 33.0.3 build configuration. Do not substitute upstream binaries.
 
 ### Aitum Vertical 1.6.8
 
-The WEST Vertical Canvas branch already contains the upstream scene-list loading/order fix from [commit fde49d2](https://github.com/Aitum/obs-vertical-canvas/commit/fde49d2339af4180cf014e4d7a23fc0ebccd9324), and its installer already contains the OBS 33 ProgramData plugin path. The only functional addition in upstream 1.6.8 beyond that baseline is the optional Safe Areas preview UI/rendering change. It is intentionally not imported because the update requirement is to preserve the existing feature set without adding functions. The fork therefore continues to identify its feature-preserving plugin build as 1.6.7.
+The WEST fork declares 1.6.8 and carries:
+- The earlier upstream scene-list loading/order fix (commit [fde49d2](https://github.com/Aitum/obs-vertical-canvas/commit/fde49d2339af4180cf014e4d7a23fc0ebccd9324)).
+- The optional Safe Areas preview feature from [Aitum commit 3751ef7](https://github.com/Aitum/obs-vertical-canvas/commit/3751ef743337b9e7635f52d4e8fc74011596d8d0). It is disabled by default and can be enabled in Vertical Canvas settings.
+- Aitum's 1.6.8 version/manifest changes.
 
-### OBS Studio 33 plugin-loading layout
+The WEST fork deliberately retains its own OBS 33.0.3 buildspec and matching 2026-10-23 dependency pins. Do not copy upstream's older OBS 31.1.0 buildspec over it. The OBS 33 ProgramData installer layout was already present in the WEST branch and remains.
 
-OBS 33 introduced a new third-party plugin layout. Standard Windows installs should use:
+### OBS 33 plugin installation layout
 
+For standard Windows OBS 33 installs, use the third-party plugin path:
 ```text
 C:\ProgramData\obs-studio\plugins\<plugin-name>\<plugin-name>.dll
 C:\ProgramData\obs-studio\plugins\<plugin-name>\data\...
 ```
 
-Portable OBS uses a `plugins\<plugin-name>\<plugin-name>.dll` directory under the portable OBS root; ProgramData is ignored by portable launches. Old `obs-plugins\64bit` layouts are legacy and are scheduled to stop loading in OBS 34.0. References: [OBS legacy plugin locations](https://obsproject.com/kb/legacy-plugin-locations), [developer layout details](https://obsproject.com/kb/legacy-plugin-developer-info).
+For portable OBS, use `plugins\<plugin-name>\<plugin-name>.dll` and its `data` directory under the portable OBS root. Ensure only one copy of each module is active; don't leave a legacy copy in `obs-plugins\64bit` alongside the ProgramData copy. See [OBS legacy plugin locations](https://obsproject.com/kb/legacy-plugin-locations).
 
-This means the earlier portable test ZIP created using the old `obs-plugins` layout must not be treated as the OBS 33.0.3 test package. Repackage it into `plugins\\<plugin-name>\\<plugin-name>.dll` and `plugins\\<plugin-name>\\data\\...`; do not place the module only in the legacy `obs-plugins` directory.
+## 7. Evidence from the 27 November OBS logs
 
-## 8. Test plan — paired stack, not isolated plugins
+The two uploaded logs were created by OBS 33.0.3 on Windows 10 22H2:
+- [12:50:14 log](https://github.com/westkerberos/obs-vertical-canvas) — Multistream 1.0.9.
+- [13:01:00 log](https://github.com/westkerberos/obs-vertical-canvas) — Multistream 1.0.10.
 
-Record the exact OBS build, Windows version, GPU driver, source commit, plugin SHA-256 and log for every test.
+Observed in the 12:50 session:
+- TikTok was initially started without Main Canvas; Vertical Canvas reported `OBS Main Canvas streaming output is unavailable`.
+- A later attempt used the independent vertical encoder because Twitch EBC was not active yet.
+- After Twitch EBC became active, the 1080×1920 track was found and reused; TikTok Portrait and Landscape both connected and remained until the operator stopped them.
+- Earlier landscape attempts had RTMP socket resets while the output was running with missing prerequisites/fallback encoder. The logs do not prove that the fallback alone caused the resets.
 
-1. **Install/load:** clean OBS 33.0.3 portable copy; verify exactly one copy of each plugin is loaded from the intended new plugin path; no missing DLLs or duplicate legacy modules.
-2. **Scene and canvas:** Main Canvas + Vertical Canvas scenes, scene ordering, switching, source transforms, vertical canvas preview and vertical source layout.
-3. **Twitch EBC:** Twitch Main + portrait tracks both appear; check negotiated resolutions/FPS/bitrate; verify all expected tracks are attached to the correct canvases.
-4. **Encoder identity:** log/inspect actual OBS encoder object identity for each vertical target configured for EBC; verify all reuse the same EBC portrait encoder, no new NVENC session is created per destination; test explicit independent encoder and no-EBC fallback.
-5. **Vertical targets:** test YouTube, TikTok and Instagram output independently and together; test Start All, individual start/stop, target edit/save/restart, and profile reload.
-6. **TikTok methods:** Custom RTMP, LIVE Studio Desktop, LIVE Studio Mobile and Streamlabs, each using valid test credentials and with secrets redacted from logs.
-7. **TikTok Dual LIVE:** eligible account; Main Canvas active first; validate portrait and landscape feeds, one-feed failure, manual stop and reconnect/cleanup.
-8. **Network failure/lifecycle:** force a network reset on one destination; verify OBS remains alive, independent destinations continue, session/output references are released and a retry can start.
-9. **NVENC/GPU:** capture encoder-engine usage before, during and after EBC + three vertical outputs; verify no unexpected encoder duplication, GPU saturation or sustained overload.
-10. **DShow MJPEG:** 4K MJPEG source, video-only and video+audio, source hide/show/deactivate, reactivation, stop while callback is active, long-duration recording, path with non-ASCII characters, file integrity and A/V sync.
-11. **Shutdown:** stop all outputs, close OBS, reopen profile, load scenes and targets; repeat at least ten start/stop cycles and one long soak test.
+Observed in the 13:01 session:
+- Twitch EBC started first and created five video encoders, including 1080×1920.
+- YouTube horizontal/Main Canvas started next.
+- TikTok then found/reused the EBC portrait encoder; both portrait and landscape RTMP feeds connected to TikTok and stayed active until manual stop.
+- No TikTok RTMP errors were recorded in that final tested session.
 
-## 9. Release blockers and maintenance policy
+The evidence supports the pre-flight order above. It does not prove all destinations, all TikTok methods, long-duration streaming or all failure paths have been runtime-tested.
 
-- The TikTok-native branch still has unresolved source-license/provenance issues documented in [LICENSING-INVENTORY.md](LICENSING-INVENTORY.md): GPL-3.0-only-derived code is compiled into the GPL-2.0 Aitum-derived module, and a device-registration path has no published license. Do not distribute a combined public binary until this is remediated or independently cleared.
-- No stable combined installer/GitHub Release exists for the current pair.
-- The experimental relay does not resolve the licensing/process-boundary issue.
-- Do not publish "fixed", "OBS 33.0.3 compatible" or "production ready" based on compile success alone.
+## 8. Paired validation matrix
 
-For every OBS or upstream update:
-1. Fetch upstream release notes and exact tag/commit.
-2. Diff upstream changes against each WEST fork.
-3. Check the full feature invariants in section 1 before cherry-picking or merging.
-4. Update buildspec/dependencies and the Windows CI toolchain for the target OBS.
-5. Build Vertical and Multistream from their matching commits.
-6. Run the paired runtime test plan; update the tested-version matrix and SHA-256 artifacts.
-7. Update this document and the component guides in the same change set.
+For every update, record OBS build, Windows build, GPU driver, plugin commit SHAs, artifact names, DLL hashes and the test log. Use a clean portable OBS 33.0.3 test installation before replacing the production profile.
 
-## 10. Project links
+1. Confirm one copy of each plugin loads from the intended OBS 33 plugin path.
+2. Check Main Canvas and Vertical Canvas scenes, source layout, preview and scene changes.
+3. Start Twitch EBC; verify Main Canvas and 1080×1920 portrait tracks.
+4. Start YouTube Vertical and inspect the actual EBC encoder object name/identity.
+5. Start YouTube Horizontal; confirm the Main Canvas output is active.
+6. Start Instagram Vertical and TikTok. Test TikTok Portrait and Dual LIVE separately.
+7. Test Start All and individual start/stop. Confirm pre-flight prompts appear when EBC or Main Canvas prerequisites are missing.
+8. Test one output disconnecting while independent targets remain active; test reconnect and complete shutdown.
+9. Measure NVENC/3D engine use with the intended combination; check for duplicate vertical encoder creation.
+10. Test Custom RTMP, LIVE Studio Desktop, Mobile Camera LIVE, Mobile screen capture restrictions, Streamlabs and Dual LIVE eligibility.
+11. Test DirectShow 4K MJPEG video-only and video+audio; check MOV integrity, timing, source deactivation/reactivation and long recordings.
+12. Test OBS restart/profile switch and at least ten stream start/stop cycles; then perform an extended soak test.
 
-- [WEST Vertical Canvas repository](https://github.com/westkerberos/obs-vertical-canvas)
-- [WEST Multistream repository](https://github.com/westkerberos/obs-aitum-multistream)
-- [DirectShow/MJPEG patch repository](https://github.com/westkerberos/ChatGPT)
+### Current test status (27 November 2026)
+
+| Area | Status |
+|---|---|
+| Vertical Canvas 1.6.8 Windows x64 compile/package against OBS 33.0.3 | **Passed** — workflow [#46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506) |
+| Multistream 1.0.10 Windows x64 compile/package against OBS 33.0.3 | **Passed** — workflow [#45899264700](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45899264700) |
+| DirectShow patched `win-dshow.dll` Windows x64 compile/package against OBS 33.0.3 | **Passed** — workflow [#45899269116](https://github.com/westkerberos/ChatGPT/actions/runs/45899269116) |
+| TikTok Dual LIVE with correct prerequisites, in the user's 13:01 log | **Passed for a short session**; portrait + landscape active until manual stop |
+| Twitch EBC 1080×1920 encoder detection/reuse in 13:01 log | **Observed working** |
+| TikTok missing-prerequisite prompts | **Implemented and compiled in Vertical Canvas 1.6.7 preflight build**; confirm again in 1.6.8 test build |
+| YouTube Vertical and Instagram with EBC in the same paired test session | **Not yet evidenced by the two uploaded logs** |
+| DShow real-camera 4K MJPEG recording, MOV/audio integrity | **Not yet runtime-validated** |
+| Long-duration soak, ten-cycle stop/restart, failure injection | **Pending** |
+
+CI formatting, Linux and macOS jobs are skipped by the current Windows-only fork workflows. Do not claim cross-platform support based on these runs.
+
+## 9. Release and provenance gates
+
+The current TikTok-native source still contains unresolved provenance/licensing questions:
+- at least 24 integration files are identified as derived from GPL-3.0-only projects but are compiled into the same Aitum-derived GPL-2.0 OBS plugin;
+- the desktop/mobile device-registration implementation cites a public repository with no published license.
+
+See [LICENSING-NOTES.md](LICENSING-NOTES.md), [LICENSING-INVENTORY.md](LICENSING-INVENTORY.md), [LICENSING-ARCHITECTURE-OPTIONS.md](LICENSING-ARCHITECTURE-OPTIONS.md) and [TIKTOK-REIMPLEMENTATION-PLAN.md](TIKTOK-REIMPLEMENTATION-PLAN.md). The separate relay remains a control-protocol stub and does not resolve those issues. This is not legal advice. Do not publish a public combined binary or claim license clearance until the provenance is independently cleared or the implementation is remediated.
+
+## 10. Update workflow
+
+When OBS or an upstream plugin changes, follow [UPDATE-PROCEDURE.md](UPDATE-PROCEDURE.md). In short: inventory official releases, diff upstream changes, update the matched pair together, preserve WEST feature invariants, build both components against the exact OBS source/dependency baseline, test the camera patch separately, run the paired runtime matrix, then update all version/commit/hash records in one documentation change.
+
+## 11. Project links
+
+- [WEST Vertical Canvas](https://github.com/westkerberos/obs-vertical-canvas)
+- [WEST Aitum Multistream](https://github.com/westkerberos/obs-aitum-multistream)
+- [DirectShow/MJPEG patch source](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg)
+- [DroidCam OBS 2.5.1, OBS 33 installer](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe)
 - [Aitum Vertical upstream](https://github.com/Aitum/obs-vertical-canvas)
 - [Aitum Multistream upstream](https://github.com/Aitum/obs-aitum-multistream)
 - [OBS Studio upstream](https://github.com/obsproject/obs-studio)
