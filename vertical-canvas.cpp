@@ -1187,7 +1187,6 @@ CanvasDock::CanvasDock(obs_data_t *settings, QWidget *parent)
 
 	setObjectName(QStringLiteral("contextContainer"));
 	setContentsMargins(0, 0, 0, 0);
-	setLayout(mainLayout);
 
 	const QString title = QString::fromUtf8(obs_module_text("Vertical"));
 
@@ -6618,6 +6617,35 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 				obs_encoder_release(ebc_encoder);
 			}
 			reused_twitch_ebc_encoder = true;
+		} else {
+			// The user explicitly selected Twitch EBC. Do not silently add another
+			// vertical encoder when Twitch has not finished creating its EBC tracks.
+			auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
+			QMessageBox prompt(
+				QMessageBox::Warning,
+				QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Title")),
+				QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Message")),
+				QMessageBox::NoButton,
+				main_window ? main_window : this);
+			auto *continue_button = prompt.addButton(
+				QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.Continue")),
+				QMessageBox::AcceptRole);
+			auto *start_twitch_button = prompt.addButton(
+				QString::fromUtf8(obs_module_text("TikTok.EBCUnavailable.StartTwitchFirst")),
+				QMessageBox::RejectRole);
+			prompt.setDefaultButton(start_twitch_button);
+			prompt.exec();
+			if (prompt.clickedButton() != continue_button) {
+				blog(LOG_INFO,
+				     "[Vertical Canvas] Cancelled '%s' start because the selected Twitch EBC vertical encoder is unavailable",
+				     it->name.c_str());
+				if (started_video)
+					DestroyVideo();
+				return;
+			}
+			blog(LOG_WARNING,
+			     "[Vertical Canvas] User chose to continue '%s' with the independent vertical encoder because Twitch EBC is unavailable",
+			     it->name.c_str());
 		}
 	}
 	if (it->settings && obs_data_get_bool(it->settings, "advanced") && obs_get_module("aitum-multistream")) {
@@ -8361,7 +8389,15 @@ void CanvasDock::OnStreamStop(int code, QString last_error, QString stream_serve
 			blog(LOG_WARNING, "[Vertical Canvas] stream stop error %i", code);
 		}
 	}
-	if (encode_error) {
+	const bool missing_main_canvas_output =
+		last_error.contains(QStringLiteral("OBS Main Canvas streaming output is unavailable"), Qt::CaseInsensitive);
+	if (missing_main_canvas_output) {
+		auto *main_window = static_cast<QWidget *>(obs_frontend_get_main_window());
+		QMessageBox::warning(
+			main_window ? main_window : this,
+			QString::fromUtf8(obs_module_text("TikTok.DualMainOutputMissing.Title")),
+			QString::fromUtf8(obs_module_text("TikTok.DualMainOutputMissing.Message")));
+	} else if (encode_error) {
 		QString msg = last_error.isEmpty()
 				      ? QString::fromUtf8(obs_frontend_get_locale_string("Output.StreamEncodeError.Msg"))
 				      : QString::fromUtf8(obs_frontend_get_locale_string("Output.StreamEncodeError.Msg.LastError"))
