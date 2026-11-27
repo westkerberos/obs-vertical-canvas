@@ -15,10 +15,10 @@ A WEST Gaming-maintained fork of [Aitum Vertical Canvas](https://github.com/Aitu
 
 The matching [WEST Aitum Multistream fork](https://github.com/westkerberos/obs-aitum-multistream) owns Twitch EBC negotiation/output and the Multistream vertical-destination bridge. Do not replace either WEST fork with its official upstream binary; that would remove custom integrations.
 
-## Current update candidate
+## Current merged integration
 
-- Vertical Canvas: [1.6.8 integration branch](https://github.com/westkerberos/obs-vertical-canvas/tree/release/obs33.0.3-vertical-1.6.8-west-stack-20261127) — Windows x64 build passed in [CI #46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506).
-- Multistream: [1.0.10 integration branch](https://github.com/westkerberos/obs-aitum-multistream/tree/feature/aitum-twitch-enhanced-broadcasting) — Windows x64 build passed in [CI #45899264700](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45899264700).
+- Vertical Canvas: [1.6.8 main branch](https://github.com/westkerberos/obs-vertical-canvas/tree/main) — Merged to main as commit `8c64a52994fd10fbc2414ea7bf98e7ee02975f42`; Windows x64 build passed in [CI #46034312506](https://github.com/westkerberos/obs-vertical-canvas/actions/runs/46034312506).
+- Multistream: [1.0.10 integration branch](https://github.com/westkerberos/obs-aitum-multistream/tree/main) — Windows x64 build passed in [CI #45899264700](https://github.com/westkerberos/obs-aitum-multistream/actions/runs/45899264700).
 - OBS DirectShow native MJPEG patch: [OBS 33.0.3 branch](https://github.com/westkerberos/ChatGPT/tree/obs-33.0.3-native-mjpeg) — win-dshow.dll build passed in [CI #45899269116](https://github.com/westkerberos/ChatGPT/actions/runs/45899269116).
 - DroidCam OBS: official 2.5.1 is current; the startup log reports release 251. Use the [OBS 33-specific 2.5.1 installer](https://github.com/dev47apps/droidcam-obs-plugin/releases/download/2.5.1/DroidCamOBS.Setup.2.5.1.obs33_1.exe) if reinstalling.
 
