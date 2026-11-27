@@ -6807,7 +6807,18 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 					  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
 		return;
 	}
-	if (!obs_output_start(it->output)) {
+	const bool primaryOutputStarted = obs_output_start(it->output);
+	if (it->tiktokSession) {
+		const char *outputName = obs_output_get_name(it->output);
+		const char *outputId = obs_output_get_id(it->output);
+		const char *outputError = obs_output_get_last_error(it->output);
+		blog(primaryOutputStarted ? LOG_INFO : LOG_ERROR,
+		     "[Vertical Canvas] TikTok primary output start result: name='%s' id='%s' started=%s active=%s last_error='%s'",
+		     outputName ? outputName : "(unknown)", outputId ? outputId : "(unknown)",
+		     primaryOutputStarted ? "true" : "false", obs_output_active(it->output) ? "true" : "false",
+		     outputError && *outputError ? outputError : "(empty)");
+	}
+	if (!primaryOutputStarted) {
 		if (started_video) {
 			DestroyVideo();
 		}
@@ -7330,7 +7341,18 @@ void CanvasDock::StartStream()
 			obs_data_set_string(output_settings, "ip_family", config_get_string(config, "Output", "IPFamily"));
 			obs_output_update(it->output, output_settings);
 		}
-		if (obs_output_start(it->output)) {
+		const bool primaryOutputStarted = obs_output_start(it->output);
+		if (it->tiktokSession) {
+			const char *outputName = obs_output_get_name(it->output);
+			const char *outputId = obs_output_get_id(it->output);
+			const char *outputError = obs_output_get_last_error(it->output);
+			blog(primaryOutputStarted ? LOG_INFO : LOG_ERROR,
+			     "[Vertical Canvas] TikTok primary output start result: name='%s' id='%s' started=%s active=%s last_error='%s'",
+			     outputName ? outputName : "(unknown)", outputId ? outputId : "(unknown)",
+			     primaryOutputStarted ? "true" : "false", obs_output_active(it->output) ? "true" : "false",
+			     outputError && *outputError ? outputError : "(empty)");
+		}
+		if (primaryOutputStarted) {
 			success = true;
 			if (it->tiktokSession)
 				it->tiktokSession->ConfirmStarted();
