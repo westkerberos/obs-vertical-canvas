@@ -2,6 +2,8 @@
 
 #include <list>
 #include <exception>
+#include <memory>
+#include <vector>
 
 #include "version.h"
 
@@ -95,6 +97,14 @@ static bool ConfirmIndependentVerticalEncoderFallback(QWidget *parent)
 }
 
 inline std::list<CanvasDock *> canvas_docks;
+
+// Retain OBS objects process-wide if asynchronous shutdown exceeds its deadline.
+namespace {
+auto *shutdown_output_leases = new std::vector<obs_output_t *>();
+auto *shutdown_stream_leases = new std::vector<StreamServer>();
+auto *shutdown_canvas_leases = new std::vector<std::shared_ptr<obs_canvas_t>>();
+auto *shutdown_source_leases = new std::vector<std::shared_ptr<obs_source_t>>();
+}
 
 void clear_canvas_docks()
 {
@@ -6293,18 +6303,20 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 						search->canvas_width > 0 && search->canvas_height > search->canvas_width &&
 						width > 0 && height > width &&
 						(uint64_t)width * search->canvas_height == (uint64_t)height * search->canvas_width;
+					const bool exact_canvas_resolution =
+						width == search->canvas_width && height == search->canvas_height;
 					blog(LOG_INFO,
-					     "[Aitum Vertical] EBC track[%zu]: '%s' %ux%u active=%s video_match=%s portrait_match=%s video=%p canvas_video=%p",
+					     "[Aitum Vertical] EBC track[%zu]: '%s' %ux%u active=%s video_match=%s portrait_match=%s exact_canvas_resolution=%s video=%p canvas_video=%p",
 					     index, obs_encoder_get_name(encoder), width, height,
 					     obs_encoder_active(encoder) ? "true" : "false",
 					     same_video ? "true" : "false", same_portrait_aspect ? "true" : "false",
+					     exact_canvas_resolution ? "true" : "false",
 					     (void *)encoder_video, (void *)search->canvas_video);
 
-					// Prefer pointer identity. If OBS exposes a different parent
-					// video pointer for a grouped encoder, use the matching portrait
-					// aspect ratio as a fallback; the EBC output contains both main
-					// landscape tracks and the Aitum Vertical portrait tracks.
-					if (!same_video && !same_portrait_aspect)
+					// Aspect ratio alone is insufficient: 360x640 is not an acceptable
+					// replacement for a configured 1080x1920 portrait EBC track.
+					// Returning nullptr triggers the existing explicit fallback prompt.
+					if (!exact_canvas_resolution || (!same_video && !same_portrait_aspect))
 						continue;
 
 					search->matching_encoders++;
@@ -6330,8 +6342,9 @@ obs_encoder_t *CanvasDock::GetStreamVideoEncoder(bool allow_ebc_encoder_reuse)
 		}
 
 		blog(LOG_WARNING,
-		     "[Aitum Vertical] Twitch EBC encoder unavailable for canvas '%s': outputs=%zu inspected=%zu matching=%zu. Using independent vertical encoder fallback.",
+		     "[Aitum Vertical] Exact-resolution Twitch EBC encoder unavailable for canvas '%s' (%ux%u): outputs=%zu inspected=%zu matching=%zu. The caller must ask before using an independent vertical encoder.",
 		     ebc_search.canvas_name ? ebc_search.canvas_name : "(unnamed)",
+		     ebc_search.canvas_width, ebc_search.canvas_height,
 		     ebc_search.matching_outputs, ebc_search.inspected_encoders, ebc_search.matching_encoders);
 		return nullptr;
 	}
