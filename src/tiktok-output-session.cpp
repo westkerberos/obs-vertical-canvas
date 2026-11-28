@@ -19,8 +19,20 @@
 #include <future>
 #include <utility>
 #include <cstring>
+#include <vector>
+#include <util/platform.h>
 
 namespace {
+struct DeferredTikTokLandscapeResources {
+    obs_output_t *output = nullptr;
+    obs_service_t *service = nullptr;
+    std::vector<obs_encoder_t *> encoders;
+};
+
+// Do not free a secondary RTMP output or the encoders it consumes while OBS
+// still reports it active. These references intentionally survive to process exit.
+auto *deferred_tiktok_landscape_resources = new std::vector<DeferredTikTokLandscapeResources>();
+
 class TikTokLayoutScene {
     obs_canvas_t *canvas_ = nullptr;
     obs_scene_t *wrapper_ = nullptr;
@@ -253,8 +265,34 @@ struct TikTokOutputSession::DualFeedState {
         stopping = true;
         if (landscapeOutput && stopConnected)
             signal_handler_disconnect(obs_output_get_signal_handler(landscapeOutput), "stop", LandscapeStopped, this);
-        if (landscapeOutput && obs_output_active(landscapeOutput))
+        if (landscapeOutput && obs_output_active(landscapeOutput)) {
             obs_output_force_stop(landscapeOutput);
+            // force_stop is asynchronous. Keep the service, output and every
+            // encoder reference until OBS confirms that the landscape feed has
+            // detached from the shared Main Canvas encoders.
+            for (int wait = 0; wait < 1000 && obs_output_active(landscapeOutput); ++wait)
+                os_sleep_ms(10);
+        }
+        if (landscapeOutput && obs_output_active(landscapeOutput)) {
+            blog(LOG_ERROR,
+                "[Vertical Canvas] TikTok landscape output remained active after 10 seconds; preserving its output, service and encoder references until process exit");
+            DeferredTikTokLandscapeResources resources;
+            resources.output = landscapeOutput;
+            resources.service = landscapeService;
+            for (auto encoder : {portraitVideo, landscapeVideo, portraitAudio, landscapeAudio, sharedAudio}) {
+                if (encoder)
+                    resources.encoders.push_back(encoder);
+            }
+            deferred_tiktok_landscape_resources->push_back(std::move(resources));
+            landscapeOutput = nullptr;
+            landscapeService = nullptr;
+            portraitVideo = nullptr;
+            landscapeVideo = nullptr;
+            portraitAudio = nullptr;
+            landscapeAudio = nullptr;
+            sharedAudio = nullptr;
+            return;
+        }
         if (landscapeOutput)
             obs_output_release(landscapeOutput);
         if (landscapeService)
