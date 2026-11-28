@@ -210,7 +210,7 @@ void multi_canvas_source_add_canvas(void *data, obs_canvas_t *canvas, uint32_t w
 void multi_canvas_source_remove_canvas(void *data, obs_canvas_t *canvas)
 {
 	struct multi_canvas_info *mc = data;
-	obs_canvas_t *canvas_to_release = nullptr;
+	obs_canvas_t *canvas_to_release = NULL;
 	pthread_mutex_lock(&mc->canvas_mutex);
 	for (size_t i = 0; i < mc->canvas.num; i++) {
 		if (mc->canvas.array[i] == canvas) {
