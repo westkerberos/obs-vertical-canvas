@@ -106,6 +106,60 @@ auto *shutdown_canvas_leases = new std::vector<std::shared_ptr<obs_canvas_t>>();
 auto *shutdown_source_leases = new std::vector<std::shared_ptr<obs_source_t>>();
 }
 
+// Read-only snapshot of the exact OBS objects that obs_output_start() will use.
+// Never write the RTMP URL or stream key to the log.
+static void LogTikTokPrimaryOutputReadiness(const char *startPath, obs_output_t *output,
+					    obs_service_t *expectedService)
+{
+	if (!output) {
+		blog(LOG_ERROR, "[Vertical Canvas] TikTok primary preflight: path='%s' output=(null)",
+		     startPath ? startPath : "(unknown)");
+		return;
+	}
+
+	auto *attachedService = obs_output_get_service(output);
+	auto *videoEncoder = obs_output_get_video_encoder(output);
+	auto *audioEncoder = obs_output_get_audio_encoder(output, 0);
+	const char *server = attachedService ? obs_service_get_connect_info(attachedService, 0) : nullptr;
+	const bool canBegin = obs_output_can_begin_data_capture(output, 0);
+
+	const char *outputName = obs_output_get_name(output);
+	const char *outputId = obs_output_get_id(output);
+	const char *serviceName = attachedService ? obs_service_get_name(attachedService) : nullptr;
+	const char *serviceId = attachedService ? obs_service_get_id(attachedService) : nullptr;
+	const char *videoName = videoEncoder ? obs_encoder_get_name(videoEncoder) : nullptr;
+	const char *videoId = videoEncoder ? obs_encoder_get_id(videoEncoder) : nullptr;
+	const char *videoCodec = videoEncoder ? obs_encoder_get_codec(videoEncoder) : nullptr;
+	const char *audioName = audioEncoder ? obs_encoder_get_name(audioEncoder) : nullptr;
+	const char *audioId = audioEncoder ? obs_encoder_get_id(audioEncoder) : nullptr;
+	const char *audioCodec = audioEncoder ? obs_encoder_get_codec(audioEncoder) : nullptr;
+
+	blog(LOG_INFO,
+	     "[Vertical Canvas] TikTok primary preflight: path='%s' output=%p output_name='%s' output_id='%s' "
+	     "service=%p expected_service=%p service_match=%s service_name='%s' service_id='%s' server_present=%s "
+	     "can_begin_data_capture=%s video=%p video_name='%s' video_id='%s' video_codec='%s' video_size=%ux%u video_active=%s "
+	     "audio=%p audio_name='%s' audio_id='%s' audio_codec='%s' audio_active=%s",
+	     startPath ? startPath : "(unknown)", static_cast<void *>(output),
+	     outputName ? outputName : "(null)", outputId ? outputId : "(null)",
+	     static_cast<void *>(attachedService), static_cast<void *>(expectedService),
+	     attachedService == expectedService ? "true" : "false",
+	     serviceName ? serviceName : "(null)", serviceId ? serviceId : "(null)",
+	     server && *server ? "true" : "false", canBegin ? "true" : "false",
+	     static_cast<void *>(videoEncoder), videoName ? videoName : "(null)",
+	     videoId ? videoId : "(null)", videoCodec ? videoCodec : "(null)",
+	     videoEncoder ? obs_encoder_get_width(videoEncoder) : 0,
+	     videoEncoder ? obs_encoder_get_height(videoEncoder) : 0,
+	     videoEncoder && obs_encoder_active(videoEncoder) ? "true" : "false",
+	     static_cast<void *>(audioEncoder), audioName ? audioName : "(null)",
+	     audioId ? audioId : "(null)", audioCodec ? audioCodec : "(null)",
+	     audioEncoder && obs_encoder_active(audioEncoder) ? "true" : "false");
+
+	if (videoEncoder)
+		obs_encoder_release(videoEncoder);
+	if (audioEncoder)
+		obs_encoder_release(audioEncoder);
+}
+
 void clear_canvas_docks()
 {
 	while (!canvas_docks.empty()) {
@@ -6901,6 +6955,8 @@ void CanvasDock::StartStreamOutput(std::vector<StreamServer>::iterator it)
 					  Q_ARG(QString, QString::fromUtf8(it->active_key.c_str())));
 		return;
 	}
+	if (it->tiktokSession)
+		LogTikTokPrimaryOutputReadiness("individual", it->output, it->service);
 	const bool primaryOutputStarted = obs_output_start(it->output);
 	if (it->tiktokSession) {
 		const char *outputName = obs_output_get_name(it->output);
@@ -7435,7 +7491,9 @@ void CanvasDock::StartStream()
 			obs_data_set_string(output_settings, "ip_family", config_get_string(config, "Output", "IPFamily"));
 			obs_output_update(it->output, output_settings);
 		}
-		const bool primaryOutputStarted = obs_output_start(it->output);
+		if (it->tiktokSession)
+		LogTikTokPrimaryOutputReadiness("start-all", it->output, it->service);
+	const bool primaryOutputStarted = obs_output_start(it->output);
 		if (it->tiktokSession) {
 			const char *outputName = obs_output_get_name(it->output);
 			const char *outputId = obs_output_get_id(it->output);
