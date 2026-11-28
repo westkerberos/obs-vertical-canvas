@@ -19,8 +19,20 @@
 #include <future>
 #include <utility>
 #include <cstring>
+#include <vector>
+#include <util/platform.h>
 
 namespace {
+struct DeferredTikTokLandscapeResources {
+    obs_output_t *output = nullptr;
+    obs_service_t *service = nullptr;
+    std::vector<obs_encoder_t *> encoders;
+};
+
+// Do not free a secondary RTMP output or the encoders it consumes while OBS
+// still reports it active. These references intentionally survive to process exit.
+auto *deferred_tiktok_landscape_resources = new std::vector<DeferredTikTokLandscapeResources>();
+
 class TikTokLayoutScene {
     obs_canvas_t *canvas_ = nullptr;
     obs_scene_t *wrapper_ = nullptr;
@@ -253,8 +265,42 @@ struct TikTokOutputSession::DualFeedState {
         stopping = true;
         if (landscapeOutput && stopConnected)
             signal_handler_disconnect(obs_output_get_signal_handler(landscapeOutput), "stop", LandscapeStopped, this);
-        if (landscapeOutput && obs_output_active(landscapeOutput))
+        if (landscapeOutput && obs_output_active(landscapeOutput)) {
             obs_output_force_stop(landscapeOutput);
+            // force_stop is asynchronous. Keep the service, output and every
+            // encoder reference until OBS confirms that the landscape feed has
+            // detached from the shared Main Canvas encoders.
+            for (int wait = 0; wait < 1000 && obs_output_active(landscapeOutput); ++wait)
+                os_sleep_ms(10);
+        }
+        if (landscapeOutput && obs_output_active(landscapeOutput)) {
+            blog(LOG_ERROR,
+                "[Vertical Canvas] TikTok landscape output remained active after 10 seconds; preserving its output, service and encoder references until process exit");
+            DeferredTikTokLandscapeResources resources;
+            resources.output = landscapeOutput;
+            resources.service = landscapeService;
+            for (auto encoder : {portraitVideo, landscapeVideo}) {
+                if (encoder)
+                    resources.encoders.push_back(encoder);
+            }
+            if (sharedAudio) {
+                resources.encoders.push_back(sharedAudio);
+            } else {
+                if (portraitAudio)
+                    resources.encoders.push_back(portraitAudio);
+                if (landscapeAudio)
+                    resources.encoders.push_back(landscapeAudio);
+            }
+            deferred_tiktok_landscape_resources->push_back(std::move(resources));
+            landscapeOutput = nullptr;
+            landscapeService = nullptr;
+            portraitVideo = nullptr;
+            landscapeVideo = nullptr;
+            portraitAudio = nullptr;
+            landscapeAudio = nullptr;
+            sharedAudio = nullptr;
+            return;
+        }
         if (landscapeOutput)
             obs_output_release(landscapeOutput);
         if (landscapeService)
@@ -385,6 +431,19 @@ struct TikTokOutputSession::DualFeedState {
             obs_encoder_release(portraitAudioForLog);
         LogTikTokEncoder("landscape", "video", landscapeVideo);
         LogTikTokEncoder("landscape", "audio", landscapeAudio);
+        const char *portraitOutputName = obs_output_get_name(primaryOutput);
+        const char *portraitOutputId = obs_output_get_id(primaryOutput);
+        blog(LOG_INFO,
+            "[Vertical Canvas] TikTok primary output prepared: name='%s' id='%s' active=%s",
+            portraitOutputName ? portraitOutputName : "(unknown)",
+            portraitOutputId ? portraitOutputId : "(unknown)",
+            obs_output_active(primaryOutput) ? "true" : "false");
+        const char *landscapeCodec = landscapeVideo ? obs_encoder_get_codec(landscapeVideo) : nullptr;
+        if (landscapeCodec && strcmp(landscapeCodec, "hevc") == 0) {
+            blog(LOG_WARNING,
+                "[Vertical Canvas] TikTok landscape is reusing an HEVC Main Canvas encoder (%ux%u). RTMP ingest compatibility is not guaranteed; TikTok H.264 validation is still required.",
+                obs_encoder_get_width(landscapeVideo), obs_encoder_get_height(landscapeVideo));
+        }
 
         OBSDataAutoRelease outputSettings = obs_output_get_settings(primaryOutput);
         if (!outputSettings)
@@ -415,8 +474,14 @@ struct TikTokOutputSession::DualFeedState {
         obs_data_set_string(settings, "key", key.c_str());
         obs_data_set_string(settings, "bearer_token", key.c_str());
         obs_service_update(landscapeService, settings);
-        if (!obs_output_start(landscapeOutput)) {
-            const char *last = obs_output_get_last_error(landscapeOutput);
+        const bool started = obs_output_start(landscapeOutput);
+        const char *last = obs_output_get_last_error(landscapeOutput);
+        blog(started ? LOG_INFO : LOG_ERROR,
+            "[Vertical Canvas] TikTok landscape output start result: name='%s' started=%s active=%s last_error='%s'",
+            obs_output_get_name(landscapeOutput) ? obs_output_get_name(landscapeOutput) : "(unknown)",
+            started ? "true" : "false", obs_output_active(landscapeOutput) ? "true" : "false",
+            last && *last ? last : "(empty)");
+        if (!started) {
             *error = last && *last ? QString::fromUtf8(last) : QString("Could not start the TikTok landscape feed.");
             return false;
         }

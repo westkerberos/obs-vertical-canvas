@@ -268,6 +268,9 @@ bool SignedSeiSession::transform_packet(SignedVideoCodec codec, const QByteArray
 	}
 
 	const std::vector<PayloadKind> due = due_payloads(stream_timestamp_ms);
+	// No SEI payload is scheduled for this frame. False with an empty
+	// error is the documented no-op result; the packet callback must forward
+	// the original encoded packet unchanged.
 	if (due.empty())
 		return false;
 	if (!ensure_signature(wall_clock_ms, error))
