@@ -279,9 +279,17 @@ struct TikTokOutputSession::DualFeedState {
             DeferredTikTokLandscapeResources resources;
             resources.output = landscapeOutput;
             resources.service = landscapeService;
-            for (auto encoder : {portraitVideo, landscapeVideo, portraitAudio, landscapeAudio, sharedAudio}) {
+            for (auto encoder : {portraitVideo, landscapeVideo}) {
                 if (encoder)
                     resources.encoders.push_back(encoder);
+            }
+            if (sharedAudio) {
+                resources.encoders.push_back(sharedAudio);
+            } else {
+                if (portraitAudio)
+                    resources.encoders.push_back(portraitAudio);
+                if (landscapeAudio)
+                    resources.encoders.push_back(landscapeAudio);
             }
             deferred_tiktok_landscape_resources->push_back(std::move(resources));
             landscapeOutput = nullptr;
