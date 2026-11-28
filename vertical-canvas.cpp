@@ -7492,8 +7492,8 @@ void CanvasDock::StartStream()
 			obs_output_update(it->output, output_settings);
 		}
 		if (it->tiktokSession)
-		LogTikTokPrimaryOutputReadiness("start-all", it->output, it->service);
-	const bool primaryOutputStarted = obs_output_start(it->output);
+			LogTikTokPrimaryOutputReadiness("start-all", it->output, it->service);
+		const bool primaryOutputStarted = obs_output_start(it->output);
 		if (it->tiktokSession) {
 			const char *outputName = obs_output_get_name(it->output);
 			const char *outputId = obs_output_get_id(it->output);
