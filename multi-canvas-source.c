@@ -48,6 +48,11 @@ void multi_canvas_destroy(void *data)
 	for (size_t i = 0; i < mc->renders.num; i++) {
 		gs_texrender_destroy(mc->renders.array[i]);
 	}
+	// Each stored canvas is a strong reference; releasing the source must not
+	// leave the graphics thread with a raw pointer to a destroyed obs_view.
+	for (size_t i = 0; i < mc->canvas.num; i++) {
+		obs_canvas_release(mc->canvas.array[i]);
+	}
 	da_free(mc->renders);
 	pthread_mutex_unlock(&mc->canvas_mutex);
 	pthread_mutex_destroy(&mc->canvas_mutex);
@@ -187,9 +192,14 @@ void multi_canvas_source_add_canvas(void *data, obs_canvas_t *canvas, uint32_t w
 			return;
 		}
 	}
+	obs_canvas_t *canvas_ref = obs_canvas_get_ref(canvas);
+	if (!canvas_ref) {
+		pthread_mutex_unlock(&mc->canvas_mutex);
+		return;
+	}
 	da_push_back(mc->widths, &width);
 	da_push_back(mc->heights, &height);
-	da_push_back(mc->canvas, &canvas);
+	da_push_back(mc->canvas, &canvas_ref);
 	gs_texrender_t *render = gs_texrender_create(GS_RGBA, GS_ZS_NONE);
 	da_push_back(mc->renders, &render);
 
@@ -200,9 +210,11 @@ void multi_canvas_source_add_canvas(void *data, obs_canvas_t *canvas, uint32_t w
 void multi_canvas_source_remove_canvas(void *data, obs_canvas_t *canvas)
 {
 	struct multi_canvas_info *mc = data;
+	obs_canvas_t *canvas_to_release = nullptr;
 	pthread_mutex_lock(&mc->canvas_mutex);
 	for (size_t i = 0; i < mc->canvas.num; i++) {
 		if (mc->canvas.array[i] == canvas) {
+			canvas_to_release = mc->canvas.array[i];
 			gs_texrender_destroy(mc->renders.array[i]);
 			da_erase(mc->canvas, i);
 			da_erase(mc->widths, i);
@@ -213,6 +225,10 @@ void multi_canvas_source_remove_canvas(void *data, obs_canvas_t *canvas)
 	}
 	multi_canvas_update_size(mc);
 	pthread_mutex_unlock(&mc->canvas_mutex);
+	// Render holds the same mutex for the whole obs_canvas_render() call, so
+	// the view is no longer in use when the final source-owned ref is released.
+	if (canvas_to_release)
+		obs_canvas_release(canvas_to_release);
 }
 
 struct obs_source_info multi_canvas_source = {
