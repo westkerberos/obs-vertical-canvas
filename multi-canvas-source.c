@@ -42,16 +42,16 @@ void multi_canvas_destroy(void *data)
 	if (!mc)
 		return;
 	pthread_mutex_lock(&mc->canvas_mutex);
+	// Each stored canvas is a strong reference; release it before freeing the
+	// DARRAY that owns the pointer list.
+	for (size_t i = 0; i < mc->canvas.num; i++) {
+		obs_canvas_release(mc->canvas.array[i]);
+	}
 	da_free(mc->canvas);
 	da_free(mc->widths);
 	da_free(mc->heights);
 	for (size_t i = 0; i < mc->renders.num; i++) {
 		gs_texrender_destroy(mc->renders.array[i]);
-	}
-	// Each stored canvas is a strong reference; releasing the source must not
-	// leave the graphics thread with a raw pointer to a destroyed obs_view.
-	for (size_t i = 0; i < mc->canvas.num; i++) {
-		obs_canvas_release(mc->canvas.array[i]);
 	}
 	da_free(mc->renders);
 	pthread_mutex_unlock(&mc->canvas_mutex);
