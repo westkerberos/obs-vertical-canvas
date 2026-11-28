@@ -1752,148 +1752,183 @@ CanvasDock::~CanvasDock()
 
 	std::list<obs_output_t *> outputsToStop;
 
-	if (obs_output_active(recordOutput)) {
+	// Disconnect callbacks before requesting asynchronous stops. In particular,
+	// stream_output_stop() posts work to this QObject from OBS worker threads.
+	if (recordOutput && obs_output_active(recordOutput)) {
 		obs_output_stop(recordOutput);
 		outputsToStop.push_back(recordOutput);
-	} else {
-		// The output owns its attached encoders; releasing the output releases them.
-		obs_output_release(recordOutput);
 	}
-	recordOutput = nullptr;
 
 	if (replayOutput) {
 		auto rpsh = obs_output_get_signal_handler(replayOutput);
 		signal_handler_disconnect(rpsh, "saved", replay_saved, this);
+		if (obs_output_active(replayOutput)) {
+			obs_output_stop(replayOutput);
+			outputsToStop.push_back(replayOutput);
+		}
 	}
 
-	if (obs_output_active(replayOutput)) {
-		obs_output_stop(replayOutput);
-		outputsToStop.push_back(replayOutput);
-	} else {
-		obs_output_release(replayOutput);
-	}
-	replayOutput = nullptr;
-
-	if (obs_output_active(virtualCamOutput)) {
+	if (virtualCamOutput && obs_output_active(virtualCamOutput)) {
 		obs_output_stop(virtualCamOutput);
 		outputsToStop.push_back(virtualCamOutput);
-	} else {
-		obs_output_release(virtualCamOutput);
 	}
-	virtualCamOutput = nullptr;
 
-	for (auto it = streamOutputs.begin(); it != streamOutputs.end(); ++it) {
-		if (obs_output_active(it->output)) {
-			obs_output_stop(it->output);
-			obs_service_release(it->service);
-			it->service = nullptr;
-			outputsToStop.push_back(it->output);
-		} else {
-			obs_service_release(it->service);
-			obs_output_release(it->output);
+	for (auto &it : streamOutputs) {
+		if (!it.output)
+			continue;
+		auto output_signal = obs_output_get_signal_handler(it.output);
+		signal_handler_disconnect(output_signal, "start", stream_output_start, this);
+		signal_handler_disconnect(output_signal, "stop", stream_output_stop, this);
+		// TikTok Dual LIVE owns a separate landscape output. Stop that feed
+		// explicitly before releasing the session object.
+		if (it.tiktokSession)
+			it.tiktokSession->Stop();
+		if (obs_output_active(it.output)) {
+			obs_output_stop(it.output);
+			outputsToStop.push_back(it.output);
 		}
-		obs_data_release(it->settings);
 	}
-	streamOutputs.clear();
+
+	// Keep output services, encoders, canvases and the multi-canvas source alive
+	// while asynchronous stop callbacks complete. Output->service is borrowed.
+	bool all_outputs_stopped = false;
+	for (int wait = 0; wait < 200; ++wait) {
+		all_outputs_stopped = true;
+		for (auto output : outputsToStop) {
+			if (output && obs_output_active(output)) {
+				all_outputs_stopped = false;
+				break;
+			}
+		}
+		if (all_outputs_stopped)
+			break;
+		os_sleep_ms(100);
+	}
+
+	if (all_outputs_stopped) {
+		// Detach encoder->video links only after every local output stopped and
+		// before the canvas/video context is released.
+		DestroyVideo();
+
+		if (recordOutput) {
+			obs_output_release(recordOutput);
+			recordOutput = nullptr;
+		}
+		if (replayOutput) {
+			obs_output_release(replayOutput);
+			replayOutput = nullptr;
+		}
+		if (virtualCamOutput) {
+			obs_output_release(virtualCamOutput);
+			virtualCamOutput = nullptr;
+		}
+
+		for (auto &it : streamOutputs) {
+			// obs_output_set_service() stores a borrowed pointer. Release the
+			// output first so OBS clears that link, then release the service.
+			if (it.output) {
+				obs_output_release(it.output);
+				it.output = nullptr;
+			}
+			if (it.service) {
+				obs_service_release(it.service);
+				it.service = nullptr;
+			}
+			if (it.settings) {
+				obs_data_release(it.settings);
+				it.settings = nullptr;
+			}
+		}
+		streamOutputs.clear();
+
+		if (multiCanvasSource) {
+			multi_canvas_source_remove_canvas(obs_obj_get_data(multiCanvasSource), canvas);
+			obs_source_release(multiCanvasSource);
+			multiCanvasSource = nullptr;
+		}
+		if (multiCanvasVideo) {
+			multiCanvasVideo = nullptr;
+			if (multiCanvas)
+				obs_canvas_set_channel(multiCanvas, 0, nullptr);
+		}
+		if (multiCanvas) {
+			obs_canvas_remove(multiCanvas);
+			obs_canvas_release(multiCanvas);
+			multiCanvas = nullptr;
+		}
+
+		auto ph = obs_get_proc_handler();
+		calldata_t cd = {0};
+		calldata_set_string(&cd, "canvas_name", CANVAS_NAME);
+		proc_handler_call(ph, "downstream_keyer_remove_canvas", &cd);
+		calldata_free(&cd);
+
+		if (canvas) {
+			obs_canvas_remove(canvas);
+			obs_canvas_release(canvas);
+			canvas = nullptr;
+		}
+	} else {
+		// A timeout is not permission to free objects still used by a worker.
+		// Deliberately retain the outstanding output/session/canvas references
+		// until process exit instead of risking a use-after-free in the renderer.
+		blog(LOG_ERROR,
+		     "[Vertical Canvas] Outputs did not all stop within 20 seconds; preserving active outputs, services, sessions and canvas render resources until process exit");
+		if (recordOutput) {
+			if (obs_output_active(recordOutput))
+				shutdown_output_leases->push_back(recordOutput);
+			else
+				obs_output_release(recordOutput);
+			recordOutput = nullptr;
+		}
+		if (replayOutput) {
+			if (obs_output_active(replayOutput))
+				shutdown_output_leases->push_back(replayOutput);
+			else
+				obs_output_release(replayOutput);
+			replayOutput = nullptr;
+		}
+		if (virtualCamOutput) {
+			if (obs_output_active(virtualCamOutput))
+				shutdown_output_leases->push_back(virtualCamOutput);
+			else
+				obs_output_release(virtualCamOutput);
+			virtualCamOutput = nullptr;
+		}
+		for (auto &it : streamOutputs) {
+			if (it.output && obs_output_active(it.output)) {
+				shutdown_stream_leases->push_back(std::move(it));
+			} else {
+				if (it.output)
+					obs_output_release(it.output);
+				if (it.service)
+					obs_service_release(it.service);
+				if (it.settings)
+					obs_data_release(it.settings);
+			}
+		}
+		streamOutputs.clear();
+
+		// Transfer these owning references without removing canvases or
+		// detaching the multi-canvas source while an output may still consume it.
+		if (multiCanvasSource) {
+			shutdown_source_leases->emplace_back(multiCanvasSource, obs_source_release);
+			multiCanvasSource = nullptr;
+		}
+		if (multiCanvas) {
+			shutdown_canvas_leases->emplace_back(multiCanvas, obs_canvas_release);
+			multiCanvas = nullptr;
+		}
+		if (canvas) {
+			shutdown_canvas_leases->emplace_back(canvas, obs_canvas_release);
+			canvas = nullptr;
+		}
+		multiCanvasVideo = nullptr;
+	}
 
 	obs_data_release(stream_encoder_settings);
 	obs_data_release(record_encoder_settings);
-
-	if (multiCanvasSource) {
-		multi_canvas_source_remove_canvas(obs_obj_get_data(multiCanvasSource), canvas);
-		obs_source_release(multiCanvasSource);
-		multiCanvasSource = nullptr;
-	}
-
-	if (multiCanvasVideo) {
-		multiCanvasVideo = nullptr;
-		obs_canvas_set_channel(multiCanvas, 0, nullptr);
-	}
-	if (multiCanvas) {
-		obs_canvas_remove(multiCanvas);
-		obs_canvas_release(multiCanvas);
-		multiCanvas = nullptr;
-	}
-
-	auto ph = obs_get_proc_handler();
-	calldata_t cd = {0};
-	calldata_set_string(&cd, "canvas_name", CANVAS_NAME);
-	proc_handler_call(ph, "downstream_keyer_remove_canvas", &cd);
-	calldata_free(&cd);
-
-	int wait = 100;
-	while (!outputsToStop.empty()) {
-		for (auto output : outputsToStop) {
-			if (obs_output_active(output)) {
-				continue;
-			}
-			obs_output_release(output);
-			outputsToStop.remove(output);
-			break;
-		}
-		os_sleep_ms(100);
-		wait--;
-		if (wait <= 0) {
-			break;
-		}
-	}
-
-	DestroyVideo();
-
-	if (canvas) {
-		obs_canvas_remove(canvas);
-		obs_canvas_release(canvas);
-		canvas = nullptr;
-	}
-
-	obs_enter_graphics();
-
-	if (overflow) {
-		gs_texture_destroy(overflow);
-	}
-	if (rectFill) {
-		gs_vertexbuffer_destroy(rectFill);
-	}
-	if (circleFill) {
-		gs_vertexbuffer_destroy(circleFill);
-	}
-
-	if (actionSafeMargin) {
-		gs_vertexbuffer_destroy(actionSafeMargin);
-	}
-	if (graphicsSafeMargin) {
-		gs_vertexbuffer_destroy(graphicsSafeMargin);
-	}
-	if (fourByThreeSafeMargin) {
-		gs_vertexbuffer_destroy(fourByThreeSafeMargin);
-	}
-	if (leftLine) {
-		gs_vertexbuffer_destroy(leftLine);
-	}
-	if (topLine) {
-		gs_vertexbuffer_destroy(topLine);
-	}
-	if (rightLine) {
-		gs_vertexbuffer_destroy(rightLine);
-	}
-
-	gs_vertexbuffer_destroy(box);
-	obs_leave_graphics();
-
-	obs_source_t *oldTransition = obs_weak_source_get_source(source);
-	if (oldTransition && obs_source_get_type(oldTransition) == OBS_SOURCE_TYPE_TRANSITION) {
-		obs_weak_source_release(source);
-		source = nullptr;
-		signal_handler_t *handler = obs_source_get_signal_handler(oldTransition);
-		signal_handler_disconnect(handler, "transition_stop", transition_override_stop, this);
-		obs_source_dec_showing(oldTransition);
-		obs_source_dec_active(oldTransition);
-	}
-	obs_source_release(oldTransition);
-
-	transitions.clear();
 }
-
 void CanvasDock::setAction(QAction *a)
 {
 	action = a;
